@@ -15,13 +15,9 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const res = await authService.login(form);
-      login({
-        username: res.data.username,
-        nombre: res.data.nombre,
-        apellido: res.data.apellido,
-        rol: res.data.rol,
-      }, res.data.token);
+      const res = await authService.login({ username: form.username, password: form.password });
+      const data = res.data;
+      login({ username: data.username, nombre: data.nombre, apellido: data.apellido, rol: data.rol }, data.token);
       navigate('/dashboard');
     } catch {
       setError('Usuario o contraseña incorrectos');
@@ -31,143 +27,56 @@ export default function Login() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        {/* Logo */}
-        <div style={styles.logoContainer}>
-          <div style={styles.logoText}>
-            <span style={{ color: '#1B6B6B' }}>SIGE</span><span style={{ color: '#4CAF50' }}>M</span>
+    <div style={S.page}>
+      <div style={S.card}>
+        <div style={S.header}>
+          <div style={S.logoText}>
+            <span style={{ color: '#1B6B6B' }}>SIGE</span>
+            <span style={{ color: '#4CAF50' }}>M</span>
           </div>
-          <p style={styles.logoSub}>Health Development System</p>
+          <p style={S.logoSub}>Sistema Integral de Gestión de Emergencias Médicas</p>
         </div>
 
-        <h2 style={styles.title}>Iniciar Sesión</h2>
-        <p style={styles.subtitle}>Sistema de Emergencias Médicas 107</p>
+        <h2 style={S.title}>Iniciar Sesión</h2>
 
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <div style={styles.field}>
-            <label style={styles.label}>Usuario</label>
-            <input
-              style={styles.input}
-              type="text"
-              placeholder="Ingresá tu usuario"
-              value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
-              required
-            />
+        <form onSubmit={handleSubmit} style={S.form}>
+          <div style={S.field}>
+            <label style={S.label}>Usuario</label>
+            <input style={S.input} type="text" placeholder="Ingresá tu usuario"
+              value={form.username} onChange={e => setForm({ ...form, username: e.target.value })} required />
           </div>
 
-          <div style={styles.field}>
-            <label style={styles.label}>Contraseña</label>
-            <input
-              style={styles.input}
-              type="password"
-              placeholder="Ingresá tu contraseña"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              required
-            />
+          <div style={S.field}>
+            <label style={S.label}>Contraseña</label>
+            <input style={S.input} type="password" placeholder="••••••••"
+              value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
           </div>
 
-          {error && <p style={styles.error}>{error}</p>}
+          {error && <div style={S.error}>{error}</div>}
 
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Ingresando...' : 'Ingresar'}
+          <button type="submit" style={S.btn} disabled={loading}>
+            {loading ? 'Verificando...' : 'Ingresar al Sistema'}
           </button>
         </form>
+
+        <p style={S.footer}>🔒 Acceso seguro — SIGEM Córdoba</p>
       </div>
     </div>
   );
 }
 
-const C = {
-  primary: '#1B6B6B',
-  primaryLight: '#2A9090',
-  green: '#4CAF50',
-  dark: '#0F2A2A',
-  surface: '#F0F7F7',
-  white: '#FFFFFF',
-  error: '#D32F2F',
-  border: '#B2DFDB',
-};
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    background: `linear-gradient(135deg, ${C.dark} 0%, ${C.primary} 60%, ${C.primaryLight} 100%)`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontFamily: "'Segoe UI', sans-serif",
-  },
-  card: {
-    background: C.white,
-    borderRadius: '16px',
-    padding: '48px 40px',
-    width: '100%',
-    maxWidth: '420px',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-  },
-  logoContainer: {
-    textAlign: 'center',
-    marginBottom: '24px',
-  },
-  logoText: {
-    fontSize: '42px',
-    fontWeight: '800',
-    letterSpacing: '2px',
-  },
-  logoSI: { color: C.primary },
-  logoGEM: { color: C.green },
-  logoSub: {
-    color: '#666',
-    fontSize: '11px',
-    letterSpacing: '3px',
-    textTransform: 'uppercase',
-    marginTop: '4px',
-  },
-  title: {
-    textAlign: 'center',
-    color: C.dark,
-    fontSize: '22px',
-    fontWeight: '700',
-    marginBottom: '4px',
-  },
-  subtitle: {
-    textAlign: 'center',
-    color: '#888',
-    fontSize: '13px',
-    marginBottom: '28px',
-  },
+const S = {
+  page: { minHeight: '100vh', background: 'linear-gradient(135deg, #0F2A2A 0%, #1B6B6B 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Segoe UI', sans-serif" },
+  card: { background: '#fff', borderRadius: '16px', padding: '40px 36px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  header: { textAlign: 'center', marginBottom: '28px' },
+  logoText: { fontSize: '40px', fontWeight: '800', letterSpacing: '2px' },
+  logoSub: { color: '#888', fontSize: '12px', margin: '4px 0 0' },
+  title: { textAlign: 'center', fontSize: '20px', fontWeight: '700', color: '#0F2A2A', marginBottom: '24px' },
   form: { display: 'flex', flexDirection: 'column', gap: '16px' },
   field: { display: 'flex', flexDirection: 'column', gap: '6px' },
-  label: { fontSize: '13px', fontWeight: '600', color: C.dark },
-  input: {
-    padding: '12px 14px',
-    borderRadius: '8px',
-    border: `1.5px solid ${C.border}`,
-    fontSize: '14px',
-    outline: 'none',
-    transition: 'border 0.2s',
-  },
-  error: {
-    color: C.error,
-    fontSize: '13px',
-    textAlign: 'center',
-    background: '#FFEBEE',
-    padding: '8px',
-    borderRadius: '6px',
-  },
-  button: {
-    background: `linear-gradient(135deg, ${C.primary}, ${C.primaryLight})`,
-    color: C.white,
-    border: 'none',
-    borderRadius: '8px',
-    padding: '14px',
-    fontSize: '15px',
-    fontWeight: '700',
-    cursor: 'pointer',
-    marginTop: '8px',
-    letterSpacing: '0.5px',
-  },
+  label: { fontSize: '13px', fontWeight: '600', color: '#333' },
+  input: { padding: '12px 14px', borderRadius: '8px', border: '1.5px solid #ddd', fontSize: '14px', outline: 'none', background: '#fafafa' },
+  error: { background: '#FFF3F3', color: '#D32F2F', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', textAlign: 'center' },
+  btn: { background: 'linear-gradient(135deg, #1B6B6B, #2A9090)', color: '#fff', border: 'none', borderRadius: '8px', padding: '13px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', marginTop: '4px' },
+  footer: { textAlign: 'center', color: '#aaa', fontSize: '12px', marginTop: '20px', marginBottom: 0 },
 };

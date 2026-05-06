@@ -1,156 +1,74 @@
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
 
-const rolLabels = {
-  ADM: 'Administrador',
-  ENF: 'Enfermero',
-  JEF: 'Jefe de Enfermería',
-  DES: 'Despachador',
-  DIR: 'Directivo',
+const ROL_INFO = {
+  ADM: { label: 'Administrador', color: '#1B6B6B', desc: 'Acceso completo al sistema', icon: '🔐' },
+  ENF: { label: 'Enfermero', color: '#2E7D32', desc: 'Atención al paciente y registro clínico', icon: '🏥' },
+  JEF: { label: 'Jefe de Enfermería', color: '#1565C0', desc: 'Supervisión de personal', icon: '👔' },
+  DES: { label: 'Despachador', color: '#E65100', desc: 'Coordinación de emergencias', icon: '🚑' },
+  DIR: { label: 'Directivo', color: '#6A1B9A', desc: 'Reportes estratégicos', icon: '📊' },
 };
 
 export default function Dashboard() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const { user } = useAuth();
+  const info = ROL_INFO[user?.rol] || {};
 
   return (
-    <div style={styles.container}>
-      {/* Sidebar */}
-      <aside style={styles.sidebar}>
-        <div style={styles.logoBox}>
-          <span style={{ color: '#fff', fontSize: '28px', fontWeight: '800' }}>
-            SIGE<span style={{ color: '#4CAF50' }}>M</span>
-          </span>
-          <p style={{ color: '#B2DFDB', fontSize: '10px', letterSpacing: '2px' }}>
-            HEALTH DEV SYSTEM
-          </p>
-        </div>
-
-        <nav style={styles.nav}>
-          <button style={{ ...styles.navItem, ...styles.navActive }}>
-            🏠 Dashboard
-          </button>
-          {user?.rol === 'ADM' && (
-            <button
-              style={styles.navItem}
-              onClick={() => navigate('/usuarios')}
-            >
-              👥 Usuarios
-            </button>
-          )}
-        </nav>
-
-        <button onClick={handleLogout} style={styles.logoutBtn}>
-          🚪 Cerrar sesión
-        </button>
-      </aside>
-
-      {/* Main */}
-      <main style={styles.main}>
-        <header style={styles.header}>
+    <div style={S.page}>
+      <Sidebar />
+      <main style={S.main}>
+        <div style={S.heroCard}>
           <div>
-            <h1 style={styles.headerTitle}>Dashboard</h1>
-            <p style={styles.headerSub}>Bienvenido al sistema SIGEM</p>
+            <h1 style={S.h1}>Bienvenido, {user?.nombre} {user?.apellido}</h1>
+            <p style={S.sub}>Sección {info.label || 'de usuario'} — {info.desc}</p>
           </div>
-          <div style={styles.userBadge}>
-            <div style={styles.avatar}>
-              {user?.nombre?.charAt(0)}{user?.apellido?.charAt(0)}
-            </div>
-            <div>
-              <p style={{ fontWeight: '600', fontSize: '14px', margin: 0 }}>
-                {user?.nombre} {user?.apellido}
-              </p>
-              <p style={{ color: '#888', fontSize: '12px', margin: 0 }}>
-                {rolLabels[user?.rol] || user?.rol}
-              </p>
-            </div>
-          </div>
-        </header>
+          <div style={S.roleBadge}>{info.icon}</div>
+        </div>
 
-        {/* Cards */}
-        <div style={styles.cards}>
-          <div style={{ ...styles.card, borderTop: '4px solid #1B6B6B' }}>
-            <p style={styles.cardLabel}>Sistema</p>
-            <p style={styles.cardValue}>Operativo</p>
-            <p style={styles.cardSub}>✅ Todos los servicios activos</p>
-          </div>
-          <div style={{ ...styles.card, borderTop: '4px solid #4CAF50' }}>
-            <p style={styles.cardLabel}>Módulo</p>
-            <p style={styles.cardValue}>Activo</p>
-            <p style={styles.cardSub}>📋 Sprint 1 en progreso</p>
-          </div>
-          <div style={{ ...styles.card, borderTop: '4px solid #FF9800' }}>
-            <p style={styles.cardLabel}>Tu Rol</p>
-            <p style={styles.cardValue}>{rolLabels[user?.rol]}</p>
-            <p style={styles.cardSub}>🔐 Permisos asignados</p>
+        <div style={{ ...S.sectionCard, borderLeft: `6px solid ${info.color}` }}>
+          <div style={S.sectionIcon}>{info.icon}</div>
+          <div>
+            <p style={S.sectionLabel}>Sección {info.label || user?.rol}</p>
+            <p style={S.sectionText}>
+              {info.label
+                ? `Bienvenido a la sección de ${info.label}. Aquí verás la información y el acceso asignado a tu rol.`
+                : 'Tu rol fue autenticado correctamente.'}
+            </p>
           </div>
         </div>
 
-        <div style={styles.welcome}>
-          <h2 style={{ color: '#1B6B6B', marginBottom: '8px' }}>
-            Bienvenido, {user?.nombre}! 👋
-          </h2>
-          <p style={{ color: '#555' }}>
-            Estás conectado como <strong>{rolLabels[user?.rol]}</strong> al
-            Sistema Integral de Gestión de Emergencias Médicas del 107.
-          </p>
+        <div style={S.infoGrid}>
+          <div style={S.infoCard}>
+            <p style={S.infoLabel}>Usuario</p>
+            <p style={S.infoValue}>{user?.username}</p>
+          </div>
+          <div style={S.infoCard}>
+            <p style={S.infoLabel}>Rol</p>
+            <p style={S.infoValue}>{info.label || user?.rol}</p>
+          </div>
+          <div style={S.infoCard}>
+            <p style={S.infoLabel}>Estado</p>
+            <p style={{ ...S.infoValue, color: '#2E7D32' }}>✅ Activo</p>
+          </div>
         </div>
       </main>
     </div>
   );
 }
 
-const styles = {
-  container: { display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif" },
-  sidebar: {
-    width: '240px', background: '#0F2A2A', display: 'flex',
-    flexDirection: 'column', padding: '0', flexShrink: 0,
-  },
-  logoBox: {
-    padding: '28px 20px', borderBottom: '1px solid #1B4A4A',
-    textAlign: 'center',
-  },
-  nav: { flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' },
-  navItem: {
-    background: 'transparent', border: 'none', color: '#B2DFDB',
-    padding: '12px 16px', borderRadius: '8px', textAlign: 'left',
-    cursor: 'pointer', fontSize: '14px', fontWeight: '500',
-  },
-  navActive: { background: '#1B6B6B', color: '#fff' },
-  logoutBtn: {
-    margin: '16px 12px', background: 'transparent', border: '1px solid #1B4A4A',
-    color: '#B2DFDB', padding: '12px', borderRadius: '8px',
-    cursor: 'pointer', fontSize: '13px',
-  },
-  main: { flex: 1, background: '#F0F7F7', padding: '32px' },
-  header: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    marginBottom: '32px',
-  },
-  headerTitle: { fontSize: '28px', fontWeight: '700', color: '#0F2A2A', margin: 0 },
-  headerSub: { color: '#888', margin: '4px 0 0', fontSize: '14px' },
-  userBadge: { display: 'flex', alignItems: 'center', gap: '12px' },
-  avatar: {
-    width: '44px', height: '44px', borderRadius: '50%',
-    background: 'linear-gradient(135deg, #1B6B6B, #4CAF50)',
-    color: '#fff', display: 'flex', alignItems: 'center',
-    justifyContent: 'center', fontWeight: '700', fontSize: '16px',
-  },
-  cards: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '28px' },
-  card: {
-    background: '#fff', borderRadius: '12px', padding: '24px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-  },
-  cardLabel: { color: '#888', fontSize: '12px', textTransform: 'uppercase', margin: '0 0 8px' },
-  cardValue: { color: '#0F2A2A', fontSize: '24px', fontWeight: '700', margin: '0 0 6px' },
-  cardSub: { color: '#666', fontSize: '12px', margin: 0 },
-  welcome: {
-    background: '#fff', borderRadius: '12px', padding: '28px',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-  },
+const S = {
+  page: { display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif" },
+  main: { flex: 1, background: '#F0F7F7', padding: '36px 40px' },
+  heroCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', marginBottom: '28px', padding: '28px', background: '#fff', borderRadius: '18px', boxShadow: '0 16px 40px rgba(0,0,0,0.06)' },
+  h1: { fontSize: '32px', fontWeight: '700', color: '#0F2A2A', margin: 0 },
+  sub: { margin: '10px 0 0', color: '#606f78', fontSize: '15px' },
+  roleBadge: { width: '80px', height: '80px', borderRadius: '24px', background: '#E8F5E9', display: 'grid', placeItems: 'center', fontSize: '34px' },
+  sectionCard: { background: '#fff', borderRadius: '18px', padding: '26px', display: 'flex', gap: '18px', alignItems: 'center', boxShadow: '0 14px 36px rgba(0,0,0,0.05)', marginBottom: '24px' },
+  sectionIcon: { fontSize: '40px' },
+  sectionLabel: { color: '#888', fontSize: '12px', textTransform: 'uppercase', margin: 0 },
+  sectionText: { fontSize: '16px', color: '#47525d', margin: '8px 0 0' },
+  infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '18px' },
+  infoCard: { background: '#fff', borderRadius: '18px', padding: '24px', boxShadow: '0 14px 36px rgba(0,0,0,0.05)' },
+  infoLabel: { color: '#8a9ba8', fontSize: '11px', textTransform: 'uppercase', margin: 0 },
+  infoValue: { fontSize: '18px', fontWeight: '700', color: '#12222d', margin: '10px 0 0' },
 };

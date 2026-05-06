@@ -3,6 +3,7 @@ package com.sigem.backend.config;
 import com.sigem.backend.security.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -52,6 +53,8 @@ public class SecurityConfig {
                 // Definimos qué rutas son públicas y cuáles requieren autenticación
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()  // Login es público
+                        .requestMatchers(HttpMethod.PUT, "/api/usuarios/*/estado").hasRole("ADM")
+                        .requestMatchers("/api/usuarios/**").hasRole("ADM")
                         .anyRequest().authenticated()                  // Todo lo demás requiere JWT
                 )
 

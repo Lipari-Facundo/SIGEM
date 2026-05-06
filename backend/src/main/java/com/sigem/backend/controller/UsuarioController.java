@@ -48,11 +48,18 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.modificar(id, dto));
     }
 
-    // CU-A07 — Desactivar usuario (solo ADM)
+    // CU-A09 — Activar / desactivar usuario (solo ADM)
+    @PutMapping("/{id}/estado")
+    @PreAuthorize("hasRole('ADM')")
+    public ResponseEntity<Usuario> cambiarEstado(@PathVariable Long id, @RequestBody UsuarioDTO dto) {
+        return ResponseEntity.ok(usuarioService.cambiarEstado(id, dto.isActivo()));
+    }
+
+    // CU-A07 — Eliminar usuario definitivamente (solo ADM)
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADM')")
-    public ResponseEntity<Void> desactivar(@PathVariable Long id) {
-        usuarioService.desactivar(id);
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        usuarioService.eliminar(id);
         return ResponseEntity.noContent().build();
     }
 }

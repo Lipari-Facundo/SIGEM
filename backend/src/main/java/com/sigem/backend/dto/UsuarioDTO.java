@@ -1,6 +1,7 @@
 package com.sigem.backend.dto;
 
 import com.sigem.backend.model.Rol;
+import com.fasterxml.jackson.annotation.JsonFormat;
 
 public class UsuarioDTO {
 
@@ -10,6 +11,7 @@ public class UsuarioDTO {
     private String nombre;
     private String apellido;
     private String email;
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Rol rol;
     private boolean activo;
 

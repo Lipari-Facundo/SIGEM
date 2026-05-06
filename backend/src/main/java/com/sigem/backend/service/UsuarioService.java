@@ -3,11 +3,14 @@ package com.sigem.backend.service;
 import com.sigem.backend.dto.UsuarioDTO;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.UsuarioRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -16,6 +19,9 @@ public class UsuarioService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
@@ -37,6 +43,7 @@ public class UsuarioService implements UserDetailsService {
         if (usuarioRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("El email ya está en uso");
         }
+        validarPassword(dto.getPassword());
 
         Usuario usuario = new Usuario();
         usuario.setUsername(dto.getUsername());
@@ -48,11 +55,6 @@ public class UsuarioService implements UserDetailsService {
         usuario.setActivo(true);
 
         return usuarioRepository.save(usuario);
-    }
-
-    // Listar todos los usuarios
-    public List<Usuario> listarTodos() {
-        return usuarioRepository.findAll();
     }
 
     // Buscar por ID
@@ -69,15 +71,43 @@ public class UsuarioService implements UserDetailsService {
         usuario.setEmail(dto.getEmail());
         usuario.setRol(dto.getRol());
         if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
+            validarPassword(dto.getPassword());
             usuario.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
         return usuarioRepository.save(usuario);
     }
 
-    // Desactivar usuario (soft delete — no se borra, se desactiva)
-    public void desactivar(Long id) {
+    // Cambiar estado activo/inactivo de un usuario
+    @Transactional
+    public Usuario cambiarEstado(Long id, boolean activo) {
         Usuario usuario = buscarPorId(id);
-        usuario.setActivo(false);
-        usuarioRepository.save(usuario);
+        usuario.setActivo(activo);
+        Usuario updated = usuarioRepository.save(usuario);
+        usuarioRepository.flush();
+        entityManager.clear();
+        return updated;
+    }
+
+    // Eliminar usuario definitivamente
+    @Transactional
+    public void eliminar(Long id) {
+        Usuario usuario = buscarPorId(id);
+        usuarioRepository.delete(usuario);
+        usuarioRepository.flush();
+        entityManager.clear();
+    }
+
+    public List<Usuario> listarTodos() {
+        entityManager.clear();
+        return usuarioRepository.findAll();
+    }
+
+    private void validarPassword(String password) {
+        if (password == null || password.isBlank()) {
+            throw new RuntimeException("La contraseña es obligatoria");
+        }
+        if (!password.matches("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{8,}$")) {
+            throw new RuntimeException("La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.");
+        }
     }
 }

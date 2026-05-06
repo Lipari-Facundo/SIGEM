@@ -33,7 +33,15 @@ export const usuarioService = {
   listar: () => api.get('/usuarios'),
   crear: (data) => api.post('/usuarios', data),
   modificar: (id, data) => api.put(`/usuarios/${id}`, data),
-  desactivar: (id) => api.delete(`/usuarios/${id}`),
+  cambiarEstado: (id, activo) => api.put(`/usuarios/${id}/estado`, { activo }),
+  eliminar: (id) => api.delete(`/usuarios/${id}`),
+};
+
+export const empleadoService = {
+  listar: () => api.get('/empleados'),
+  crear: (data) => api.post('/empleados', data),
+  modificar: (id, data) => api.put(`/empleados/${id}`, data),
+  eliminar: (id) => api.delete(`/empleados/${id}`),
 };
 
 export default api;
