@@ -189,18 +189,20 @@ export default function Usuarios() {
                     </span>
                   </td>
                   <td style={S.td}>
-                    <button onClick={() => abrirEditar(u)} style={S.btnEdit}>Editar</button>
-                    {u.username !== user?.username && (
-                      <>
-                        <button
-                          onClick={() => cambiarEstado(u.id, !u.activo)}
-                          style={u.activo ? S.btnToggleOff : S.btnToggleOn}
-                        >
-                          {u.activo ? 'Desactivar' : 'Activar'}
-                        </button>
-                        <button onClick={() => eliminar(u.id)} style={S.btnDanger}>Eliminar</button>
-                      </>
-                    )}
+                    <div style={S.actionButtons}>
+                      <button onClick={() => abrirEditar(u)} style={S.btnEdit}>Editar</button>
+                      {u.username !== user?.username && (
+                        <>
+                          <button
+                            onClick={() => cambiarEstado(u.id, !u.activo)}
+                            style={u.activo ? S.btnToggleOff : S.btnToggleOn}
+                          >
+                            {u.activo ? 'Desactivar' : 'Activar'}
+                          </button>
+                          <button onClick={() => eliminar(u.id)} style={S.btnDanger}>Eliminar</button>
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -311,18 +313,18 @@ const S = {
   badge: { padding: '4px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
   btnPrimary: { background: 'linear-gradient(135deg, #1B6B6B, #2A9090)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   btnSecondary: { background: '#F0F7F7', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer', fontSize: '14px' },
-  btnEdit: { background: '#E3F2FD', color: '#1565C0', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px', marginRight: '8px' },
-  btnToggleOn: { background: '#1B6B6B', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px', marginRight: '8px' },
-  btnToggleOff: { background: '#F0F7F7', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px', marginRight: '8px' },
+  btnEdit: { background: '#E3F2FD', color: '#1565C0', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px', marginBottom: '4px' },
+  btnToggleOn: { background: '#1B6B6B', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px', marginBottom: '4px' },
+  btnToggleOff: { background: '#F0F7F7', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px', marginBottom: '4px' },
   btnDanger: { background: '#FFEBEE', color: '#C62828', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px' },
-  actionButtons: { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
+  actionButtons: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal: { background: '#fff', borderRadius: '16px', padding: '32px', width: '560px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   modalTitle: { color: '#0F2A2A', fontSize: '20px', fontWeight: '700', marginBottom: '24px' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' },
   field: { display: 'flex', flexDirection: 'column', gap: '6px' },
   label: { fontSize: '13px', fontWeight: '600', color: '#333' },
-  input: { padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #B2DFDB', fontSize: '14px', outline: 'none' },
+  input: { padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #B2DFDB', fontSize: '14px', outline: 'none', background: '#fff', color: '#333' },
   helpText: { fontSize: '12px', color: '#666', margin: '4px 0 0' },
   modalActions: { display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' },
 };

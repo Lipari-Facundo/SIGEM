@@ -75,7 +75,7 @@ const S = {
   form: { display: 'flex', flexDirection: 'column', gap: '16px' },
   field: { display: 'flex', flexDirection: 'column', gap: '6px' },
   label: { fontSize: '13px', fontWeight: '600', color: '#333' },
-  input: { padding: '12px 14px', borderRadius: '8px', border: '1.5px solid #ddd', fontSize: '14px', outline: 'none', background: '#fafafa' },
+  input: { padding: '12px 14px', borderRadius: '8px', border: '1.5px solid #ddd', fontSize: '14px', outline: 'none', background: '#fff', color: '#333' },
   error: { background: '#FFF3F3', color: '#D32F2F', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', textAlign: 'center' },
   btn: { background: 'linear-gradient(135deg, #1B6B6B, #2A9090)', color: '#fff', border: 'none', borderRadius: '8px', padding: '13px', fontSize: '15px', fontWeight: '700', cursor: 'pointer', marginTop: '4px' },
   footer: { textAlign: 'center', color: '#aaa', fontSize: '12px', marginTop: '20px', marginBottom: 0 },
