@@ -1,0 +1,10 @@
+services:
+  db:
+    image: postgres:latest
+    container_name: sigem-db
+    environment:
+      POSTGRES_USER: sigem
+      POSTGRES_PASSWORD: sigem123
+      POSTGRES_DB: sigem_dev
+    ports:
+      - "5433:5432"

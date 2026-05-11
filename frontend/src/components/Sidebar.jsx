@@ -53,7 +53,10 @@ export default function Sidebar() {
           <div style={S.userRol}>{rolLabels[user?.rol]}</div>
         </div>
         <button onClick={() => { logout(); navigate('/login'); }} style={S.logoutBtn} title="Cerrar sesión">
-          ⏻
+          <svg viewBox="0 0 24 24" style={S.logoutIcon} aria-hidden="true">
+            <path d="M13 7H7a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M17 8l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
       </div>
     </aside>
@@ -97,7 +100,12 @@ const S = {
   userName: { color: '#fff', fontSize: '13px', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   userRol: { color: '#8b949e', fontSize: '11px' },
   logoutBtn: {
-    background: 'transparent', border: 'none', color: '#8b949e',
-    cursor: 'pointer', fontSize: '18px', padding: '4px', flexShrink: 0,
+    width: '42px', height: '42px', borderRadius: '50%',
+    background: 'rgba(255,255,255,0.04)', border: '1.5px solid rgba(255,255,255,0.25)',
+    color: '#fff', cursor: 'pointer', fontSize: '18px',
+    display: 'grid', placeItems: 'center', padding: 0,
+    boxShadow: '0 0 0 1px rgba(255,255,255,0.03)',
+    transition: 'background 0.2s ease, transform 0.15s ease',
   },
+  logoutIcon: { width: '18px', height: '18px' },
 };
