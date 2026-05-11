@@ -16,6 +16,7 @@ export default function Usuarios() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -29,8 +30,8 @@ export default function Usuarios() {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
-  const generateUsername = (nombre, apellido) => {
-    const base = normalizeUsername(`${apellido}${nombre}`);
+  const generateUsername = (source) => {
+    const base = normalizeUsername(source || '');
     if (!base) return '';
     const existing = new Set(usuarios.map((u) => u.username));
     let username = base;
@@ -40,6 +41,19 @@ export default function Usuarios() {
       suffix += 1;
     }
     return username;
+  };
+
+  const generateRandomPassword = () => {
+    const lower = 'abcdefghijklmnopqrstuvwxyz';
+    const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const digits = '0123456789';
+    const all = `${lower}${upper}${digits}`;
+    const randomChar = (set) => set[Math.floor(Math.random() * set.length)];
+    const password = [randomChar(lower), randomChar(upper), randomChar(digits)];
+    for (let i = 3; i < 10; i += 1) {
+      password.push(randomChar(all));
+    }
+    return password.sort(() => Math.random() - 0.5).join('');
   };
 
   const cargarUsuarios = async () => {
@@ -58,12 +72,14 @@ export default function Usuarios() {
 
   const abrirCrear = () => {
     setError('');
-    setForm(EMPTY_FORM);
+    setShowPassword(false);
+    setForm({ ...EMPTY_FORM, password: generateRandomPassword() });
     setModal('crear');
   };
 
   const abrirEditar = (u) => {
     setError('');
+    setShowPassword(false);
     setForm({ username: u.username, password: '', nombre: u.nombre, apellido: u.apellido, email: u.email, rol: u.rol });
     setEditId(u.id);
     setModal('editar');
@@ -74,8 +90,16 @@ export default function Usuarios() {
       value = normalizeText(value);
     }
     const nextForm = { ...form, [key]: value };
-    if (modal === 'crear' && (key === 'nombre' || key === 'apellido')) {
-      nextForm.username = generateUsername(nextForm.nombre, nextForm.apellido);
+    if (modal === 'crear') {
+      if (key === 'email') {
+        const localPart = value.split('@')[0] || '';
+        nextForm.username = generateUsername(localPart || `${nextForm.apellido}${nextForm.nombre}`);
+        if (!nextForm.password) {
+          nextForm.password = generateRandomPassword();
+        }
+      } else if (!nextForm.username && (key === 'nombre' || key === 'apellido')) {
+        nextForm.username = generateUsername(`${nextForm.apellido}${nextForm.nombre}`);
+      }
     }
     setForm(nextForm);
   };
@@ -184,23 +208,27 @@ export default function Usuarios() {
                     </span>
                   </td>
                   <td style={S.td}>
-                    <span style={{ ...S.badge, background: u.activo ? '#E8F5E9' : '#FFEBEE', color: u.activo ? '#2E7D32' : '#C62828' }}>
-                      {u.activo ? 'Activo' : 'Inactivo'}
-                    </span>
+                    <div style={S.switchRow}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={u.activo}
+                        onClick={() => cambiarEstado(u.id, !u.activo)}
+                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && cambiarEstado(u.id, !u.activo)}
+                        style={{ ...S.switch, background: u.activo ? '#2E7D32' : '#9E9E9E' }}
+                      >
+                        <div style={{ ...S.switchCircle, transform: u.activo ? 'translateX(22px)' : 'translateX(0)' }} />
+                      </div>
+                      <span style={{ ...S.badge, background: u.activo ? '#E8F5E9' : '#FFEBEE', color: u.activo ? '#2E7D32' : '#C62828', marginLeft: '10px' }}>
+                        {u.activo ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
                   </td>
                   <td style={S.td}>
                     <div style={S.actionButtons}>
                       <button onClick={() => abrirEditar(u)} style={S.btnEdit}>Editar</button>
                       {u.username !== user?.username && (
-                        <>
-                          <button
-                            onClick={() => cambiarEstado(u.id, !u.activo)}
-                            style={u.activo ? S.btnToggleOff : S.btnToggleOn}
-                          >
-                            {u.activo ? 'Desactivar' : 'Activar'}
-                          </button>
-                          <button onClick={() => eliminar(u.id)} style={S.btnDanger}>Eliminar</button>
-                        </>
+                        <button onClick={() => eliminar(u.id)} style={S.btnDanger}>Eliminar</button>
                       )}
                     </div>
                   </td>
@@ -258,12 +286,22 @@ export default function Usuarios() {
               <div style={S.grid2}>
                 <div style={S.field}>
                   <label style={S.label}>Contraseña {modal === 'editar' && '(dejar vacío para no cambiar)'}</label>
-                  <input
-                    style={S.input}
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => handleFormChange('password', e.target.value)}
-                  />
+                  <div style={S.passwordWrapper}>
+                    <input
+                      style={{ ...S.input, paddingRight: '48px' }}
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.password}
+                      onChange={(e) => handleFormChange('password', e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      style={S.eyeButton}
+                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                    >
+                      👁
+                    </button>
+                  </div>
                   <p style={S.helpText}>8+ caracteres, 1 mayúscula, 1 minúscula y 1 número.</p>
                 </div>
                 <div style={S.field}>
@@ -314,9 +352,10 @@ const S = {
   btnPrimary: { background: 'linear-gradient(135deg, #1B6B6B, #2A9090)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   btnSecondary: { background: '#F0F7F7', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer', fontSize: '14px' },
   btnEdit: { background: '#E3F2FD', color: '#1565C0', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px', marginBottom: '4px' },
-  btnToggleOn: { background: '#1B6B6B', color: '#fff', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px', marginBottom: '4px' },
-  btnToggleOff: { background: '#F0F7F7', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px', marginBottom: '4px' },
   btnDanger: { background: '#FFEBEE', color: '#C62828', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '13px' },
+  switchRow: { display: 'flex', alignItems: 'center' },
+  switch: { width: '46px', height: '24px', borderRadius: '999px', display: 'flex', alignItems: 'center', padding: '2px', cursor: 'pointer', transition: 'background 0.2s ease' },
+  switchCircle: { width: '20px', height: '20px', borderRadius: '50%', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', transition: 'transform 0.2s ease' },
   actionButtons: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal: { background: '#fff', borderRadius: '16px', padding: '32px', width: '560px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
@@ -324,7 +363,9 @@ const S = {
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' },
   field: { display: 'flex', flexDirection: 'column', gap: '6px' },
   label: { fontSize: '13px', fontWeight: '600', color: '#333' },
+  passwordWrapper: { position: 'relative', display: 'flex', alignItems: 'center' },
   input: { padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #B2DFDB', fontSize: '14px', outline: 'none', background: '#fff', color: '#333' },
+  eyeButton: { position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', width: '32px', height: '32px', border: 'none', background: 'transparent', display: 'grid', placeItems: 'center', cursor: 'pointer', fontSize: '16px', color: '#1B6B6B', outline: 'none', padding: 0 },
   helpText: { fontSize: '12px', color: '#666', margin: '4px 0 0' },
   modalActions: { display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' },
 };
