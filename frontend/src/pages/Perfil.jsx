@@ -246,14 +246,15 @@ const S = {
   avatarWrap: { position: 'relative', display: 'inline-block' },
   avatarImg: { width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '4px solid #fff', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' },
   avatarPlaceholder: { width: '120px', height: '120px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '4px solid #fff', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' },
-  initials: { color: '#fff', fontSize: '40px', fontWeight: '800' },
+  initials: { color: '#ffffff', fontSize: '40px', fontWeight: '800' }, // Este se mantiene blanco porque va sobre fondos de colores fuertes
   cameraBtn: { position: 'absolute', bottom: '5px', right: '5px', width: '36px', height: '36px', borderRadius: '50%', border: '3px solid #fff', background: '#1B6B6B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' },
   
   heroInfo: { flex: 1 },
   heroName: { fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: '800', color: '#0F2A2A', margin: '0 0 10px' },
   heroBadges: { display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' },
   badge: { padding: '6px 16px', borderRadius: '30px', fontSize: '13px', fontWeight: '700' },
-  badgeUser: { color: '#667', fontSize: '14px', fontWeight: '500' },
+  // CAMBIO: Color más oscuro para el badge del usuario (@username)
+  badgeUser: { color: '#1A1A1A', fontSize: '14px', fontWeight: '600' }, 
 
   // Grid Simétrico
   grid: { 
@@ -271,15 +272,20 @@ const S = {
     flexDirection: 'column'
   },
   cardTitle: { fontSize: '16px', fontWeight: '700', color: '#1B6B6B', margin: '0 0 24px', display: 'flex', alignItems: 'center', gap: '10px' },
-  cardHint: { color: '#778', fontSize: '13px', marginBottom: '20px', marginTop: '-10px' },
+  // CAMBIO: Gris más oscuro para el texto de ayuda
+  cardHint: { color: '#4A4A4A', fontSize: '13px', marginBottom: '20px', marginTop: '-10px' },
 
   formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
-  label: { fontSize: '11px', fontWeight: '700', color: '#445', textTransform: 'uppercase', letterSpacing: '0.8px' },
-  input: { padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0', fontSize: '14px', background: '#F8FAFC', width: '100%', boxSizing: 'border-box' },
+  // CAMBIO: Etiquetas de los inputs más oscuras
+  label: { fontSize: '12px', fontWeight: '700', color: '#333333', textTransform: 'uppercase', letterSpacing: '0.8px' },
+  // CAMBIO: Texto ingresado en los inputs más oscuro (#111) y fondo blanco puro
+  input: { padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', background: '#FFFFFF', color: '#111111', width: '100%', boxSizing: 'border-box' },
 
-  readOnly: { display: 'flex', justifyContent: 'space-between', padding: '14px 0', borderTop: '1px solid #F1F5F9' },
-  readLabel: { fontSize: '12px', color: '#64748B', fontWeight: '600' },
-  readValue: { fontSize: '14px', fontWeight: '700' },
+  readOnly: { display: 'flex', justifyContent: 'space-between', padding: '14px 0', borderTop: '1px solid #E2E8F0' },
+  // CAMBIO: Etiqueta de solo lectura más oscura
+  readLabel: { fontSize: '12px', color: '#333333', fontWeight: '700' },
+  // CAMBIO: Valor de solo lectura casi negro
+  readValue: { fontSize: '14px', fontWeight: '700', color: '#1A1A1A' },
 
   actions: { marginTop: '32px', display: 'flex', justifyContent: 'flex-end' },
   btnSave: { 
