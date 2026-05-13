@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 
@@ -11,20 +13,28 @@ const ROL_INFO = {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const info = ROL_INFO[user?.rol] || {};
+
+  const formatDate = (date) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('es-AR', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
 
   return (
     <div style={S.page}>
       <Sidebar />
       <main style={S.main}>
+        {/* Hero Card */}
         <div style={S.heroCard}>
-          <div>
+          <div style={S.heroContent}>
             <h1 style={S.h1}>Bienvenido, {user?.nombre} {user?.apellido}</h1>
-            <p style={S.sub}>Sección {info.label || 'de usuario'} — {info.desc}</p>
+            <p style={S.sub}>{info.label || 'usuario'} — {info.desc}</p>
           </div>
-          <div style={S.roleBadge}>{info.icon}</div>
+          <div style={{...S.roleBadge, background: info.color + '20'}}>{info.icon}</div>
         </div>
 
+        {/* Tarjeta de Sección */}
         <div style={{ ...S.sectionCard, borderLeft: `6px solid ${info.color}` }}>
           <div style={S.sectionIcon}>{info.icon}</div>
           <div>
@@ -37,6 +47,7 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* Grid de Información Principal */}
         <div style={S.infoGrid}>
           <div style={S.infoCard}>
             <p style={S.infoLabel}>Usuario</p>
@@ -48,9 +59,64 @@ export default function Dashboard() {
           </div>
           <div style={S.infoCard}>
             <p style={S.infoLabel}>Estado</p>
-            <p style={{ ...S.infoValue, color: '#2E7D32' }}>✅ Activo</p>
+           <p style={{ ...S.infoValue, color: (user?.activo || user?.isActivo) ? '#2E7D32' : '#C62828' }}>
+            {(user?.activo || user?.isActivo) ? '✅ Activo' : '❌ Inactivo'}
+          </p>
           </div>
         </div>
+
+        {/* Tarjeta de Perfil Completo */}
+        <div style={S.profileCard}>
+          <div style={S.profileHeader}>
+            <h2 style={S.profileTitle}>📋 Datos de Perfil</h2>
+            <button onClick={() => navigate('/perfil')} style={S.btnEdit}>
+            ✏️ Editar Perfil
+          </button>
+          </div>
+
+          <div style={S.profileGrid}>
+            {/* Columna 1 */}
+            <div>
+              <div style={S.profileField}>
+                <label style={S.fieldLabel}>Nombre Completo</label>
+                <p style={S.fieldValue}>{user?.nombre} {user?.apellido}</p>
+              </div>
+              <div style={S.profileField}>
+                <label style={S.fieldLabel}>DNI</label>
+                <p style={S.fieldValue}>{user?.dni || '-'}</p>
+              </div>
+              <div style={S.profileField}>
+                <label style={S.fieldLabel}>Email</label>
+                <p style={S.fieldValue}>{user?.email || '-'}</p>
+              </div>
+            </div>
+
+            {/* Columna 2 */}
+            <div>
+              <div style={S.profileField}>
+                <label style={S.fieldLabel}>Teléfono</label>
+                <p style={S.fieldValue}>{user?.telefono || '-'}</p>
+              </div>
+              <div style={S.profileField}>
+                <label style={S.fieldLabel}>Fecha de Nacimiento</label>
+                <p style={S.fieldValue}>{formatDate(user?.fechaNacimiento)}</p>
+              </div>
+              <div style={S.profileField}>
+                <label style={S.fieldLabel}>Disponible</label>
+                <p style={S.fieldValue}>
+                  {user?.disponible ? '✅ Sí' : '❌ No'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Domicilio */}
+          <div style={S.profileField}>
+            <label style={S.fieldLabel}>Domicilio</label>
+            <p style={S.fieldValue}>{user?.domicilio || '-'}</p>
+          </div>
+        </div>
+
       </main>
     </div>
   );
@@ -59,16 +125,37 @@ export default function Dashboard() {
 const S = {
   page: { display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif" },
   main: { flex: 1, background: '#F0F7F7', padding: '36px 40px' },
-  heroCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', marginBottom: '28px', padding: '28px', background: '#fff', borderRadius: '18px', boxShadow: '0 16px 40px rgba(0,0,0,0.06)' },
-  h1: { fontSize: '32px', fontWeight: '700', color: '#0F2A2A', margin: 0 },
-  sub: { margin: '10px 0 0', color: '#606f78', fontSize: '15px' },
-  roleBadge: { width: '80px', height: '80px', borderRadius: '24px', background: '#E8F5E9', display: 'grid', placeItems: 'center', fontSize: '34px' },
-  sectionCard: { background: '#fff', borderRadius: '18px', padding: '26px', display: 'flex', gap: '18px', alignItems: 'center', boxShadow: '0 14px 36px rgba(0,0,0,0.05)', marginBottom: '24px' },
-  sectionIcon: { fontSize: '40px' },
-  sectionLabel: { color: '#888', fontSize: '12px', textTransform: 'uppercase', margin: 0 },
-  sectionText: { fontSize: '16px', color: '#47525d', margin: '8px 0 0' },
-  infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '18px' },
-  infoCard: { background: '#fff', borderRadius: '18px', padding: '24px', boxShadow: '0 14px 36px rgba(0,0,0,0.05)' },
-  infoLabel: { color: '#8a9ba8', fontSize: '11px', textTransform: 'uppercase', margin: 0 },
-  infoValue: { fontSize: '18px', fontWeight: '700', color: '#12222d', margin: '10px 0 0' },
+  
+  // Hero
+  heroCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px', marginBottom: '28px', padding: '32px', background: 'linear-gradient(135deg, #1B6B6B 0%, #2A9090 100%)', borderRadius: '18px', boxShadow: '0 16px 40px rgba(0,0,0,0.1)' },
+  heroContent: { color: '#fff' },
+  h1: { fontSize: '32px', fontWeight: '700', color: '#fff', margin: 0 },
+  sub: { margin: '10px 0 0', color: 'rgba(255,255,255,0.85)', fontSize: '15px' },
+  roleBadge: { width: '100px', height: '100px', borderRadius: '24px', display: 'grid', placeItems: 'center', fontSize: '48px', boxShadow: '0 8px 24px rgba(0,0,0,0.15)' },
+  
+  // Section
+  sectionCard: { background: '#fff', borderRadius: '18px', padding: '26px', display: 'flex', gap: '18px', alignItems: 'center', boxShadow: '0 14px 36px rgba(0,0,0,0.05)', marginBottom: '28px' },
+  sectionIcon: { fontSize: '40px', flexShrink: 0 },
+  sectionLabel: { color: '#888', fontSize: '12px', textTransform: 'uppercase', margin: 0, letterSpacing: '0.5px' },
+  sectionText: { fontSize: '16px', color: '#47525d', margin: '8px 0 0', lineHeight: '1.5' },
+  
+  // Info Grid
+  infoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '18px', marginBottom: '28px' },
+  infoCard: { background: '#fff', borderRadius: '18px', padding: '24px', boxShadow: '0 14px 36px rgba(0,0,0,0.05)', border: '1px solid #E8F5F5' },
+  infoLabel: { color: '#8a9ba8', fontSize: '11px', textTransform: 'uppercase', margin: 0, letterSpacing: '0.5px' },
+  infoValue: { fontSize: '18px', fontWeight: '700', color: '#12222d', margin: '12px 0 0' },
+  
+  // Profile Card
+  profileCard: { background: '#fff', borderRadius: '18px', padding: '32px', boxShadow: '0 14px 36px rgba(0,0,0,0.05)', marginBottom: '24px' },
+  profileHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '2px solid #F0F7F7' },
+  profileTitle: { fontSize: '20px', fontWeight: '700', color: '#0F2A2A', margin: 0 },
+  btnEdit: { background: 'linear-gradient(135deg, #1B6B6B, #2A9090)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
+  
+  profileGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '32px', marginBottom: '24px' },
+  profileField: { display: 'flex', flexDirection: 'column', gap: '8px' },
+  fieldLabel: { fontSize: '12px', fontWeight: '600', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' },
+  fieldValue: { fontSize: '16px', color: '#0F2A2A', margin: 0, fontWeight: '500' },
+  
+  alertMessage: { background: '#FFF3E0', border: '1px solid #FFE0B2', color: '#E65100', padding: '16px 20px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px', marginTop: '20px' },
+  btnClose: { background: 'transparent', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#E65100', padding: 0, lineHeight: 1 },
 };

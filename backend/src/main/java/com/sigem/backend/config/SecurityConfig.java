@@ -13,7 +13,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -51,12 +50,14 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
                 // Definimos qué rutas son públicas y cuáles requieren autenticación
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()  // Login es público
+                    .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/auth/**").permitAll()
+                        // ✅ /me ANTES que la regla general de ADM
+                        .requestMatchers("/api/usuarios/me").authenticated()
                         .requestMatchers(HttpMethod.PUT, "/api/usuarios/*/estado").hasRole("ADM")
                         .requestMatchers("/api/usuarios/**").hasRole("ADM")
-                        .anyRequest().authenticated()                  // Todo lo demás requiere JWT
-                )
+                        .anyRequest().authenticated()
+                    )
 
                 // Sin sesiones — cada request debe traer su JWT
                 .sessionManagement(session ->

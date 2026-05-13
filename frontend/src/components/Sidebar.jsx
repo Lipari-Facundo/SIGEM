@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext';
 
 const items = [
   { path: '/dashboard', label: 'Panel de control', icon: '🏠', roles: ['ADM','ENF','JEF','DES','DIR'] },
-  { path: '/usuarios', label: 'Usuarios', icon: '👥', roles: ['ADM'] },
+  { path: '/perfil',    label: 'Mi Perfil',         icon: '👤', roles: ['ADM','ENF','JEF','DES','DIR'] },
+  { path: '/usuarios',  label: 'Usuarios',           icon: '👥', roles: ['ADM'] },
 ];
 
 const rolLabels = { ADM:'Administrador', ENF:'Enfermero', JEF:'Jefe Enfermería', DES:'Despachador', DIR:'Directivo' };

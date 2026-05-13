@@ -6,6 +6,7 @@ import com.sigem.backend.service.UsuarioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,42 +21,52 @@ public class UsuarioController {
         this.usuarioService = usuarioService;
     }
 
-    // CU-A05 — Crear usuario (solo ADM)
+    // ─── Perfil propio (cualquier usuario autenticado) ───────
+
+    @GetMapping("/me")
+    public ResponseEntity<Usuario> miPerfil(@AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(usuarioService.buscarPorId(usuario.getId()));
+    }
+
+    @PutMapping("/me")
+    public ResponseEntity<Usuario> actualizarMiPerfil(
+            @AuthenticationPrincipal Usuario usuario,
+            @RequestBody UsuarioDTO dto) {
+        return ResponseEntity.ok(usuarioService.modificarPerfil(usuario.getId(), dto));
+    }
+
+    // ─── ABM de usuarios (solo ADM) ──────────────────────────
+
     @PostMapping
     @PreAuthorize("hasRole('ADM')")
     public ResponseEntity<Usuario> crear(@RequestBody UsuarioDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.crear(dto));
     }
 
-    // CU-A08 — Listar usuarios (solo ADM)
     @GetMapping
     @PreAuthorize("hasRole('ADM')")
     public ResponseEntity<List<Usuario>> listar() {
         return ResponseEntity.ok(usuarioService.listarTodos());
     }
 
-    // CU-A08 — Buscar por ID (solo ADM)
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9]+}") 
     @PreAuthorize("hasRole('ADM')")
     public ResponseEntity<Usuario> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(usuarioService.buscarPorId(id));
     }
 
-    // CU-A06 — Modificar usuario (solo ADM)
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADM')")
     public ResponseEntity<Usuario> modificar(@PathVariable Long id, @RequestBody UsuarioDTO dto) {
         return ResponseEntity.ok(usuarioService.modificar(id, dto));
     }
 
-    // CU-A09 — Activar / desactivar usuario (solo ADM)
     @PutMapping("/{id}/estado")
     @PreAuthorize("hasRole('ADM')")
     public ResponseEntity<Usuario> cambiarEstado(@PathVariable Long id, @RequestBody UsuarioDTO dto) {
         return ResponseEntity.ok(usuarioService.cambiarEstado(id, dto.isActivo()));
     }
 
-    // CU-A07 — Eliminar usuario definitivamente (solo ADM)
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADM')")
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {

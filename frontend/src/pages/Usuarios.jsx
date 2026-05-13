@@ -6,7 +6,18 @@ import Sidebar from '../components/Sidebar';
 
 const ROLES = ['ENF', 'JEF', 'DES', 'ADM', 'DIR'];
 const rolLabels = { ADM: 'Administrador', ENF: 'Enfermero', JEF: 'Jefe Enfermería', DES: 'Despachador', DIR: 'Directivo' };
-const EMPTY_FORM = { username: '', password: '', nombre: '', apellido: '', email: '', rol: 'ENF' };
+const EMPTY_FORM = { 
+  username: '', 
+  password: '', 
+  nombre: '', 
+  apellido: '', 
+  dni: '',
+  email: '', 
+  telefono: '',
+  fechaNacimiento: '',
+  domicilio: '',
+  rol: 'ENF' 
+};
 
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -29,19 +40,6 @@ export default function Usuarios() {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
-
-  const generateUsername = (source) => {
-    const base = normalizeUsername(source || '');
-    if (!base) return '';
-    const existing = new Set(usuarios.map((u) => u.username));
-    let username = base;
-    let suffix = 1;
-    while (existing.has(username)) {
-      username = `${base}${suffix}`;
-      suffix += 1;
-    }
-    return username;
-  };
 
   const generateRandomPassword = () => {
     const lower = 'abcdefghijklmnopqrstuvwxyz';
@@ -73,14 +71,26 @@ export default function Usuarios() {
   const abrirCrear = () => {
     setError('');
     setShowPassword(false);
-    setForm({ ...EMPTY_FORM, password: generateRandomPassword() });
+    const randomPass = generateRandomPassword();
+    setForm({ ...EMPTY_FORM, password: randomPass });
     setModal('crear');
   };
 
   const abrirEditar = (u) => {
     setError('');
     setShowPassword(false);
-    setForm({ username: u.username, password: '', nombre: u.nombre, apellido: u.apellido, email: u.email, rol: u.rol });
+    setForm({ 
+      username: u.username, 
+      password: '', 
+      nombre: u.nombre, 
+      apellido: u.apellido, 
+      dni: u.dni || '',
+      email: u.email, 
+      telefono: u.telefono || '',
+      fechaNacimiento: u.fechaNacimiento || '',
+      domicilio: u.domicilio || '',
+      rol: u.rol 
+    });
     setEditId(u.id);
     setModal('editar');
   };
@@ -89,19 +99,10 @@ export default function Usuarios() {
     if (key === 'nombre' || key === 'apellido') {
       value = normalizeText(value);
     }
-    const nextForm = { ...form, [key]: value };
-    if (modal === 'crear') {
-      if (key === 'email') {
-        const localPart = value.split('@')[0] || '';
-        nextForm.username = generateUsername(localPart || `${nextForm.apellido}${nextForm.nombre}`);
-        if (!nextForm.password) {
-          nextForm.password = generateRandomPassword();
-        }
-      } else if (!nextForm.username && (key === 'nombre' || key === 'apellido')) {
-        nextForm.username = generateUsername(`${nextForm.apellido}${nextForm.nombre}`);
-      }
+    if (key === 'username') {
+      value = normalizeUsername(value);
     }
-    setForm(nextForm);
+    setForm({ ...form, [key]: value });
   };
 
   const passwordValid = (password) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(password);
@@ -109,8 +110,9 @@ export default function Usuarios() {
   const validateForm = () => {
     if (!form.nombre) return 'El nombre es obligatorio.';
     if (!form.apellido) return 'El apellido es obligatorio.';
+    if (!form.dni) return 'El DNI es obligatorio.';
     if (!form.email) return 'El correo electrónico es obligatorio.';
-    if (!form.username) return 'El usuario se genera automáticamente con apellido y nombre.';
+    if (!form.username) return 'El usuario es obligatorio.';
     if (modal === 'crear' && !form.password) return 'La contraseña es obligatoria.';
     if (form.password && !passwordValid(form.password)) {
       return 'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.';
@@ -129,11 +131,16 @@ export default function Usuarios() {
     }
 
     try {
+      const datosEnvio = { ...form };
+      if (modal === 'editar' && !datosEnvio.password) {
+        delete datosEnvio.password;
+      }
+
       if (modal === 'crear') {
-        await usuarioService.crear(form);
+        await usuarioService.crear(datosEnvio);
         showMsg('✅ Usuario creado correctamente');
       } else {
-        await usuarioService.modificar(editId, form);
+        await usuarioService.modificar(editId, datosEnvio);
         showMsg('✅ Usuario modificado correctamente');
       }
       setModal(null);
@@ -190,6 +197,7 @@ export default function Usuarios() {
               <tr style={S.tableHead}>
                 <th style={S.th}>Usuario</th>
                 <th style={S.th}>Nombre</th>
+                <th style={S.th}>DNI</th>
                 <th style={S.th}>Correo electrónico</th>
                 <th style={S.th}>Rol</th>
                 <th style={S.th}>Estado</th>
@@ -201,6 +209,7 @@ export default function Usuarios() {
                 <tr key={u.id} style={S.tr}>
                   <td style={S.td}><strong>{u.username}</strong></td>
                   <td style={S.td}>{u.nombre} {u.apellido}</td>
+                  <td style={S.td}>{u.dni}</td>
                   <td style={S.td}>{u.email}</td>
                   <td style={S.td}>
                     <span style={{ ...S.badge, background: rolColor(u.rol) }}>
@@ -213,21 +222,26 @@ export default function Usuarios() {
                         role="button"
                         tabIndex={0}
                         aria-pressed={u.activo}
-                        onClick={() => cambiarEstado(u.id, !u.activo)}
-                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && cambiarEstado(u.id, !u.activo)}
-                        style={{ ...S.switch, background: u.activo ? '#2E7D32' : '#9E9E9E' }}
+                        onClick={() => u.rol !== 'ADM' && cambiarEstado(u.id, !u.activo)}
+                        onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && u.rol !== 'ADM' && cambiarEstado(u.id, !u.activo)}
+                        style={{
+                          ...S.switch,
+                          background: u.activo ? '#2E7D32' : '#9E9E9E',
+                          cursor: u.rol === 'ADM' ? 'not-allowed' : 'pointer',
+                          opacity: u.rol === 'ADM' ? 0.7 : 1,
+                        }}
                       >
                         <div style={{ ...S.switchCircle, transform: u.activo ? 'translateX(22px)' : 'translateX(0)' }} />
                       </div>
                       <span style={{ ...S.badge, background: u.activo ? '#E8F5E9' : '#FFEBEE', color: u.activo ? '#2E7D32' : '#C62828', marginLeft: '10px' }}>
-                        {u.activo ? 'Activo' : 'Inactivo'}
+                        {u.activo ? 'Activo' : 'Inactivo'}{u.rol === 'ADM' ? ' (Administrador)' : ''}
                       </span>
                     </div>
                   </td>
                   <td style={S.td}>
                     <div style={S.actionButtons}>
                       <button onClick={() => abrirEditar(u)} style={S.btnEdit}>Editar</button>
-                      {u.username !== user?.username && (
+                      {u.rol !== 'ADM' && u.username !== user?.username && (
                         <button onClick={() => eliminar(u.id)} style={S.btnDanger}>Eliminar</button>
                       )}
                     </div>
@@ -243,49 +257,106 @@ export default function Usuarios() {
             <div style={S.modal}>
               <h3 style={S.modalTitle}>{modal === 'crear' ? '➕ Nuevo Usuario' : '✏️ Editar Usuario'}</h3>
 
+              {/* Nombre y Apellido */}
               <div style={S.grid2}>
                 <div style={S.field}>
-                  <label style={S.label}>Nombre</label>
+                  <label style={S.label}>Nombre *</label>
                   <input
                     style={S.input}
                     type="text"
+                    placeholder="Ej: Juan"
                     value={form.nombre}
                     onChange={(e) => handleFormChange('nombre', e.target.value)}
                   />
                 </div>
                 <div style={S.field}>
-                  <label style={S.label}>Apellido</label>
+                  <label style={S.label}>Apellido *</label>
                   <input
                     style={S.input}
                     type="text"
+                    placeholder="Ej: Pérez"
                     value={form.apellido}
                     onChange={(e) => handleFormChange('apellido', e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* DNI y Usuario */}
+              <div style={S.grid2}>
                 <div style={S.field}>
-                  <label style={S.label}>Usuario</label>
+                  <label style={S.label}>DNI *</label>
                   <input
                     style={S.input}
                     type="text"
-                    value={form.username}
-                    readOnly
-                    placeholder="Se genera automáticamente"
+                    placeholder="Ej: 12345678"
+                    value={form.dni}
+                    onChange={(e) => handleFormChange('dni', e.target.value)}
                   />
                 </div>
                 <div style={S.field}>
-                  <label style={S.label}>Correo electrónico</label>
+                  <label style={S.label}>Usuario *</label>
                   <input
                     style={S.input}
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => handleFormChange('email', e.target.value)}
+                    type="text"
+                    placeholder="Ej: jperez"
+                    value={form.username}
+                    onChange={(e) => handleFormChange('username', e.target.value)}
+                    readOnly={modal === 'editar'}
                   />
                 </div>
               </div>
 
+              {/* Email y Teléfono */}
               <div style={S.grid2}>
                 <div style={S.field}>
-                  <label style={S.label}>Contraseña {modal === 'editar' && '(dejar vacío para no cambiar)'}</label>
+                  <label style={S.label}>Correo electrónico *</label>
+                  <input
+                    style={S.input}
+                    type="email"
+                    placeholder="Ej: juan@example.com"
+                    value={form.email}
+                    onChange={(e) => handleFormChange('email', e.target.value)}
+                  />
+                </div>
+                <div style={S.field}>
+                  <label style={S.label}>Teléfono</label>
+                  <input
+                    style={S.input}
+                    type="text"
+                    placeholder="Ej: +5491234567890"
+                    value={form.telefono}
+                    onChange={(e) => handleFormChange('telefono', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Fecha de Nacimiento y Domicilio */}
+              <div style={S.grid2}>
+                <div style={S.field}>
+                  <label style={S.label}>Fecha de Nacimiento</label>
+                  <input
+                    style={S.input}
+                    type="date"
+                    value={form.fechaNacimiento}
+                    onChange={(e) => handleFormChange('fechaNacimiento', e.target.value)}
+                  />
+                </div>
+                <div style={S.field}>
+                  <label style={S.label}>Domicilio</label>
+                  <input
+                    style={S.input}
+                    type="text"
+                    placeholder="Ej: Calle 123, Apto 4B"
+                    value={form.domicilio}
+                    onChange={(e) => handleFormChange('domicilio', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Contraseña y Rol */}
+              <div style={S.grid2}>
+                <div style={S.field}>
+                  <label style={S.label}>Contraseña {modal === 'editar' && '(dejar vacío para no cambiar)'} *</label>
                   <div style={S.passwordWrapper}>
                     <input
                       style={{ ...S.input, paddingRight: '48px' }}
@@ -305,7 +376,7 @@ export default function Usuarios() {
                   <p style={S.helpText}>8+ caracteres, 1 mayúscula, 1 minúscula y 1 número.</p>
                 </div>
                 <div style={S.field}>
-                  <label style={S.label}>Rol</label>
+                  <label style={S.label}>Rol *</label>
                   <select
                     style={S.input}
                     value={form.rol}
@@ -358,7 +429,7 @@ const S = {
   switchCircle: { width: '20px', height: '20px', borderRadius: '50%', background: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.18)', transition: 'transform 0.2s ease' },
   actionButtons: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal: { background: '#fff', borderRadius: '16px', padding: '32px', width: '560px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  modal: { background: '#fff', borderRadius: '16px', padding: '32px', width: '650px', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   modalTitle: { color: '#0F2A2A', fontSize: '20px', fontWeight: '700', marginBottom: '24px' },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' },
   field: { display: 'flex', flexDirection: 'column', gap: '6px' },

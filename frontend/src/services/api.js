@@ -17,7 +17,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 || error.response?.status === 403) {
+    // Solo en 401 (token vencido/inválido), NO en 403 (sin permisos)
+    if (error.response?.status === 401) {
       localStorage.clear();
       window.location.href = '/login';
     }
@@ -35,6 +36,8 @@ export const usuarioService = {
   modificar: (id, data) => api.put(`/usuarios/${id}`, data),
   cambiarEstado: (id, activo) => api.put(`/usuarios/${id}/estado`, { activo }),
   eliminar: (id) => api.delete(`/usuarios/${id}`),
+   miPerfil: () => api.get('/usuarios/me'),
+  actualizarMiPerfil: (data) => api.put('/usuarios/me', data),
 };
 
 export const empleadoService = {
