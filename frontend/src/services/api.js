@@ -31,7 +31,7 @@ export const authService = {
 };
 
 export const usuarioService = {
-  listar: () => api.get('/usuarios'),
+  listar: (buscar) => api.get('/usuarios', { params: buscar ? { buscar } : {} }),
   crear: (data) => api.post('/usuarios', data),
   modificar: (id, data) => api.put(`/usuarios/${id}`, data),
   cambiarEstado: (id, activo) => api.put(`/usuarios/${id}/estado`, { activo }),

@@ -148,8 +148,15 @@ public class UsuarioService implements UserDetailsService {
     }
 
     public List<Usuario> listarTodos() {
+        return listarTodos(null);
+    }
+
+    public List<Usuario> listarTodos(String filtro) {
         entityManager.clear();
-        return usuarioRepository.findAll();
+        if (filtro == null || filtro.isBlank()) {
+            return usuarioRepository.findAll();
+        }
+        return usuarioRepository.findByNombreContainingIgnoreCaseOrApellidoContainingIgnoreCaseOrDniContaining(filtro, filtro, filtro);
     }
 
     private void validarPassword(String password) {

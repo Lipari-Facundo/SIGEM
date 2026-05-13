@@ -90,7 +90,7 @@ export default function Perfil() {
       const res = await usuarioService.actualizarMiPerfil(payload);
       const updated = res.data;
       login(
-        { ...user, nombre: updated.nombre, apellido: updated.apellido },
+        { ...user, nombre: updated.nombre, apellido: updated.apellido, fotoPerfil: updated.fotoPerfil },
         localStorage.getItem('token')
       );
       setPassword('');

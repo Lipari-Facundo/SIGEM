@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usuarioService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -28,10 +28,22 @@ export default function Usuarios() {
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [search, setSearch] = useState('');
+  const searchTimeout = useRef(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => { cargarUsuarios(); }, []);
+
+  useEffect(() => {
+    if (searchTimeout.current) {
+      clearTimeout(searchTimeout.current);
+    }
+    searchTimeout.current = setTimeout(() => {
+      cargarUsuarios(search.trim());
+    }, 400);
+    return () => clearTimeout(searchTimeout.current);
+  }, [search]);
 
   const normalizeText = (value) => value.toUpperCase();
   const normalizeUsername = (value) => value
@@ -54,12 +66,31 @@ export default function Usuarios() {
     return password.sort(() => Math.random() - 0.5).join('');
   };
 
-  const cargarUsuarios = async () => {
+  const normalizeUsuario = (usuario) => ({
+    ...usuario,
+    activo: usuario.activo === true || usuario.activo === 'true' || usuario.enabled === true || usuario.enabled === 'true',
+  });
+
+  const cargarUsuarios = async (buscar = '') => {
     try {
-      const res = await usuarioService.listar();
-      setUsuarios(res.data);
+      const res = await usuarioService.listar(buscar);
+      setUsuarios(res.data.map(normalizeUsuario));
     } catch {
       showMsg('Error al cargar usuarios');
+    }
+  };
+
+  const handleSearch = async () => {
+    await cargarUsuarios(search.trim());
+  };
+
+  const clearSearch = () => {
+    setSearch('');
+  };
+
+  const handleSearchKeyDown = async (e) => {
+    if (e.key === 'Enter') {
+      await handleSearch();
     }
   };
 
@@ -190,6 +221,21 @@ export default function Usuarios() {
 
         {msg && <div style={S.msgBar}>{msg}</div>}
         {error && <div style={S.errorBar}>{error}</div>}
+
+        <div style={S.searchRow}>
+          <input
+            style={S.searchInput}
+            type="text"
+            placeholder="Buscar por nombre, apellido o DNI..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+          />
+          <div style={S.searchButtons}>
+            <button type="button" onClick={handleSearch} style={S.btnPrimary}>Buscar</button>
+            <button type="button" onClick={clearSearch} style={S.btnSecondary}>Limpiar</button>
+          </div>
+        </div>
 
         <div style={S.tableCard}>
           <table style={S.table}>
@@ -411,6 +457,9 @@ const S = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' },
   headerTitle: { fontSize: '26px', fontWeight: '700', color: '#0F2A2A', margin: 0 },
   headerSub: { color: '#888', margin: '4px 0 0', fontSize: '13px' },
+  searchRow: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '16px' },
+  searchInput: { flex: '1 1 320px', padding: '12px 14px', borderRadius: '10px', border: '1.5px solid #B2DFDB', fontSize: '14px', outline: 'none', background: '#fff', color: '#333' },
+  searchButtons: { display: 'flex', gap: '10px', flexWrap: 'wrap' },
   msgBar: { background: '#E8F5E9', border: '1px solid #A5D6A7', color: '#2E7D32', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' },
   errorBar: { background: '#FFEBEE', border: '1px solid #EF9A9A', color: '#C62828', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' },
   tableCard: { background: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' },

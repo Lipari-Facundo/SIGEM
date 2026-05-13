@@ -45,8 +45,8 @@ public class UsuarioController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADM')")
-    public ResponseEntity<List<Usuario>> listar() {
-        return ResponseEntity.ok(usuarioService.listarTodos());
+    public ResponseEntity<List<Usuario>> listar(@RequestParam(value = "buscar", required = false) String buscar) {
+        return ResponseEntity.ok(usuarioService.listarTodos(buscar));
     }
 
     @GetMapping("/{id:[0-9]+}") 

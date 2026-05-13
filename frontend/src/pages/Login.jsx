@@ -17,7 +17,7 @@ export default function Login() {
     try {
       const res = await authService.login({ username: form.username, password: form.password });
       const data = res.data;
-      login({ username: data.username, nombre: data.nombre, apellido: data.apellido, rol: data.rol }, data.token);
+      login({ username: data.username, nombre: data.nombre, apellido: data.apellido, rol: data.rol, activo: data.activo, fotoPerfil: data.fotoPerfil }, data.token);
       navigate('/dashboard');
     } catch {
       setError('Usuario o contraseña incorrectos');
