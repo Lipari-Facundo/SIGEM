@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usuarioService } from '../services/api';
 import Sidebar from '../components/Sidebar';
 
 const ROL_INFO = {
@@ -15,6 +16,23 @@ export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const info = ROL_INFO[user?.rol] || {};
+  const [perfil, setPerfil] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    cargarPerfil();
+  }, []);
+
+  const cargarPerfil = async () => {
+    try {
+      const res = await usuarioService.miPerfil();
+      setPerfil(res.data);
+    } catch (error) {
+      console.error('Error cargando perfil:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatDate = (date) => {
     if (!date) return '-';
@@ -79,15 +97,17 @@ export default function Dashboard() {
             <div>
               <div style={S.profileField}>
                 <label style={S.fieldLabel}>Nombre Completo</label>
-                <p style={S.fieldValue}>{user?.nombre} {user?.apellido}</p>
+                <p style={S.fieldValue}>
+                  {loading ? 'Cargando...' : `${perfil?.nombre || user?.nombre} ${perfil?.apellido || user?.apellido}`}
+                </p>
               </div>
               <div style={S.profileField}>
                 <label style={S.fieldLabel}>DNI</label>
-                <p style={S.fieldValue}>{user?.dni || '-'}</p>
+                <p style={S.fieldValue}>{loading ? 'Cargando...' : (perfil?.dni || '-')}</p>
               </div>
               <div style={S.profileField}>
                 <label style={S.fieldLabel}>Email</label>
-                <p style={S.fieldValue}>{user?.email || '-'}</p>
+                <p style={S.fieldValue}>{loading ? 'Cargando...' : (perfil?.email || '-')}</p>
               </div>
             </div>
 
@@ -95,25 +115,19 @@ export default function Dashboard() {
             <div>
               <div style={S.profileField}>
                 <label style={S.fieldLabel}>Teléfono</label>
-                <p style={S.fieldValue}>{user?.telefono || '-'}</p>
+                <p style={S.fieldValue}>{loading ? 'Cargando...' : (perfil?.telefono || '-')}</p>
               </div>
               <div style={S.profileField}>
                 <label style={S.fieldLabel}>Fecha de Nacimiento</label>
-                <p style={S.fieldValue}>{formatDate(user?.fechaNacimiento)}</p>
-              </div>
-              <div style={S.profileField}>
-                <label style={S.fieldLabel}>Disponible</label>
                 <p style={S.fieldValue}>
-                  {user?.disponible ? '✅ Sí' : '❌ No'}
+                  {loading ? 'Cargando...' : (perfil?.fechaNacimiento ? new Date(perfil.fechaNacimiento).toLocaleDateString('es-AR') : '-')}
                 </p>
               </div>
+              <div style={S.profileField}>
+                <label style={S.fieldLabel}>Domicilio</label>
+                <p style={S.fieldValue}>{loading ? 'Cargando...' : (perfil?.domicilio || '-')}</p>
+              </div>
             </div>
-          </div>
-
-          {/* Domicilio */}
-          <div style={S.profileField}>
-            <label style={S.fieldLabel}>Domicilio</label>
-            <p style={S.fieldValue}>{user?.domicilio || '-'}</p>
           </div>
         </div>
 
