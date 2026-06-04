@@ -17,7 +17,6 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Solo en 401 (token vencido/inválido), NO en 403 (sin permisos)
     if (error.response?.status === 401) {
       localStorage.clear();
       window.location.href = '/login';
@@ -31,20 +30,42 @@ export const authService = {
 };
 
 export const usuarioService = {
-  listar: (buscar) => api.get('/usuarios', { params: buscar ? { buscar } : {} }),
-  crear: (data) => api.post('/usuarios', data),
-  modificar: (id, data) => api.put(`/usuarios/${id}`, data),
-  cambiarEstado: (id, activo) => api.put(`/usuarios/${id}/estado`, { activo }),
-  eliminar: (id) => api.delete(`/usuarios/${id}`),
-   miPerfil: () => api.get('/usuarios/me'),
-  actualizarMiPerfil: (data) => api.put('/usuarios/me', data),
+  listar:       ()          => api.get('/usuarios'),
+  crear:        (data)      => api.post('/usuarios', data),
+  modificar:    (id, data)  => api.put(`/usuarios/${id}`, data),
+  cambiarEstado:(id, activo)=> api.put(`/usuarios/${id}/estado`, { activo }),
+  eliminar:     (id)        => api.delete(`/usuarios/${id}`),
 };
 
 export const empleadoService = {
-  listar: () => api.get('/empleados'),
-  crear: (data) => api.post('/empleados', data),
+  listar:    ()         => api.get('/empleados'),
+  crear:     (data)     => api.post('/empleados', data),
   modificar: (id, data) => api.put(`/empleados/${id}`, data),
-  eliminar: (id) => api.delete(`/empleados/${id}`),
+  eliminar:  (id)       => api.delete(`/empleados/${id}`),
+};
+
+// ─── NUEVO — Sprint 2 ─────────────────────────────────────────────────────────
+export const movilService = {
+  listar:       ()          => api.get('/moviles'),
+  listarOperativos: ()      => api.get('/moviles/operativos'),
+  registrar:    (data)      => api.post('/moviles', data),
+  modificar:    (id, data)  => api.put(`/moviles/${id}`, data),
+  cambiarEstado:(id, estado)=> api.put(`/moviles/${id}/estado`, { estadoMovil: estado }),
+  eliminar:     (id)        => api.delete(`/moviles/${id}`),
+};
+
+export const guardiaService = {
+  listar:      ()             => api.get('/guardias/mias'),
+  iniciar:     (data)         => api.post('/guardias', data),
+  finalizar:   (id)           => api.put(`/guardias/${id}/finalizar`),
+};
+
+export const incidenteService = {
+  listarAsignados:       ()  => api.get('/incidentes/asignados'),
+  listarSeguimiento:     ()  => api.get('/incidentes/seguimiento'),
+  listarGuardias:        ()  => api.get('/incidentes/guardias-disponibles'),
+  crear:                (data) => api.post('/incidentes', data),
+  cambiarEstado:         (id, data)  => api.put(`/incidentes/${id}/estado`, { estado: data }),
 };
 
 export default api;
