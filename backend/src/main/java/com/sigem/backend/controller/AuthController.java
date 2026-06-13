@@ -18,6 +18,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO request) {
+         System.out.println("=== ENTRE AL CONTROLADOR LOGIN ===");
         return ResponseEntity.ok(authService.login(request));
     }
 }

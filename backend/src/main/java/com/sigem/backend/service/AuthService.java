@@ -26,6 +26,9 @@ public class AuthService {
     }
 
     public LoginResponseDTO login(LoginRequestDTO request) {
+        System.out.println("=== LOGIN INICIADO ===");
+        System.out.println("Username: " + request.getUsername());
+
         // Delega la validación de credenciales a Spring Security
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -33,6 +36,7 @@ public class AuthService {
                         request.getPassword()
                 )
         );
+        System.out.println("=== CREDENCIALES VALIDADAS ===");
 
         // Si llegamos acá, las credenciales son correctas
         Usuario usuario = usuarioRepository.findByUsername(request.getUsername())
