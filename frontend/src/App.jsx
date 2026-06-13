@@ -13,13 +13,13 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login"     element={<Login />} />
-          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-          <Route path="/usuarios"  element={<PrivateRoute><Usuarios /></PrivateRoute>} />
-          <Route path="/moviles"   element={<PrivateRoute><Moviles /></PrivateRoute>} />
-          <Route path="/guardias"  element={<PrivateRoute><Guardias /></PrivateRoute>} />
+          <Route path="/login"      element={<Login />} />
+          <Route path="/dashboard"  element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/usuarios"   element={<PrivateRoute><Usuarios /></PrivateRoute>} />
+          <Route path="/moviles"    element={<PrivateRoute><Moviles /></PrivateRoute>} />
+          <Route path="/guardias"   element={<PrivateRoute><Guardias /></PrivateRoute>} />
           <Route path="/incidentes" element={<PrivateRoute><Incidentes /></PrivateRoute>} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*"           element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

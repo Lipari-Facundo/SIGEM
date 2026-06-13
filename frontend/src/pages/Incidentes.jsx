@@ -3,118 +3,129 @@ import Sidebar from '../components/Sidebar';
 import { incidenteService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+// ─── Constantes ───────────────────────────────────────────────────────────────
+
 const ESTADO_LABELS = {
-  PENDIENTE: 'Pendiente',
-  EN_PROCESO: 'En proceso',
+  PENDIENTE:  'Pendiente',
+  EN_PROCESO: 'En atención',
+  RECHAZADO:  'Rechazado',
   FINALIZADO: 'Finalizado',
 };
 
+const ESTADO_COLORS = {
+  PENDIENTE:  { bg: '#FFF8E1', color: '#F57F17' },
+  EN_PROCESO: { bg: '#E3F2FD', color: '#1565C0' },
+  RECHAZADO:  { bg: '#FFEBEE', color: '#C62828' },
+  FINALIZADO: { bg: '#E8F5E9', color: '#2E7D32' },
+};
+
+const PRIORIDAD_COLORS = {
+  ALTA:  { bg: '#FFEBEE', color: '#C62828' },
+  MEDIA: { bg: '#FFF8E1', color: '#F57F17' },
+  BAJA:  { bg: '#E8F5E9', color: '#2E7D32' },
+};
+
 const PRIORIDADES = [
-  { value: 'BAJA', label: 'Baja' },
-  { value: 'MEDIA', label: 'Media' },
-  { value: 'ALTA', label: 'Alta' },
+  { value: 'ALTA',  label: '🔴 Alta' },
+  { value: 'MEDIA', label: '🟡 Media' },
+  { value: 'BAJA',  label: '🟢 Baja' },
 ];
 
 const EMPTY_FORM = {
-  guardiaId: '',
-  titulo: '',
-  descripcion: '',
-  ubicacion: '',
-  motivo: '',
+  guardiaId:      '',
+  ubicacion:      '',
+  motivo:         '',
+  prioridad:      'MEDIA',
   pacienteNombre: '',
-  pacienteDni: '',
-  prioridad: 'MEDIA',
+  pacienteDni:    '',
+  descripcion:    '',
 };
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function Incidentes() {
   const { user } = useAuth();
-  const [incidentes, setIncidentes] = useState([]);
-  const [guardias, setGuardias] = useState([]);
-  const [form, setForm] = useState(EMPTY_FORM);
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [error, setError] = useState('');
+  const [incidentes, setIncidentes]     = useState([]);
+  const [guardias, setGuardias]         = useState([]);
+  const [atencionesDia, setAtencionesDia] = useState([]);
+  const [form, setForm]                 = useState(EMPTY_FORM);
+  const [loading, setLoading]           = useState(false);
+  const [msg, setMsg]                   = useState('');
+  const [error, setError]               = useState('');
 
-  useEffect(() => {
-    cargarDatos();
-  }, [user]);
+  useEffect(() => { cargarDatos(); }, [user]);
+
+  // ─── Carga de datos ─────────────────────────────────────────
 
   const cargarDatos = async () => {
     if (user?.rol === 'DES') {
       try {
-        const guardiasRes = await incidenteService.listarGuardias();
-        setGuardias(guardiasRes.data);
-        const seguimientoRes = await incidenteService.listarSeguimiento();
-        setIncidentes(seguimientoRes.data);
-      } catch (e) {
-        setError('No se pudieron cargar las guardias activas o el seguimiento. Volvé a intentarlo.');
+        const [gRes, sRes] = await Promise.all([
+          incidenteService.listarGuardias(),
+          incidenteService.listarSeguimiento(),
+        ]);
+        setGuardias(gRes.data);
+        setIncidentes(sRes.data);
+      } catch {
+        mostrarError('No se pudieron cargar los datos. Intentá de nuevo.');
       }
       return;
     }
 
+    // ENF / JEF
     try {
-      const resp = await incidenteService.listarAsignados();
-      setIncidentes(resp.data);
-    } catch (e) {
-      setError('No se pudieron cargar los incidentes. Volvé a intentarlo.');
+      const [asigRes, diaRes] = await Promise.all([
+        incidenteService.listarAsignados(),
+        incidenteService.atencionesDel(),
+      ]);
+      setIncidentes(asigRes.data);
+      setAtencionesDia(diaRes.data);
+    } catch {
+      mostrarError('No se pudieron cargar los incidentes.');
     }
   };
 
-  const mostrarMsg = (texto) => {
-    setMsg(texto);
-    setTimeout(() => setMsg(''), 3500);
-  };
+  const mostrarMsg   = (t) => { setMsg(t);   setTimeout(() => setMsg(''),   3500); };
+  const mostrarError = (t) => { setError(t); setTimeout(() => setError(''), 4500); };
 
-  const mostrarError = (texto) => {
-    setError(texto);
-    setTimeout(() => setError(''), 4500);
-  };
+  // ─── Crear incidente (DES) ───────────────────────────────────
 
   const validarFormulario = () => {
-    if (!form.guardiaId) return 'Debe seleccionar una guardia activa';
-    if (!form.titulo?.trim()) return 'El título es obligatorio';
+    if (!form.guardiaId)         return 'Debe seleccionar a quién asignar el incidente';
     if (!form.ubicacion?.trim()) return 'La ubicación es obligatoria';
-    if (!form.motivo?.trim()) return 'El motivo es obligatorio';
-    if (!form.pacienteNombre?.trim()) return 'El nombre del paciente es obligatorio';
-    if (!form.pacienteDni?.trim()) return 'El DNI del paciente es obligatorio';
-    if (!form.prioridad) return 'Debes seleccionar una prioridad';
+    if (!form.motivo?.trim())    return 'El motivo es obligatorio';
+    if (!form.prioridad)         return 'La prioridad es obligatoria';
     return null;
   };
 
   const crearIncidente = async () => {
     setError('');
-    const validacion = validarFormulario();
-    if (validacion) {
-      mostrarError(validacion);
-      return;
-    }
+    const err = validarFormulario();
+    if (err) { mostrarError(err); return; }
 
     setLoading(true);
-
     try {
       await incidenteService.crear({
         ...form,
-        guardiaId: form.guardiaId ? Number(form.guardiaId) : null,
+        guardiaId: Number(form.guardiaId),
       });
-      mostrarMsg('Incidente creado y asignado correctamente');
+      mostrarMsg('✅ Incidente creado y asignado correctamente');
       setForm(EMPTY_FORM);
       await cargarDatos();
     } catch (e) {
-      mostrarError(
-        e.response?.data?.message ||
-        e.response?.statusText ||
-        'Error al crear el incidente'
-      );
+      mostrarError(e.response?.data?.message || 'Error al crear el incidente');
     } finally {
       setLoading(false);
     }
   };
 
+  // ─── Cambiar estado (ENF) ────────────────────────────────────
+
   const cambiarEstado = async (id, estado) => {
     setLoading(true);
     try {
       await incidenteService.cambiarEstado(id, estado);
-      mostrarMsg('Estado del incidente actualizado');
+      mostrarMsg(`✅ Incidente ${ESTADO_LABELS[estado].toLowerCase()}`);
       await cargarDatos();
     } catch (e) {
       mostrarError(e.response?.data?.message || 'Error al actualizar el incidente');
@@ -123,226 +134,411 @@ export default function Incidentes() {
     }
   };
 
-  const accionSiguiente = (estado) => {
-    if (estado === 'PENDIENTE') return 'EN_PROCESO';
-    if (estado === 'EN_PROCESO') return 'FINALIZADO';
-    return null;
+  // ─── Helpers para la tabla ENF ───────────────────────────────
+
+  // Dado el estado actual del incidente, qué acciones puede hacer el enfermero
+  const accionesDisponibles = (estado) => {
+    if (estado === 'PENDIENTE')  return ['EN_PROCESO', 'RECHAZADO'];
+    if (estado === 'EN_PROCESO') return ['FINALIZADO'];
+    return [];
   };
+
+  // ─── Render ──────────────────────────────────────────────────
 
   return (
     <div style={S.page}>
       <Sidebar />
       <main style={S.main}>
+
         <header style={S.header}>
           <div>
-            <h1 style={S.h1}>Incidentes asignados</h1>
+            <h1 style={S.h1}>
+              {user?.rol === 'DES' ? 'Gestión de Incidentes' : 'Mis Incidentes'}
+            </h1>
             <p style={S.sub}>
               {user?.rol === 'DES'
-                ? 'Cargá un nuevo incidente y asignalo a un enfermero que esté de guardia.'
-                : 'Visualizá las atenciones asignadas desde UGL y cambiá su estado.'}
+                ? 'Registrá y asigná incidentes a enfermeros que estén de guardia.'
+                : 'Atenciones asignadas desde UGL. Aceptá, rechazá o finalizá cada una.'}
             </p>
           </div>
         </header>
 
-        {msg && <div style={S.msgBar}>{msg}</div>}
+        {msg   && <div style={S.msgBar}>{msg}</div>}
         {error && <div style={S.errorBar}>{error}</div>}
 
-        {user?.rol === 'DES' ? (
+        {/* ══════════════════════════════════════════════════════
+            VISTA DESPACHADOR (DES)
+        ══════════════════════════════════════════════════════ */}
+        {user?.rol === 'DES' && (
           <>
+            {/* ── Formulario nuevo incidente ── */}
             <section style={S.card}>
               <h2 style={S.sectionTitle}>Nuevo incidente</h2>
-            <div style={S.grid3}>
-              <div style={S.field}>
-                <label style={S.label}>Guardia activa</label>
-                <select
-                  style={S.input}
-                  value={form.guardiaId}
-                  onChange={(e) => setForm({ ...form, guardiaId: e.target.value })}
-                >
-                  <option value="">Seleccioná una guardia</option>
-                  {guardias.map((guardia) => (
-                    <option key={guardia.id} value={guardia.id}>
-                      {guardia.enfermero?.nombre} {guardia.enfermero?.apellido} — {guardia.turno} — {guardia.movil?.patente}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div style={S.field}>
-                <label style={S.label}>Prioridad</label>
-                <select
-                  style={S.input}
-                  value={form.prioridad}
-                  onChange={(e) => setForm({ ...form, prioridad: e.target.value })}
-                >
-                  {PRIORIDADES.map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={S.field}>
-                <label style={S.label}>Ubicación</label>
-                <input
-                  style={S.input}
-                  value={form.ubicacion}
-                  onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
-                  placeholder="Ej: Av. Córdoba 123"
-                />
-              </div>
-              <div style={S.field}>
-                <label style={S.label}>Motivo</label>
-                <input
-                  style={S.input}
-                  value={form.motivo}
-                  onChange={(e) => setForm({ ...form, motivo: e.target.value })}
-                  placeholder="Ej: Dolor torácico"
-                />
-              </div>
-              <div style={S.field}>
-                <label style={S.label}>Nombre del paciente</label>
-                <input
-                  style={S.input}
-                  value={form.pacienteNombre}
-                  onChange={(e) => setForm({ ...form, pacienteNombre: e.target.value })}
-                  placeholder="Ej: Juan Pérez"
-                />
-              </div>
-              <div style={S.field}>
-                <label style={S.label}>DNI del paciente</label>
-                <input
-                  style={S.input}
-                  value={form.pacienteDni}
-                  onChange={(e) => setForm({ ...form, pacienteDni: e.target.value })}
-                  placeholder="Ej: 12345678"
-                />
-              </div>
-              <div style={S.field}>
-                <label style={S.label}>Título</label>
-                <input
-                  style={S.input}
-                  value={form.titulo}
-                  onChange={(e) => setForm({ ...form, titulo: e.target.value })}
-                  placeholder="Breve descripción del incidente"
-                />
-              </div>
-              <div style={S.field}>
-                <label style={S.label}>Descripción</label>
-                <textarea
-                  style={{ ...S.input, minHeight: '100px', resize: 'vertical' }}
-                  value={form.descripcion}
-                  onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-                  placeholder="Detalles adicionales..."
-                />
-              </div>
-            </div>
-            <button style={S.btnPrimary} onClick={crearIncidente} disabled={loading}>
-              {loading ? 'Guardando...' : 'Crear incidente'}
-            </button>
-          </section>
 
-          <section style={S.card}>
-            <h2 style={S.sectionTitle}>Seguimiento de incidentes</h2>
-            <div style={S.tableWrapper}>
-              <table style={S.table}>
-                <thead>
-                  <tr>
-                    {['#', 'Título', 'Guardia', 'Móvil', 'Prioridad', 'Estado', 'Asignación', 'Paciente'].map((head) => (
-                      <th key={head} style={S.th}>{head}</th>
+              <div style={S.grid2}>
+
+                {/* Asignar a (guardia activa) */}
+                <Field label="Asignar a: *">
+                  <select
+                    style={S.input}
+                    value={form.guardiaId}
+                    onChange={e => setForm({ ...form, guardiaId: e.target.value })}
+                  >
+                    <option value="">Seleccioná una base operativa</option>
+                    {guardias.map(g => (
+                      <option key={g.id} value={g.id}>
+                        {g.movil?.baseOperativa} — {g.enfermero?.nombre} {g.enfermero?.apellido}
+                      </option>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {incidentes.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} style={S.empty}>No hay incidentes en seguimiento.</td>
-                    </tr>
-                  ) : (
-                    incidentes.map((incidente) => (
-                      <tr key={incidente.id}>
-                        <td style={S.td}>{incidente.id}</td>
-                        <td style={S.td}>{incidente.titulo}</td>
-                        <td style={S.td}>{incidente.asignadoA ? `${incidente.asignadoA.nombre} ${incidente.asignadoA.apellido}` : '-'}</td>
-                        <td style={S.td}>{incidente.movil ? `${incidente.movil.patente} (${incidente.movil.numeroInterno})` : '-'}</td>
-                        <td style={S.td}>{incidente.prioridad || '-'}</td>
-                        <td style={S.td}>{ESTADO_LABELS[incidente.estado] || incidente.estado}</td>
-                        <td style={S.td}>{new Date(incidente.fechaAsignacion).toLocaleString()}</td>
-                        <td style={S.td}>{incidente.pacienteNombre || '-'}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                  </select>
+                </Field>
+
+                {/* Prioridad */}
+                <Field label="Prioridad *">
+                  <select
+                    style={S.input}
+                    value={form.prioridad}
+                    onChange={e => setForm({ ...form, prioridad: e.target.value })}
+                  >
+                    {PRIORIDADES.map(p => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                {/* Ubicación */}
+                <Field label="Ubicación *">
+                  <input
+                    style={S.input}
+                    value={form.ubicacion}
+                    onChange={e => setForm({ ...form, ubicacion: e.target.value })}
+                    placeholder="Ej: Av. Córdoba 1234"
+                  />
+                </Field>
+
+                {/* Motivo */}
+                <Field label="Motivo *">
+                  <input
+                    style={S.input}
+                    value={form.motivo}
+                    onChange={e => setForm({ ...form, motivo: e.target.value })}
+                    placeholder="Ej: Dolor torácico"
+                  />
+                </Field>
+
+                {/* Nombre del paciente */}
+                <Field label="Nombre del paciente">
+                  <input
+                    style={S.input}
+                    value={form.pacienteNombre}
+                    onChange={e => setForm({ ...form, pacienteNombre: e.target.value })}
+                    placeholder="Ej: Juan Pérez"
+                  />
+                </Field>
+
+                {/* DNI del paciente */}
+                <Field label="DNI del paciente">
+                  <input
+                    style={S.input}
+                    value={form.pacienteDni}
+                    onChange={e => setForm({ ...form, pacienteDni: e.target.value })}
+                    placeholder="Ej: 12345678"
+                  />
+                </Field>
+
+              </div>
+
+              {/* Detalles ubicación (no obligatorio) */}
+              <Field label="Detalles ubicación">
+                <textarea
+                  style={{ ...S.input, minHeight: '80px', resize: 'vertical' }}
+                  value={form.descripcion}
+                  onChange={e => setForm({ ...form, descripcion: e.target.value })}
+                  placeholder="Referencias, piso, detalles del lugar..."
+                />
+              </Field>
+
+              <div style={{ marginTop: '20px' }}>
+                <button style={S.btnPrimary} onClick={crearIncidente} disabled={loading}>
+                  {loading ? 'Guardando...' : '🚨 Crear incidente'}
+                </button>
+              </div>
+            </section>
+
+            {/* ── Tabla de seguimiento ── */}
+            <section style={S.card}>
+              <h2 style={S.sectionTitle}>Seguimiento de incidentes</h2>
+              <TableSeguimiento incidentes={incidentes} />
+            </section>
           </>
-        ) : (
-          <section style={S.card}>
-            <div style={S.tableWrapper}>
-              <table style={S.table}>
-                <thead>
-                  <tr>
-                    {['#', 'Título', 'Móvil', 'Estado', 'Asignación', 'Descripción', 'Acción'].map((head) => (
-                      <th key={head} style={S.th}>{head}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {incidentes.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} style={S.empty}>No hay incidentes asignados en este momento.</td>
-                    </tr>
-                  ) : (
-                    incidentes.map((incidente) => {
-                      const siguiente = accionSiguiente(incidente.estado);
-                      return (
-                        <tr key={incidente.id}>
-                          <td style={S.td}>{incidente.id}</td>
-                          <td style={S.td}>{incidente.titulo}</td>
-                          <td style={S.td}>{incidente.movil ? `${incidente.movil.patente} (${incidente.movil.numeroInterno})` : '-'}</td>
-                          <td style={S.td}>{ESTADO_LABELS[incidente.estado] || incidente.estado}</td>
-                          <td style={S.td}>{new Date(incidente.fechaAsignacion).toLocaleString()}</td>
-                          <td style={S.td}>{incidente.descripcion || '-'}</td>
-                          <td style={S.td}>
-                            {siguiente ? (
-                              <button style={S.btnPrimary} disabled={loading} onClick={() => cambiarEstado(incidente.id, siguiente)}>
-                                {siguiente === 'EN_PROCESO' ? 'Tomar episodio' : 'Finalizar'}
-                              </button>
-                            ) : (
-                              <span style={S.badge}>Sin cambios</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
         )}
+
+        {/* ══════════════════════════════════════════════════════
+            VISTA ENFERMERO (ENF / JEF)
+        ══════════════════════════════════════════════════════ */}
+        {(user?.rol === 'ENF' || user?.rol === 'JEF') && (
+          <>
+            {/* ── Incidentes activos (pendientes / en proceso) ── */}
+            <section style={S.card}>
+              <h2 style={S.sectionTitle}>Atenciones activas</h2>
+
+              {incidentes.filter(i =>
+                i.estado === 'PENDIENTE' || i.estado === 'EN_PROCESO'
+              ).length === 0 ? (
+                <p style={S.emptyText}>No tenés atenciones pendientes en este momento.</p>
+              ) : (
+                <div style={S.cardGrid}>
+                  {incidentes
+                    .filter(i => i.estado === 'PENDIENTE' || i.estado === 'EN_PROCESO')
+                    .map(inc => (
+                      <IncidenteCard
+                        key={inc.id}
+                        inc={inc}
+                        acciones={accionesDisponibles(inc.estado)}
+                        onAccion={cambiarEstado}
+                        loading={loading}
+                      />
+                    ))}
+                </div>
+              )}
+            </section>
+
+            {/* ── Atenciones del día ── */}
+            <section style={S.card}>
+              <h2 style={S.sectionTitle}>
+                Atenciones de hoy
+                <span style={S.countBadge}>{atencionesDia.length}</span>
+              </h2>
+
+              {atencionesDia.length === 0 ? (
+                <p style={S.emptyText}>No hay atenciones registradas hoy.</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={S.table}>
+                    <thead>
+                      <tr>
+                        {['#','Ubicación','Motivo','Paciente','Prioridad','Estado','Hora'].map(h => (
+                          <th key={h} style={S.th}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {atencionesDia.map(inc => {
+                        const ec  = ESTADO_COLORS[inc.estado]   || {};
+                        const pc  = PRIORIDAD_COLORS[inc.prioridad] || {};
+                        return (
+                          <tr key={inc.id}>
+                            <td style={S.td}>{inc.id}</td>
+                            <td style={S.td}>{inc.ubicacion || '-'}</td>
+                            <td style={S.td}>{inc.motivo    || '-'}</td>
+                            <td style={S.td}>{inc.pacienteNombre || '-'}</td>
+                            <td style={S.td}>
+                              <span style={{ ...S.badge, ...pc }}>
+                                {inc.prioridad || '-'}
+                              </span>
+                            </td>
+                            <td style={S.td}>
+                              <span style={{ ...S.badge, ...ec }}>
+                                {ESTADO_LABELS[inc.estado] || inc.estado}
+                              </span>
+                            </td>
+                            <td style={S.td}>
+                              {new Date(inc.fechaAsignacion).toLocaleTimeString('es-AR', {
+                                hour: '2-digit', minute: '2-digit'
+                              })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </>
+        )}
+
       </main>
     </div>
   );
 }
 
+// ─── Sub-componente: tarjeta de incidente activo (ENF) ────────────────────────
+
+function IncidenteCard({ inc, acciones, onAccion, loading }) {
+  const ec = ESTADO_COLORS[inc.estado]    || {};
+  const pc = PRIORIDAD_COLORS[inc.prioridad] || {};
+
+  return (
+    <div style={SC.card}>
+      {/* Header de la tarjeta */}
+      <div style={SC.cardHeader}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span style={{ ...SC.badge, ...pc }}>{inc.prioridad}</span>
+          <span style={{ ...SC.badge, ...ec }}>{ESTADO_LABELS[inc.estado]}</span>
+        </div>
+        <span style={SC.idTag}>#{inc.id}</span>
+      </div>
+
+      {/* Datos del incidente */}
+      <div style={SC.cardBody}>
+        <DataRow icon="📍" label="Ubicación"  value={inc.ubicacion      || '—'} />
+        <DataRow icon="🔖" label="Motivo"     value={inc.motivo         || '—'} />
+        <DataRow icon="👤" label="Paciente"   value={inc.pacienteNombre || '—'} />
+        <DataRow icon="🚑" label="Móvil"
+          value={inc.movil
+            ? `${inc.movil.patente} (${inc.movil.numeroInterno})`
+            : '—'} />
+        {inc.descripcion && (
+          <DataRow icon="📝" label="Detalles" value={inc.descripcion} />
+        )}
+      </div>
+
+      {/* Acciones */}
+      {acciones.length > 0 && (
+        <div style={SC.cardActions}>
+          {acciones.includes('EN_PROCESO') && (
+            <button
+              style={{ ...SC.btn, background: '#1565C0', color: '#fff' }}
+              disabled={loading}
+              onClick={() => onAccion(inc.id, 'EN_PROCESO')}
+            >
+              ✅ Aceptar
+            </button>
+          )}
+          {acciones.includes('RECHAZADO') && (
+            <button
+              style={{ ...SC.btn, background: '#FFEBEE', color: '#C62828' }}
+              disabled={loading}
+              onClick={() => onAccion(inc.id, 'RECHAZADO')}
+            >
+              ❌ Rechazar
+            </button>
+          )}
+          {acciones.includes('FINALIZADO') && (
+            <button
+              style={{ ...SC.btn, background: '#2E7D32', color: '#fff' }}
+              disabled={loading}
+              onClick={() => onAccion(inc.id, 'FINALIZADO')}
+            >
+              🏁 Finalizar
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DataRow({ icon, label, value }) {
+  return (
+    <div style={{ display: 'flex', gap: '8px', padding: '5px 0', fontSize: '13px' }}>
+      <span>{icon}</span>
+      <span style={{ color: '#666', minWidth: '70px' }}>{label}:</span>
+      <span style={{ color: '#111', fontWeight: '500', flex: 1 }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Sub-componente: tabla de seguimiento (DES) ───────────────────────────────
+
+function TableSeguimiento({ incidentes }) {
+  if (incidentes.length === 0) {
+    return <p style={S.emptyText}>No hay incidentes registrados todavía.</p>;
+  }
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={S.table}>
+        <thead>
+          <tr>
+            {['#','Ubicación','Motivo','Asignado a','Móvil','Prioridad','Estado','Paciente','Asignación'].map(h => (
+              <th key={h} style={S.th}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {incidentes.map(inc => {
+            const ec = ESTADO_COLORS[inc.estado]       || {};
+            const pc = PRIORIDAD_COLORS[inc.prioridad] || {};
+            return (
+              <tr key={inc.id}>
+                <td style={S.td}>{inc.id}</td>
+                <td style={S.td}>{inc.ubicacion || '-'}</td>
+                <td style={S.td}>{inc.motivo    || '-'}</td>
+                <td style={S.td}>
+                  {inc.asignadoA
+                    ? `${inc.asignadoA.nombre} ${inc.asignadoA.apellido}`
+                    : '-'}
+                </td>
+                <td style={S.td}>
+                  {inc.movil
+                    ? `${inc.movil.patente} (${inc.movil.numeroInterno})`
+                    : '-'}
+                </td>
+                <td style={S.td}>
+                  <span style={{ ...S.badge, ...pc }}>{inc.prioridad || '-'}</span>
+                </td>
+                <td style={S.td}>
+                  <span style={{ ...S.badge, ...ec }}>
+                    {ESTADO_LABELS[inc.estado] || inc.estado}
+                  </span>
+                </td>
+                <td style={S.td}>{inc.pacienteNombre || '-'}</td>
+                <td style={S.td}>
+                  {new Date(inc.fechaAsignacion).toLocaleString('es-AR')}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── Sub-componente Field ─────────────────────────────────────────────────────
+
+function Field({ label, children }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <label style={{ fontSize: '13px', fontWeight: '600', color: '#333' }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+// ─── Estilos principales ──────────────────────────────────────────────────────
+
 const S = {
-  page: { display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif" },
-  main: { flex: 1, background: '#F7F8FB', padding: '32px' },
-  header: { marginBottom: '18px' },
-  h1: { fontSize: '28px', margin: 0, color: '#1F3543' },
-  sub: { color: '#5E6F7A', marginTop: '8px', fontSize: '14px' },
-  card: { background: '#FFFFFF', borderRadius: '16px', padding: '24px', boxShadow: '0 10px 28px rgba(0, 0, 0, 0.06)', marginBottom: '20px' },
-  sectionTitle: { fontSize: '16px', fontWeight: '700', marginBottom: '18px', color: '#0F3E3E' },
-  grid3: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', marginBottom: '18px' },
-  field: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  label: { fontSize: '13px', fontWeight: '600', color: '#3A4A4C' },
-  input: { width: '100%', border: '1.5px solid #D6E4E3', borderRadius: '10px', padding: '12px 14px', fontSize: '14px', color: '#1F3838', outline: 'none', background: '#fff' },
-  tableWrapper: { overflowX: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse', minWidth: '860px' },
-  th: { textAlign: 'left', padding: '12px 16px', borderBottom: '2px solid #E8EDF1', color: '#334456', fontSize: '13px', fontWeight: '700', letterSpacing: '0.01em' },
-  td: { padding: '14px 16px', borderBottom: '1px solid #F3F6F8', color: '#3C4B58', fontSize: '14px', verticalAlign: 'top' },
-  empty: { padding: '40px', color: '#77838D', textAlign: 'center' },
-  msgBar: { background: '#ECF9F0', border: '1px solid #A8D7A8', color: '#235A35', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px' },
-  errorBar: { background: '#FFF2F2', border: '1px solid #F0B3B3', color: '#9B2A2A', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px' },
-  btnPrimary: { background: '#0F5C68', color: '#ffffff', border: 'none', borderRadius: '10px', padding: '12px 18px', cursor: 'pointer', fontSize: '14px', fontWeight: '700' },
-  badge: { display: 'inline-flex', padding: '6px 10px', borderRadius: '999px', background: '#F1F5F6', color: '#4A646F', fontSize: '12px', fontWeight: '700' },
+  page:       { display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif" },
+  main:       { flex: 1, background: '#F3F8F9', padding: '32px' },
+  header:     { marginBottom: '20px' },
+  h1:         { fontSize: '28px', margin: 0, color: '#0E3F3F', fontWeight: '700' },
+  sub:        { color: '#5C6F72', marginTop: '6px', fontSize: '14px' },
+  card:       { background: '#fff', borderRadius: '16px', padding: '24px', marginBottom: '20px', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' },
+  sectionTitle:{ fontSize: '16px', fontWeight: '700', marginBottom: '18px', color: '#0F3E3E', display: 'flex', alignItems: 'center', gap: '10px' },
+  countBadge: { background: '#1B6B6B', color: '#fff', borderRadius: '20px', padding: '2px 10px', fontSize: '13px', fontWeight: '700' },
+  grid2:      { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' },
+  input:      { width: '100%', border: '1.5px solid #D6E4E3', borderRadius: '10px', padding: '11px 14px', fontSize: '14px', color: '#1F3838', outline: 'none', background: '#fff', boxSizing: 'border-box' },
+  btnPrimary: { background: '#0F5C68', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 24px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' },
+  table:      { width: '100%', borderCollapse: 'collapse', minWidth: '800px' },
+  th:         { textAlign: 'left', padding: '12px 14px', borderBottom: '2px solid #E8EDF1', color: '#334456', fontSize: '13px', fontWeight: '700' },
+  td:         { padding: '13px 14px', borderBottom: '1px solid #F3F6F8', color: '#3C4B58', fontSize: '13px', verticalAlign: 'top' },
+  badge:      { display: 'inline-flex', padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
+  emptyText:  { color: '#777', fontSize: '14px', textAlign: 'center', padding: '24px 0' },
+  msgBar:     { background: '#ECF9F0', border: '1px solid #A8D7A8', color: '#235A35', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px' },
+  errorBar:   { background: '#FFF2F2', border: '1px solid #F0B3B3', color: '#9B2A2A', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px' },
+  cardGrid:   { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' },
+};
+
+// ─── Estilos tarjeta de incidente ─────────────────────────────────────────────
+
+const SC = {
+  card:       { background: '#F8FFFE', border: '1.5px solid #D6E4E3', borderRadius: '14px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' },
+  cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  cardBody:   { display: 'flex', flexDirection: 'column', gap: '2px' },
+  cardActions:{ display: 'flex', gap: '8px', flexWrap: 'wrap', paddingTop: '10px', borderTop: '1px solid #E0F2F1' },
+  badge:      { display: 'inline-flex', padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
+  idTag:      { background: '#E0F2F1', color: '#1B6B6B', padding: '3px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: '700' },
+  btn:        { border: 'none', borderRadius: '8px', padding: '8px 16px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
 };

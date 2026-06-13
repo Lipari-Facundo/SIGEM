@@ -19,8 +19,9 @@ export default function Login() {
       const data = res.data;
       login({ username: data.username, nombre: data.nombre, apellido: data.apellido, rol: data.rol, activo: data.activo, fotoPerfil: data.fotoPerfil }, data.token);
       navigate('/dashboard');
-    } catch {
-      setError('Usuario o contraseña incorrectos');
+    } catch (err) {
+      const message = err?.response?.data?.message || err?.response?.data?.error || 'Usuario o contraseña incorrectos';
+      setError(message);
     } finally {
       setLoading(false);
     }
