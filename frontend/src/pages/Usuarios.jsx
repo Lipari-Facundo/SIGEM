@@ -10,7 +10,7 @@
 //   • Exportación a PDF (excluye ADM)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Sidebar from '../components/Sidebar';
@@ -378,6 +378,22 @@ export default function Usuarios() {
     mostrarMsg(`✅ PDF generado: ${nombreArchivo}`);
   };
 
+  // ─── Etiqueta dinámica del botón PDF ────────────────────────
+  //
+  // Cambia según el tab activo para que el usuario sepa exactamente
+  // qué va a descargar antes de hacer clic.
+  //
+  const LABEL_PDF_POR_ROL = {
+    TODOS: 'Exportar PDF ',
+    JEF:   'Exportar PDF — Jefes de Enfermería',
+    DES:   'Exportar PDF — Despachadores',
+    ENF:   'Exportar PDF — Enfermeros',
+    DIR:   'Exportar PDF — Directivos',
+    ADM:   'Exportar PDF — Administradores',
+  };
+ const labelPDF = LABEL_PDF_POR_ROL[tabActivo] ?? 'Exportar PDF';
+
+
   // ─── Render ──────────────────────────────────────────────────
 
   return (
@@ -390,18 +406,17 @@ export default function Usuarios() {
         <header style={S.header}>
           <div>
             <h1 style={S.h1}>Gestión de Usuarios</h1>
-            <p style={S.sub}>
-              {listaFiltrada.length} usuario{listaFiltrada.length !== 1 ? 's' : ''}
-              {tabActivo !== 'TODOS' ? ` — ${ROL_LABELS[tabActivo]}` : ' registrados'}
-            </p>
           </div>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <button
               onClick={exportarPDF}
-              style={S.btnPDF}
-              title={`Exportar PDF — ${tabActivo === 'TODOS' ? 'Todo el personal' : ROL_LABELS[tabActivo]}`}
+              disabled={listaFiltrada.filter(u => u.rol !== 'ADM').length === 0}
+              style={{
+                ...S.btnPDF,
+                ...(listaFiltrada.filter(u => u.rol !== 'ADM').length === 0 ? S.btnPDFDisabled : {}),
+              }}
             >
-              📄 Exportar {tabActivo === 'TODOS' ? 'todo el personal' : ROL_LABELS[tabActivo]}
+              📄 {labelPDF}
             </button>
             <button onClick={abrirCrear} style={S.btnPrimary}>
               + Nuevo Usuario
@@ -416,25 +431,14 @@ export default function Usuarios() {
         {/* ── Tabs de filtro por rol ── */}
         <div style={S.tabsBar}>
           {TABS.map(tab => {
-            const count  = contarPorRol(tab.key);
             const activo = tabActivo === tab.key;
             return (
               <button
                 key={tab.key}
                 onClick={() => setTabActivo(tab.key)}
-                style={{
-                  ...S.tab,
-                  ...(activo ? S.tabActivo : {}),
-                }}
+                style={{ ...S.tab, ...(activo ? S.tabActivo : {}) }}
               >
                 {tab.label}
-                <span style={{
-                  ...S.tabBadge,
-                  background: activo ? '#fff' : '#E5E7EB',
-                  color:      activo ? '#1B6B6B' : '#6B7280',
-                }}>
-                  {count}
-                </span>
               </button>
             );
           })}
@@ -477,16 +481,16 @@ export default function Usuarios() {
               )}
 
               {listaFiltrada.map((u, idx) => {
-                // Separador visual entre grupos de rol
-                const rolAnterior = idx > 0 ? listaFiltrada[idx - 1].rol : null;
+                const rolAnterior   = idx > 0 ? listaFiltrada[idx - 1].rol : null;
                 const esPrimerDeRol = tabActivo === 'TODOS' && u.rol !== rolAnterior;
-                const rolColor = ROL_COLORS[u.rol] || { bg: '#F3F4F6', color: '#374151' };
+                const rolColor      = ROL_COLORS[u.rol] || { bg: '#F3F4F6', color: '#374151' };
 
+                // KEY en el Fragment es OBLIGATORIO para que React no desmonte
+                // la tabla al cambiar de tab. Sin key, React pierde el árbol del DOM.
                 return (
-                  <>
-                    {/* Encabezado de grupo de rol (solo en vista "Todos") */}
+                  <React.Fragment key={u.id}>
                     {esPrimerDeRol && (
-                      <tr key={`sep-${u.rol}`} style={S.groupRow}>
+                      <tr style={S.groupRow}>
                         <td colSpan={7} style={{
                           ...S.groupCell,
                           background: rolColor.bg,
@@ -502,8 +506,7 @@ export default function Usuarios() {
                       </tr>
                     )}
 
-                    {/* Fila de usuario */}
-                    <tr key={u.id} style={S.tr}>
+                    <tr style={S.tr}>
                       <td style={{ ...S.td, fontWeight: '600', color: '#0F2A2A' }}>
                         {u.username}
                       </td>
@@ -554,7 +557,7 @@ export default function Usuarios() {
                         </div>
                       </td>
                     </tr>
-                  </>
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -683,11 +686,11 @@ const S = {
   h1:          { fontSize: '26px', fontWeight: '700', color: '#0F2A2A', margin: 0 },
   sub:         { color: '#888', margin: '4px 0 0', fontSize: '13px' },
 
-  // Tabs
-  tabsBar:     { display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' },
-  tab:         { padding: '8px 14px', borderRadius: '20px', border: '1.5px solid #E5E7EB', background: '#fff', color: '#4B5563', cursor: 'pointer', fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s' },
-  tabActivo:   { background: '#1B6B6B', borderColor: '#1B6B6B', color: '#fff' },
-  tabBadge:    { padding: '1px 7px', borderRadius: '20px', fontSize: '11px', fontWeight: '700' },
+  // Tabs + PDF row
+  tabsRow:        { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '12px', flexWrap: 'wrap' },
+  tabsBar:        { display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1 },
+  tab:            { padding: '8px 14px', borderRadius: '20px', border: '1.5px solid #E5E7EB', background: '#fff', color: '#4B5563', cursor: 'pointer', fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s' },
+  tabActivo:      { background: '#1B6B6B', borderColor: '#1B6B6B', color: '#fff' },
 
   // Búsqueda
   searchRow:   { display: 'flex', gap: '8px', marginBottom: '16px' },
@@ -728,7 +731,8 @@ const S = {
   // Botones principales
   btnPrimary:  { background: 'linear-gradient(135deg, #1B6B6B, #2A9090)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' },
   btnSecondary:{ background: '#F0F7F7', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer', fontSize: '14px' },
-  btnPDF:      { background: '#fff', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' },
+  btnPDF:         { background: '#fff', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' },
+  btnPDFDisabled: { background: '#F9FAFB', color: '#9CA3AF', border: '1.5px solid #E5E7EB', cursor: 'not-allowed' },
 
   // Modal
   overlay:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
