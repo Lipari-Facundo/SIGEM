@@ -13,6 +13,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/incidentes")
@@ -71,5 +72,20 @@ public class IncidenteController {
     public ResponseEntity<List<Incidente>> atencionesDel(
             @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(incidenteService.atencionesDel(usuario));
+    }
+
+    @GetMapping("/dashboard")
+    @PreAuthorize("hasAnyRole('ADM','DIR')")
+    public ResponseEntity<Map<String, Object>> dashboard(
+            @RequestParam(value = "startDate", required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+                    java.time.LocalDate startDate,
+            @RequestParam(value = "endDate", required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+                    java.time.LocalDate endDate
+    ) {
+        java.time.LocalDateTime start = startDate != null ? startDate.atStartOfDay() : null;
+        java.time.LocalDateTime end   = endDate != null ? endDate.atTime(java.time.LocalTime.MAX) : null;
+        return ResponseEntity.ok(incidenteService.getDashboardData(start, end));
     }
 }

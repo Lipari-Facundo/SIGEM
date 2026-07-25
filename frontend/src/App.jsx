@@ -7,6 +7,7 @@ import Usuarios   from './pages/Usuarios';
 import Moviles    from './pages/Moviles';
 import Guardias   from './pages/Guardias';
 import Incidentes from './pages/Incidentes';
+import DirectorDashboard from './pages/DirectorDashboard';
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/moviles"    element={<PrivateRoute><Moviles /></PrivateRoute>} />
           <Route path="/guardias"   element={<PrivateRoute><Guardias /></PrivateRoute>} />
           <Route path="/incidentes" element={<PrivateRoute><Incidentes /></PrivateRoute>} />
+          <Route path="/director-dashboard" element={<PrivateRoute><DirectorDashboard /></PrivateRoute>} />
           <Route path="*"           element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

@@ -7,10 +7,15 @@ import com.sigem.backend.repository.IncidenteRepository;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class IncidenteService {
@@ -115,6 +120,50 @@ public class IncidenteService {
         LocalDateTime finDia    = LocalDate.now().atTime(LocalTime.MAX);
         return incidenteRepository.findAtencionesDel(
                 usuario.getUsername(), inicioDia, finDia);
+    }
+
+    public Map<String, Object> getDashboardData(java.time.LocalDateTime start, java.time.LocalDateTime end) {
+        List<Map<String, Object>> overTime = new ArrayList<>();
+        for (Object[] row : incidenteRepository.countByDay(start, end)) {
+            Object periodValue = row[0];
+            LocalDateTime period;
+            if (periodValue instanceof Timestamp timestamp) {
+                period = timestamp.toLocalDateTime();
+            } else if (periodValue instanceof LocalDateTime localDateTime) {
+                period = localDateTime;
+            } else if (periodValue instanceof java.sql.Date sqlDate) {
+                period = sqlDate.toLocalDate().atStartOfDay();
+            } else {
+                continue;
+            }
+            Number count = (Number) row[1];
+            overTime.add(Map.of(
+                    "period", period.format(DateTimeFormatter.ofPattern("dd/MM")),
+                    "count", count.intValue()
+            ));
+        }
+
+        List<Map<String, Object>> vehicles = new ArrayList<>();
+        for (Object[] row : incidenteRepository.countByVehicle(start, end)) {
+            vehicles.add(Map.of(
+                    "name", String.valueOf(row[0]),
+                    "count", ((Number) row[1]).intValue()
+            ));
+        }
+
+        List<Map<String, Object>> motives = new ArrayList<>();
+        for (Object[] row : incidenteRepository.countByMotive(start, end)) {
+            motives.add(Map.of(
+                    "name", String.valueOf(row[0]),
+                    "count", ((Number) row[1]).intValue()
+            ));
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("overTime", overTime);
+        result.put("vehicles", vehicles);
+        result.put("motives", motives);
+        return result;
     }
 
     // ─── Validación de creación ───────────────────────────────

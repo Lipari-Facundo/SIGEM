@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:8080/api',
+  baseURL: 'http://localhost:8081/api',
 });
 
 api.interceptors.request.use((config) => {
@@ -33,6 +33,7 @@ export const usuarioService = {
   modificar:         (id, data)  => api.put(`/usuarios/${id}`, data),
   cambiarEstado:     (id, activo)=> api.put(`/usuarios/${id}/estado`, { activo }),
   eliminar:          (id)        => api.delete(`/usuarios/${id}`),
+  exportar:          (params)    => api.get('/usuarios/export', { params, responseType: 'blob' }),
 };
 
 export const movilService = {
@@ -57,6 +58,7 @@ export const incidenteService = {
   crear:             (data)   => api.post('/incidentes', data),
   cambiarEstado:     (id, estado) => api.put(`/incidentes/${id}/estado`, { estado }),
   atencionesDel:     ()       => api.get('/incidentes/atenciones-hoy'),
+  dashboard:         (params) => api.get('/incidentes/dashboard', { params }),
 };
 
 export default api;

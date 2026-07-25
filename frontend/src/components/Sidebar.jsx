@@ -2,11 +2,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const items = [
-  { path: '/dashboard',  label: 'Panel de control',   icon: '🏠', roles: ['ADM','ENF','JEF','DES','DIR'] },
-  { path: '/guardias',   label: 'Guardia',             icon: '🩺', roles: ['ENF','JEF'] },
-  { path: '/incidentes', label: 'Incidentes',          icon: '📋', roles: ['ENF','JEF','DES'] },
-  { path: '/usuarios',   label: 'Usuarios',            icon: '👥', roles: ['ADM'] },
-  { path: '/moviles',    label: 'Gestión de Móviles',  icon: '🚑', roles: ['ADM'] },
+  { path: '/dashboard',          label: 'Panel de control',   icon: '🏠', roles: ['ADM','ENF','JEF','DES','DIR'] },
+  { path: '/director-dashboard', label: 'Management Dashboard', icon: '📊', roles: ['DIR','ADM'] },
+  { path: '/guardias',           label: 'Guardia',           icon: '🩺', roles: ['ENF','JEF'] },
+  { path: '/incidentes',         label: 'Incidentes',        icon: '📋', roles: ['ENF','JEF','DES'] },
+  { path: '/usuarios',           label: 'Usuarios',          icon: '👥', roles: ['ADM'] },
+  { path: '/moviles',            label: 'Gestión de Móviles', icon: '🚑', roles: ['ADM'] },
 ];
 
 const rolLabels = {

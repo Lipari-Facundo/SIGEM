@@ -79,6 +79,7 @@ export default function Usuarios() {
   const [msg, setMsg]             = useState('');
   const [error, setError]         = useState('');
   const [confirmId, setConfirmId] = useState(null);
+  const [formatoExportacion, setFormatoExportacion] = useState('PDF');
 
   useEffect(() => { cargar(); }, []);
 
@@ -220,6 +221,28 @@ export default function Usuarios() {
     }
   };
 
+  const obtenerUsuariosParaExportar = () => {
+    return lista
+      .filter(u => u.rol !== 'ADM')
+      .filter(u => tabActivo === 'TODOS' || u.rol === tabActivo)
+      .filter(u => {
+        if (!busqueda.trim()) return true;
+        const q = busqueda.toLowerCase();
+        return (
+          u.username?.toLowerCase().includes(q) ||
+          u.nombre?.toLowerCase().includes(q) ||
+          u.apellido?.toLowerCase().includes(q) ||
+          u.dni?.includes(q)
+        );
+      })
+      .sort((a, b) => {
+        const ordenA = ROL_ORDEN[a.rol] ?? 50;
+        const ordenB = ROL_ORDEN[b.rol] ?? 50;
+        if (ordenA !== ordenB) return ordenA - ordenB;
+        return (a.apellido || '').localeCompare(b.apellido || '', 'es');
+      });
+  };
+
   // ─── Exportar PDF ────────────────────────────────────────────
   //
   // Decisión: excluimos al ADM del PDF porque es información
@@ -228,16 +251,7 @@ export default function Usuarios() {
   // Ordenamos igual que la tabla: por jerarquía de rol.
   //
   const exportarPDF = () => {
-    // Respeta el tab activo: si estás en "Enfermero", exporta solo enfermeros
-    const usuariosParaPDF = lista
-      .filter(u => u.rol !== 'ADM')
-      .filter(u => tabActivo === 'TODOS' || u.rol === tabActivo)
-      .sort((a, b) => {
-        const ordenA = ROL_ORDEN[a.rol] ?? 50;
-        const ordenB = ROL_ORDEN[b.rol] ?? 50;
-        if (ordenA !== ordenB) return ordenA - ordenB;
-        return (a.apellido || '').localeCompare(b.apellido || '', 'es');
-      });
+    const usuariosParaPDF = obtenerUsuariosParaExportar();
 
     if (usuariosParaPDF.length === 0) {
       mostrarError('No hay usuarios para exportar con el filtro actual.');
@@ -378,21 +392,59 @@ export default function Usuarios() {
     mostrarMsg(`✅ PDF generado: ${nombreArchivo}`);
   };
 
-  // ─── Etiqueta dinámica del botón PDF ────────────────────────
-  //
-  // Cambia según el tab activo para que el usuario sepa exactamente
-  // qué va a descargar antes de hacer clic.
-  //
-  const LABEL_PDF_POR_ROL = {
-    TODOS: 'Exportar PDF ',
-    JEF:   'Exportar PDF — Jefes de Enfermería',
-    DES:   'Exportar PDF — Despachadores',
-    ENF:   'Exportar PDF — Enfermeros',
-    DIR:   'Exportar PDF — Directivos',
-    ADM:   'Exportar PDF — Administradores',
-  };
- const labelPDF = LABEL_PDF_POR_ROL[tabActivo] ?? 'Exportar PDF';
+  const exportarCSV = async () => {
+    const usuariosParaCSV = obtenerUsuariosParaExportar();
 
+    if (usuariosParaCSV.length === 0) {
+      mostrarError('No hay usuarios para exportar con el filtro actual.');
+      return;
+    }
+
+    try {
+      const res = await usuarioService.exportar({
+        formato: 'csv',
+        rol: tabActivo === 'TODOS' ? '' : tabActivo,
+        buscar: busqueda.trim() || undefined,
+      });
+
+      const blob = new Blob([res.data], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const fecha = new Date().toISOString().split('T')[0];
+      const sufijo = tabActivo === 'TODOS'
+        ? 'Todo_el_Personal'
+        : ROL_LABELS[tabActivo].replace(/\s+/g, '_');
+      link.download = `SIGEM_${sufijo}_${fecha}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      mostrarMsg(`✅ CSV generado: ${link.download}`);
+    } catch {
+      mostrarError('No se pudo generar el archivo CSV.');
+    }
+  };
+
+  const exportarSeleccionado = async () => {
+    if (formatoExportacion === 'CSV') {
+      await exportarCSV();
+    } else {
+      exportarPDF();
+    }
+  };
+
+  // ─── Etiqueta dinámica del botón de exportación ─────────────
+  const LABEL_EXPORT_POR_ROL = {
+    TODOS: { PDF: 'Exportar PDF', CSV: 'Exportar CSV' },
+    JEF:   { PDF: 'Exportar PDF — Jefes de Enfermería', CSV: 'Exportar CSV — Jefes de Enfermería' },
+    DES:   { PDF: 'Exportar PDF — Despachadores', CSV: 'Exportar CSV — Despachadores' },
+    ENF:   { PDF: 'Exportar PDF — Enfermeros', CSV: 'Exportar CSV — Enfermeros' },
+    DIR:   { PDF: 'Exportar PDF — Directivos', CSV: 'Exportar CSV — Directivos' },
+    ADM:   { PDF: 'Exportar PDF — Administradores', CSV: 'Exportar CSV — Administradores' },
+  };
+  const labelExport = LABEL_EXPORT_POR_ROL[tabActivo]?.[formatoExportacion] ?? `Exportar ${formatoExportacion}`;
+  const hayUsuariosExportables = obtenerUsuariosParaExportar().length > 0;
 
   // ─── Render ──────────────────────────────────────────────────
 
@@ -407,16 +459,30 @@ export default function Usuarios() {
           <div>
             <h1 style={S.h1}>Gestión de Usuarios</h1>
           </div>
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={S.exportSelector}>
+              {['PDF', 'CSV'].map(tipo => (
+                <button
+                  key={tipo}
+                  onClick={() => setFormatoExportacion(tipo)}
+                  style={{
+                    ...S.exportOption,
+                    ...(formatoExportacion === tipo ? S.exportOptionActive : {}),
+                  }}
+                >
+                  {tipo === 'PDF' ? '📄 PDF' : '📊 CSV'}
+                </button>
+              ))}
+            </div>
             <button
-              onClick={exportarPDF}
-              disabled={listaFiltrada.filter(u => u.rol !== 'ADM').length === 0}
+              onClick={exportarSeleccionado}
+              disabled={!hayUsuariosExportables}
               style={{
                 ...S.btnPDF,
-                ...(listaFiltrada.filter(u => u.rol !== 'ADM').length === 0 ? S.btnPDFDisabled : {}),
+                ...(!hayUsuariosExportables ? S.btnPDFDisabled : {}),
               }}
             >
-              📄 {labelPDF}
+              {formatoExportacion === 'CSV' ? '📊' : '📄'} {labelExport}
             </button>
             <button onClick={abrirCrear} style={S.btnPrimary}>
               + Nuevo Usuario
@@ -733,6 +799,9 @@ const S = {
   btnSecondary:{ background: '#F0F7F7', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer', fontSize: '14px' },
   btnPDF:         { background: '#fff', color: '#1B6B6B', border: '1.5px solid #1B6B6B', borderRadius: '8px', padding: '10px 18px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' },
   btnPDFDisabled: { background: '#F9FAFB', color: '#9CA3AF', border: '1.5px solid #E5E7EB', cursor: 'not-allowed' },
+  exportSelector: { display: 'flex', gap: '6px', background: '#fff', border: '1.5px solid #B2DFDB', borderRadius: '999px', padding: '4px' },
+  exportOption:   { border: 'none', background: 'transparent', color: '#4B5563', padding: '7px 12px', borderRadius: '999px', cursor: 'pointer', fontSize: '13px', fontWeight: '600' },
+  exportOptionActive: { background: '#1B6B6B', color: '#fff' },
 
   // Modal
   overlay:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
