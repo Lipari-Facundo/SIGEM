@@ -237,17 +237,17 @@ function Field({ label, value, onChange, type = 'text', placeholder = '', span =
 }
 
 const S = {
-  page: { display: 'flex', minHeight: '100vh', background: '#F0F7F7', fontFamily: "'Inter', system-ui, sans-serif" },
-  main: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 },
-  container: { padding: '0 5% 40px', maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box' },
+  page: { display: 'flex', minHeight: '100vh', background: '#F0F7F7', fontFamily: "'Inter', system-ui, sans-serif", overflowX: 'hidden' },
+  main: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' },
+  container: { padding: '0 20px 32px', maxWidth: '1080px', margin: '0 auto', width: '100%', boxSizing: 'border-box' },
 
   // Hero Dinámico
-  hero: { display: 'flex', alignItems: 'center', gap: '30px', padding: '40px 5%', marginBottom: '24px', borderBottom: '1px solid #dde8e8', transition: 'all 0.3s' },
+  hero: { display: 'flex', alignItems: 'center', gap: '18px', padding: '20px 18px', marginBottom: '20px', borderBottom: '1px solid #dde8e8', transition: 'all 0.3s' },
   avatarWrap: { position: 'relative', display: 'inline-block' },
-  avatarImg: { width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', border: '4px solid #fff', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' },
-  avatarPlaceholder: { width: '120px', height: '120px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '4px solid #fff', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' },
-  initials: { color: '#ffffff', fontSize: '40px', fontWeight: '800' }, // Este se mantiene blanco porque va sobre fondos de colores fuertes
-  cameraBtn: { position: 'absolute', bottom: '5px', right: '5px', width: '36px', height: '36px', borderRadius: '50%', border: '3px solid #fff', background: '#1B6B6B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' },
+  avatarImg: { width: '98px', height: '98px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #fff', boxShadow: '0 6px 18px rgba(0,0,0,0.12)' },
+  avatarPlaceholder: { width: '98px', height: '98px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid #fff', boxShadow: '0 6px 18px rgba(0,0,0,0.12)' },
+  initials: { color: '#ffffff', fontSize: '34px', fontWeight: '800' }, // Este se mantiene blanco porque va sobre fondos de colores fuertes
+  cameraBtn: { position: 'absolute', bottom: '4px', right: '4px', width: '32px', height: '32px', borderRadius: '50%', border: '3px solid #fff', background: '#1B6B6B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' },
   
   heroInfo: { flex: 1 },
   heroName: { fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: '800', color: '#0F2A2A', margin: '0 0 10px' },
@@ -260,26 +260,26 @@ const S = {
   grid: { 
     display: 'grid', 
     gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-    gap: '24px',
+    gap: '20px',
     width: '100%'
   },
   card: { 
     background: '#fff', 
-    borderRadius: '20px', 
-    padding: '28px', 
-    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05), 0 10px 15px -3px rgba(0,0,0,0.1)',
+    borderRadius: '16px', 
+    padding: '20px', 
+    boxShadow: '0 8px 18px rgba(0,0,0,0.05)',
     display: 'flex',
     flexDirection: 'column'
   },
-  cardTitle: { fontSize: '16px', fontWeight: '700', color: '#1B6B6B', margin: '0 0 24px', display: 'flex', alignItems: 'center', gap: '10px' },
+  cardTitle: { fontSize: '15px', fontWeight: '700', color: '#1B6B6B', margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: '10px' },
   // CAMBIO: Gris más oscuro para el texto de ayuda
-  cardHint: { color: '#4A4A4A', fontSize: '13px', marginBottom: '20px', marginTop: '-10px' },
+  cardHint: { color: '#4A4A4A', fontSize: '13px', marginBottom: '16px', marginTop: '-10px' },
 
-  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
+  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' },
   // CAMBIO: Etiquetas de los inputs más oscuras
-  label: { fontSize: '12px', fontWeight: '700', color: '#333333', textTransform: 'uppercase', letterSpacing: '0.8px' },
+  label: { fontSize: '11px', fontWeight: '700', color: '#333333', textTransform: 'uppercase', letterSpacing: '0.8px' },
   // CAMBIO: Texto ingresado en los inputs más oscuro (#111) y fondo blanco puro
-  input: { padding: '12px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '14px', background: '#FFFFFF', color: '#111111', width: '100%', boxSizing: 'border-box' },
+  input: { padding: '11px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13px', background: '#FFFFFF', color: '#111111', width: '100%', boxSizing: 'border-box' },
 
   readOnly: { display: 'flex', justifyContent: 'space-between', padding: '14px 0', borderTop: '1px solid #E2E8F0' },
   // CAMBIO: Etiqueta de solo lectura más oscura
@@ -287,7 +287,7 @@ const S = {
   // CAMBIO: Valor de solo lectura casi negro
   readValue: { fontSize: '14px', fontWeight: '700', color: '#1A1A1A' },
 
-  actions: { marginTop: '32px', display: 'flex', justifyContent: 'flex-end' },
+  actions: { marginTop: '24px', display: 'flex', justifyContent: 'flex-end' },
   btnSave: { 
     background: '#1B6B6B', color: '#fff', border: 'none', borderRadius: '12px', 
     padding: '16px 40px', fontSize: '16px', fontWeight: '700', cursor: 'pointer',

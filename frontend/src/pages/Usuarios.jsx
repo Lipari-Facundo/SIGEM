@@ -747,8 +747,8 @@ function Field({ label, children }) {
 
 const S = {
   page:        { display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif" },
-  main:        { flex: 1, background: '#F0F7F7', padding: '32px', minWidth: 0 },
-  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' },
+  main:        { flex: 1, background: '#F0F7F7', padding: '24px', minWidth: 0 },
+  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' },
   h1:          { fontSize: '26px', fontWeight: '700', color: '#0F2A2A', margin: 0 },
   sub:         { color: '#888', margin: '4px 0 0', fontSize: '13px' },
 
@@ -769,11 +769,11 @@ const S = {
 
   // Tabla
   tableCard:   { background: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'auto' },
-  table:       { width: '100%', borderCollapse: 'collapse', minWidth: '750px' },
+  table:       { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
   tableHead:   { background: '#1B6B6B' },
-  th:          { color: '#fff', padding: '13px 14px', textAlign: 'left', fontSize: '13px', fontWeight: '600', whiteSpace: 'nowrap' },
+  th:          { color: '#fff', padding: '13px 14px', textAlign: 'left', fontSize: '13px', fontWeight: '600', whiteSpace: 'normal' },
   tr:          { borderBottom: '1px solid #F0F7F7' },
-  td:          { padding: '12px 14px', fontSize: '13px', color: '#333', verticalAlign: 'middle' },
+  td:          { padding: '12px 14px', fontSize: '13px', color: '#333', verticalAlign: 'middle', whiteSpace: 'normal', wordBreak: 'break-word' },
   empty:       { textAlign: 'center', padding: '48px', color: '#999', fontSize: '14px' },
 
   // Separadores de grupo de rol
@@ -805,8 +805,8 @@ const S = {
 
   // Modal
   overlay:     { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
-  modal:       { background: '#fff', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '660px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  modalTitle:  { color: '#0F2A2A', fontSize: '20px', fontWeight: '700', marginBottom: '24px', marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' },
+  modal:       { background: '#fff', borderRadius: '16px', padding: '24px', width: '100%', maxWidth: '660px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  modalTitle:  { color: '#0F2A2A', fontSize: '20px', fontWeight: '700', marginBottom: '18px', marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' },
   sectionLabel:{ fontSize: '11px', fontWeight: '700', color: '#1B6B6B', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 12px', borderBottom: '1px solid #E0F2F1', paddingBottom: '6px' },
   grid2:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' },
   input:       { padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #B2DFDB', fontSize: '14px', outline: 'none', background: '#fff', color: '#333', width: '100%', boxSizing: 'border-box' },

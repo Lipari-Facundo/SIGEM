@@ -1,9 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import DashboardHeader from './DashboardHeader';
 import ChartCard from './ChartCard';
+import KpiSummary from './KpiSummary';
+import BarChart from './BarChart';
+import DonutChart from './DonutChart';
 import { incidenteService } from '../../services/api';
 
-function SkeletonBar({ height = 10 }) {
-  return <div style={{ height, borderRadius: 999, background: 'linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite' }} />;
+function SkeletonCard() {
+  return <div style={S.skeletonCard} />;
 }
 
 export default function IncidentCharts() {
@@ -11,166 +15,183 @@ export default function IncidentCharts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [startDate, setStartDate] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0,10);
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
   });
-  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0,10));
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
+      setError('');
+      setLoading(true);
       try {
         const params = { startDate, endDate };
         const res = await incidenteService.dashboard(params);
         if (mounted) setSeries(res.data);
       } catch (e) {
-        if (mounted) setError('No se pudieron cargar los gráficos del dashboard.');
+        if (mounted) setError('No se pudieron cargar los datos del dashboard.');
       } finally {
         if (mounted) setLoading(false);
       }
     };
     load();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [startDate, endDate]);
 
   function applyPreset(days) {
     const end = new Date();
-    const start = new Date(); start.setDate(end.getDate() - days + 1);
-    setStartDate(start.toISOString().slice(0,10));
-    setEndDate(end.toISOString().slice(0,10));
+    const start = new Date();
+    start.setDate(end.getDate() - days + 1);
+    setStartDate(start.toISOString().slice(0, 10));
+    setEndDate(end.toISOString().slice(0, 10));
   }
+
+  const kpis = useMemo(() => {
+    if (!series) return [];
+    return [
+      {
+        icon: '🚨',
+        title: 'Incidentes totales',
+        value: series.totalIncidents ?? 0,
+        subtitle: 'Registrados en el período',
+      },
+      {
+        icon: '🚘',
+        title: 'Móviles activos',
+        value: series.activeVehicles ?? 0,
+        subtitle: 'Vehículos operativos',
+      },
+      {
+        icon: '📍',
+        title: 'Móviles con incidentes',
+        value: series.vehiclesWithIncidents ?? 0,
+        subtitle: 'Con eventos en el período',
+      },
+      {
+        icon: '📊',
+        title: 'Promedio diario',
+        value: series.averageIncidentsPerDay ?? 0,
+        subtitle: 'Incidentes por día',
+      },
+      {
+        icon: '🔥',
+        title: 'Motivo más frecuente',
+        value: series.mostFrequentMotive ?? 'N/A',
+        subtitle: 'Motivo principal',
+      },
+      {
+        icon: '📅',
+        title: 'Día pico',
+        value: series.peakIncidentDay ?? 'N/A',
+        subtitle: 'Mayor actividad del período',
+      },
+    ];
+  }, [series]);
 
   const lineData = useMemo(() => {
     if (!series?.overTime?.length) return [];
-    return series.overTime.map(item => ({ label: item.period, value: item.count }));
+    return series.overTime.map((item) => ({ label: item.period, value: item.count }));
   }, [series]);
 
   const vehicles = useMemo(() => {
     if (!series?.vehicles?.length) return [];
-    return series.vehicles.slice(0, 6);
+    return series.vehicles.slice(0, 6).map((item) => ({ label: item.name, value: item.count }));
   }, [series]);
 
   const motives = useMemo(() => {
     if (!series?.motives?.length) return [];
-    return series.motives.slice(0, 6);
+    return series.motives.slice(0, 6).map((item) => ({ label: item.name, value: item.count }));
   }, [series]);
 
-  if (loading) {
-    return (
-      <div style={S.grid}>
-          <div style={{ gridColumn: '1 / -1', marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <label style={{ fontSize: '13px', color: '#374151' }}>Desde</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-            </div>
-            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <label style={{ fontSize: '13px', color: '#374151' }}>Hasta</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-            </div>
-            <div style={{ marginLeft: '12px', display: 'flex', gap: '6px' }}>
-              <button onClick={() => applyPreset(7)} style={S.presetBtn}>Últimos 7 días</button>
-              <button onClick={() => applyPreset(30)} style={S.presetBtn}>30 días</button>
-              <button onClick={() => applyPreset(90)} style={S.presetBtn}>90 días</button>
-            </div>
-          </div>
-        <ChartCard title="Total de incidentes por periodo" description="Cargando métricas...">
-          <SkeletonBar height={14} />
-          <div style={{ marginTop: '10px', display: 'grid', gap: '8px' }}>
-            {[...Array(5)].map((_, i) => <SkeletonBar key={i} height={10} />)}
-          </div>
-        </ChartCard>
-        <ChartCard title="Móviles más afectados" description="Cargando métricas...">
-          <div style={{ display: 'grid', gap: '10px' }}>
-            {[...Array(4)].map((_, i) => <SkeletonBar key={i} height={12} />)}
-          </div>
-        </ChartCard>
-        <ChartCard title="Motivos de llamada más comunes" description="Cargando métricas...">
-          <div style={{ display: 'grid', gap: '10px' }}>
-            {[...Array(4)].map((_, i) => <SkeletonBar key={i} height={12} />)}
-          </div>
-        </ChartCard>
-      </div>
-    );
-  }
-
   return (
-    <div style={S.grid}>
-      <ChartCard title="Total de incidentes a lo largo del tiempo" description="Evolución diaria o mensual según la carga actual del sistema.">
-        {error ? <EmptyState message={error} /> : (
-          <div style={S.chartArea}>
-            {lineData.length ? (
-              <div style={S.barList}>
-                {lineData.map(item => (
-                  <div key={item.label} style={S.barRow}>
-                    <div style={S.labelCell}>{item.label}</div>
-                    <div style={S.barTrack}>
-                      <div style={{ ...S.barFill, width: `${Math.max(10, (item.value / Math.max(...lineData.map(x => x.value), 1)) * 100)}%` }} />
-                    </div>
-                    <div style={S.valueCell}>{item.value}</div>
-                  </div>
-                ))}
+    <div style={S.container}>
+      <DashboardHeader
+        startDate={startDate}
+        endDate={endDate}
+        onStartChange={(e) => setStartDate(e.target.value)}
+        onEndChange={(e) => setEndDate(e.target.value)}
+        onPreset={applyPreset}
+      />
+
+      {error ? <div style={S.errorBanner}>{error}</div> : null}
+
+      <section style={S.kpiSection} aria-label="KPI summary">
+        {loading ? Array.from({ length: 6 }).map((_, index) => <SkeletonCard key={index} />) : <KpiSummary items={kpis} />}
+      </section>
+
+      <section style={S.dashboardGrid}>
+        <div style={{ gridColumn: 'span 8', minWidth: 0 }}>
+          <ChartCard title="Incidentes a lo largo del tiempo" description="Tendencia de incidentes por día en el rango seleccionado." loading={loading}>
+            {loading ? <SkeletonCard /> : lineData.length ? (
+              <BarChart data={lineData} vertical={true} height={120} xAxisTitle="Fecha" yAxisTitle="Incidentes" />
+            ) : <div style={S.empty}>No hay datos para este rango.</div>}
+          </ChartCard>
+        </div>
+
+        <div style={{ gridColumn: 'span 4', display: 'grid', gap: '16px', minWidth: 0 }}>
+          <ChartCard title="Motivos de llamada" description="Distribución de las razones más frecuentes." loading={loading}>
+            {loading ? <SkeletonCard /> : motives.length ? <DonutChart data={motives} /> : <div style={S.empty}>No hay datos para este rango.</div>}
+          </ChartCard>
+
+          <ChartCard title="Insight clave" description="Puntos de atención rápida">
+            <div style={S.insightList}>
+              <div style={S.insightItem}>
+                <span style={S.insightLabel}>Incidentes totales</span>
+                <strong style={S.insightValue}>{series?.totalIncidents ?? '-'}</strong>
               </div>
-            ) : <EmptyState message="No hay datos para mostrar aún." />}
-          </div>
-        )}
-      </ChartCard>
-
-      <ChartCard title="Móviles más afectados" description="Vehículos con más incidentes asociados.">
-        {error ? <EmptyState message={error} /> : (
-          vehicles.length ? (
-            <div style={S.list}>
-              {vehicles.map(item => (
-                <div key={item.name} style={S.listItem}>
-                  <span style={S.listName}>{item.name}</span>
-                  <span style={S.listValue}>{item.count}</span>
-                </div>
-              ))}
+              <div style={S.insightItem}>
+                <span style={S.insightLabel}>Motivo principal</span>
+                <strong style={S.insightValue}>{series?.mostFrequentMotive ?? '-'}</strong>
+              </div>
+              <div style={S.insightItem}>
+                <span style={S.insightLabel}>Día de mayor presión</span>
+                <strong style={S.insightValue}>{series?.peakIncidentDay ?? '-'}</strong>
+              </div>
             </div>
-          ) : <EmptyState message="No hay datos de móviles aún." />
-        )}
-      </ChartCard>
+          </ChartCard>
+        </div>
 
-      <ChartCard title="Motivos de llamada más comunes" description="Frecuencia de los motivos registrados.">
-        {error ? <EmptyState message={error} /> : (
-          motives.length ? (
-            <div style={S.list}>
-              {motives.map(item => (
-                <div key={item.name} style={S.listItem}>
-                  <span style={S.listName}>{item.name}</span>
-                  <span style={S.listValue}>{item.count}</span>
-                </div>
-              ))}
-            </div>
-          ) : <EmptyState message="No hay motivos registrados aún." />
-        )}
-      </ChartCard>
-    </div>
-  );
-}
+        <div style={{ gridColumn: 'span 5', minWidth: 0 }}>
+          <ChartCard title="Vehículos con más incidentes" description="Top móviles por volumen de registros." loading={loading}>
+            {loading ? <SkeletonCard /> : vehicles.length ? <BarChart data={vehicles} /> : <div style={S.empty}>No hay datos para este rango.</div>}
+          </ChartCard>
+        </div>
 
-function EmptyState({ message }) {
-  return (
-    <div style={S.emptyState}>
-      <div style={S.emptyIcon}>📈</div>
-      <p style={S.emptyText}>{message}</p>
+        <div style={{ gridColumn: 'span 7', minWidth: 0 }}>
+          <ChartCard title="Comparación de motivos" description="Los motivos más comunes del periodo." loading={loading}>
+            {loading ? <SkeletonCard /> : motives.length ? <BarChart data={motives} /> : <div style={S.empty}>No hay datos para este rango.</div>}
+          </ChartCard>
+        </div>
+      </section>
     </div>
   );
 }
 
 const S = {
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '18px' },
-  chartArea: { flex: 1, display: 'flex', alignItems: 'center' },
-  barList: { width: '100%', display: 'grid', gap: '10px' },
-  barRow: { display: 'grid', gridTemplateColumns: '70px 1fr 36px', alignItems: 'center', gap: '8px' },
-  labelCell: { fontSize: '12px', color: '#4B5563', fontWeight: 600 },
-  barTrack: { height: '10px', background: '#E5E7EB', borderRadius: 999, overflow: 'hidden' },
-  barFill: { height: '100%', background: 'linear-gradient(90deg, #1B6B6B 0%, #2A9090 100%)', borderRadius: 999 },
-  valueCell: { fontSize: '12px', fontWeight: 700, color: '#0F2A2A', textAlign: 'right' },
-  list: { display: 'grid', gap: '10px' },
-  listItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: '10px', background: '#F8FAFC', border: '1px solid #E5E7EB' },
-  listName: { fontSize: '13px', color: '#374151', fontWeight: 600 },
-  listValue: { fontSize: '13px', fontWeight: 700, color: '#1B6B6B' },
-  emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#6B7280', textAlign: 'center', minHeight: '180px' },
-  emptyIcon: { fontSize: '28px', marginBottom: '8px' },
-  emptyText: { margin: 0, fontSize: '13px' },
-  presetBtn: { background: '#0F172A', color: '#fff', border: 'none', padding: '8px 10px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }
+  container: { display: 'grid', gap: 'var(--spacing-5)', padding: '0 0 var(--spacing-5)', width: '100%', maxWidth: '100%', overflow: 'hidden' },
+  topRow: { display: 'grid', gridTemplateColumns: '1.4fr 0.95fr', gap: 'var(--spacing-5)', alignItems: 'start' },
+  summaryColumn: { display: 'grid', gap: 'var(--spacing-3)' },
+  sectionTitle: { margin: 0, fontSize: 'var(--font-size-3xl)', fontWeight: 800, color: 'var(--color-text-primary)' },
+  sectionText: { margin: 0, fontSize: 'var(--font-size-sm)', lineHeight: 1.7, color: 'var(--color-text-secondary)', maxWidth: '700px' },
+  filterPanel: { background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)', padding: 'var(--spacing-4)', display: 'grid', gap: 'var(--spacing-3)' },
+  filterRow: { display: 'grid', gap: 'var(--spacing-2)' },
+  filterLabel: { fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' },
+  filterInput: { width: '100%', padding: '0.7rem 0.8rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' },
+  presetGroup: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 'var(--spacing-2)' },
+  presetButton: { appearance: 'none', background: 'var(--color-primary)', border: 'none', borderRadius: 'var(--radius-md)', color: 'var(--color-on-primary)', padding: '0.65rem 0.75rem', fontWeight: 700, cursor: 'pointer', fontSize: '0.78rem' },
+  errorBanner: { padding: '0.9rem 1rem', borderRadius: 'var(--radius-md)', background: '#FEF3F2', color: 'var(--color-danger)', border: '1px solid #FECACA' },
+  kpiSection: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 'var(--spacing-4)' },
+  dashboardGrid: { display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: 'var(--spacing-4)', width: '100%', maxWidth: '100%' },
+  skeletonCard: { minHeight: '120px', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-muted)' },
+  empty: { minHeight: '150px', display: 'grid', placeItems: 'center', color: 'var(--color-text-secondary)', borderRadius: 'var(--radius-lg)', background: 'var(--color-surface-alt)' },
+  insightList: { display: 'grid', gap: 'var(--spacing-3)' },
+  insightItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--spacing-3)', background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: '0.8rem 0.9rem', border: '1px solid var(--color-border)' },
+  insightLabel: { color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', fontWeight: 600 },
+  insightValue: { color: 'var(--color-text-primary)', fontSize: 'var(--font-size-md)', fontWeight: 700 },
+  mobileTopRow: { display: 'grid', gap: 'var(--spacing-4)' },
+  mobileGrid: { gridTemplateColumns: '1fr', gridTemplateRows: 'auto', gap: 'var(--spacing-3)' },
 };

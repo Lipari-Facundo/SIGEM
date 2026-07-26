@@ -30,22 +30,47 @@ public interface IncidenteRepository extends JpaRepository<Incidente, Long> {
 
     @Query(value = "SELECT DATE_TRUNC('day', fecha_asignacion) AS period, COUNT(*) AS count " +
             "FROM incidentes " +
-            "WHERE (:start IS NULL OR fecha_asignacion >= :start) " +
-            "AND (:end IS NULL OR fecha_asignacion <= :end) " +
+            "WHERE fecha_asignacion >= COALESCE(:start, fecha_asignacion) " +
+            "AND fecha_asignacion <= COALESCE(:end, fecha_asignacion) " +
             "GROUP BY DATE_TRUNC('day', fecha_asignacion) ORDER BY period", nativeQuery = true)
     List<Object[]> countByDay(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
 
     @Query(value = "SELECT m.numero_interno AS name, COUNT(*) AS count " +
             "FROM incidentes i JOIN moviles m ON i.movil_id = m.id " +
-            "WHERE (:start IS NULL OR i.fecha_asignacion >= :start) " +
-            "AND (:end IS NULL OR i.fecha_asignacion <= :end) " +
+            "WHERE i.fecha_asignacion >= COALESCE(:start, i.fecha_asignacion) " +
+            "AND i.fecha_asignacion <= COALESCE(:end, i.fecha_asignacion) " +
             "GROUP BY m.numero_interno ORDER BY count DESC, m.numero_interno LIMIT 6", nativeQuery = true)
     List<Object[]> countByVehicle(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
 
     @Query(value = "SELECT motivo AS name, COUNT(*) AS count " +
             "FROM incidentes " +
-            "WHERE (:start IS NULL OR fecha_asignacion >= :start) " +
-            "AND (:end IS NULL OR fecha_asignacion <= :end) " +
+            "WHERE fecha_asignacion >= COALESCE(:start, fecha_asignacion) " +
+            "AND fecha_asignacion <= COALESCE(:end, fecha_asignacion) " +
             "GROUP BY motivo ORDER BY count DESC, motivo LIMIT 6", nativeQuery = true)
     List<Object[]> countByMotive(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
+
+    @Query(value = "SELECT COUNT(*) FROM incidentes " +
+            "WHERE fecha_asignacion >= COALESCE(:start, fecha_asignacion) " +
+            "AND fecha_asignacion <= COALESCE(:end, fecha_asignacion)", nativeQuery = true)
+    Long countIncidentsInRange(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
+
+    @Query(value = "SELECT COUNT(DISTINCT movil_id) FROM incidentes " +
+            "WHERE fecha_asignacion >= COALESCE(:start, fecha_asignacion) " +
+            "AND fecha_asignacion <= COALESCE(:end, fecha_asignacion)", nativeQuery = true)
+    Long countVehiclesWithIncidents(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
+
+    @Query(value = "SELECT motivo, COUNT(*) AS count FROM incidentes " +
+            "WHERE fecha_asignacion >= COALESCE(:start, fecha_asignacion) " +
+            "AND fecha_asignacion <= COALESCE(:end, fecha_asignacion) " +
+            "GROUP BY motivo ORDER BY count DESC LIMIT 1", nativeQuery = true)
+    List<Object[]> findTopMotive(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
+
+    @Query(value = "SELECT DATE_TRUNC('day', fecha_asignacion) AS period, COUNT(*) AS count FROM incidentes " +
+            "WHERE fecha_asignacion >= COALESCE(:start, fecha_asignacion) " +
+            "AND fecha_asignacion <= COALESCE(:end, fecha_asignacion) " +
+            "GROUP BY DATE_TRUNC('day', fecha_asignacion) ORDER BY count DESC LIMIT 1", nativeQuery = true)
+    List<Object[]> findPeakDay(@Param("start") java.time.LocalDateTime start, @Param("end") java.time.LocalDateTime end);
+
+    @Query(value = "SELECT COUNT(*) FROM moviles WHERE estado_movil = 'OPERATIVO'", nativeQuery = true)
+    Long countActiveVehicles();
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import Sidebar from '../components/Sidebar';
 import { empleadoService } from '../services/api';
-import { useAuth } from '../context/AuthContext';
 
 const ROLES = ['ENF', 'JEF', 'DES', 'DIR'];
 const ROL_LABEL = { ENF: 'Enfermero', JEF: 'Jefe Enfermería', DES: 'Despachador', DIR: 'Directivo', ADM: 'Administrador' };
@@ -14,8 +13,6 @@ export default function Empleados() {
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => { cargar(); }, []);
 
@@ -51,25 +48,8 @@ export default function Empleados() {
 
   return (
     <div style={S.page}>
-      {/* Sidebar */}
-      <aside style={S.sidebar}>
-        <div style={S.logoBox}>
-          <span style={{ fontSize: '24px', fontWeight: '800', color: '#fff' }}>
-            SIGE<span style={{ color: '#4CAF50' }}>M</span>
-          </span>
-          <p style={{ color: '#B2DFDB', fontSize: '11px', margin: '4px 0 0' }}>Sistema 107</p>
-        </div>
-        <nav style={S.nav}>
-          <button style={S.navItem} onClick={() => navigate('/dashboard')}>🏠 Inicio</button>
-          <button style={{ ...S.navItem, ...S.navActive }}>👥 Empleados</button>
-          {user?.rol === 'ADM' && (
-            <button style={S.navItem} onClick={() => navigate('/usuarios')}>🔐 Usuarios</button>
-          )}
-        </nav>
-        <button onClick={() => { logout(); navigate('/login'); }} style={S.logoutBtn}>🚪 Cerrar sesión</button>
-      </aside>
+      <Sidebar />
 
-      {/* Main */}
       <main style={S.main}>
         <div style={S.header}>
           <div>
@@ -92,22 +72,26 @@ export default function Empleados() {
             </thead>
             <tbody>
               {lista.length === 0 && (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
-                  No hay empleados registrados. Hacé click en "+ Registrar Empleado".
-                </td></tr>
+                <tr>
+                  <td colSpan={8} style={S.emptyState}>
+                    No hay empleados registrados. Hacé click en "+ Registrar Empleado".
+                  </td>
+                </tr>
               )}
               {lista.map(e => (
                 <tr key={e.id} style={S.tr}>
-                  <td style={{ ...S.td, fontWeight: '600' }}>{e.nombre} {e.apellido}</td>
+                  <td style={{ ...S.td, fontWeight: 700 }}>{e.nombre} {e.apellido}</td>
                   <td style={S.td}>{e.dni}</td>
                   <td style={S.td}>{e.email}</td>
                   <td style={S.td}>{e.telefono || '—'}</td>
-                  <td style={S.td}><span style={{ ...S.badge, background: '#E3F2FD', color: '#1565C0' }}>{ROL_LABEL[e.rol]}</span></td>
-                  <td style={S.td}><span style={{ ...S.badge, background: e.disponible ? '#E8F5E9' : '#FFF9C4', color: e.disponible ? '#2E7D32' : '#F57F17' }}>{e.disponible ? 'Sí' : 'No'}</span></td>
-                  <td style={S.td}><span style={{ ...S.badge, background: e.activo ? '#E8F5E9' : '#FFEBEE', color: e.activo ? '#2E7D32' : '#C62828' }}>{e.activo ? 'Activo' : 'Inactivo'}</span></td>
+                  <td style={S.td}><span style={{ ...S.badge, background: 'var(--color-primary-soft)', color: 'var(--color-primary-strong)' }}>{ROL_LABEL[e.rol]}</span></td>
+                  <td style={S.td}><span style={{ ...S.badge, background: e.disponible ? 'var(--color-primary-soft)' : '#FFF8E1', color: e.disponible ? 'var(--color-success)' : 'var(--color-warning)' }}>{e.disponible ? 'Sí' : 'No'}</span></td>
+                  <td style={S.td}><span style={{ ...S.badge, background: e.activo ? 'var(--color-primary-soft)' : '#FFEBEE', color: e.activo ? 'var(--color-success)' : 'var(--color-danger)' }}>{e.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td style={S.td}>
-                    <button onClick={() => abrirEditar(e)} style={S.btnEdit}>Modificar</button>
-                    {e.activo && <button onClick={() => eliminar(e.id)} style={S.btnDel}>Eliminar</button>}
+                    <div style={S.actions}>
+                      <button onClick={() => abrirEditar(e)} style={S.btnEdit}>Modificar</button>
+                      {e.activo && <button onClick={() => eliminar(e.id)} style={S.btnDel}>Eliminar</button>}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -116,27 +100,26 @@ export default function Empleados() {
         </div>
       </main>
 
-      {/* Modal */}
       {modal && (
         <div style={S.overlay}>
           <div style={S.modal}>
             <h3 style={S.modalTitle}>{modal === 'crear' ? '➕ Registrar Empleado' : '✏️ Modificar Empleado'}</h3>
             <div style={S.grid}>
-              {[['nombre','Nombre'],['apellido','Apellido'],['dni','DNI'],['email','Email'],['telefono','Teléfono']].map(([k,l]) => (
+              {[['nombre', 'Nombre'], ['apellido', 'Apellido'], ['dni', 'DNI'], ['email', 'Email'], ['telefono', 'Teléfono']].map(([k, l]) => (
                 <div key={k} style={S.field}>
                   <label style={S.label}>{l}</label>
-                  <input style={S.input} value={form[k]} onChange={e => setForm({...form,[k]:e.target.value})} />
+                  <input style={S.input} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} />
                 </div>
               ))}
               <div style={S.field}>
                 <label style={S.label}>Rol</label>
-                <select style={S.input} value={form.rol} onChange={e => setForm({...form,rol:e.target.value})}>
+                <select style={S.input} value={form.rol} onChange={e => setForm({ ...form, rol: e.target.value })}>
                   {ROLES.map(r => <option key={r} value={r}>{ROL_LABEL[r]}</option>)}
                 </select>
               </div>
             </div>
-            <label style={{ display:'flex', gap:'8px', alignItems:'center', fontSize:'14px', cursor:'pointer', marginBottom:'20px' }}>
-              <input type="checkbox" checked={form.disponible} onChange={e => setForm({...form,disponible:e.target.checked})} />
+            <label style={S.checkboxRow}>
+              <input type="checkbox" checked={form.disponible} onChange={e => setForm({ ...form, disponible: e.target.checked })} />
               Disponible para guardia
             </label>
             <div style={S.actions}>
@@ -151,36 +134,33 @@ export default function Empleados() {
 }
 
 const S = {
-  page: { display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif" },
-  sidebar: { width: '220px', background: '#0F2A2A', display: 'flex', flexDirection: 'column', flexShrink: 0 },
-  logoBox: { padding: '24px 20px', borderBottom: '1px solid #1B4A4A', textAlign: 'center' },
-  nav: { flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: '4px' },
-  navItem: { background: 'transparent', border: 'none', color: '#B2DFDB', padding: '11px 14px', borderRadius: '8px', textAlign: 'left', cursor: 'pointer', fontSize: '14px', width: '100%' },
-  navActive: { background: '#1B6B6B', color: '#fff' },
-  logoutBtn: { margin: '16px 12px', background: 'transparent', border: '1px solid #1B4A4A', color: '#B2DFDB', padding: '11px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' },
-  main: { flex: 1, background: '#F0F7F7', padding: '32px' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-  h1: { fontSize: '26px', fontWeight: '700', color: '#0F2A2A', margin: '0 0 4px' },
-  sub: { color: '#666', fontSize: '13px', margin: 0 },
-  btnAdd: { background: 'linear-gradient(135deg, #1B6B6B, #2A9090)', color: '#fff', border: 'none', borderRadius: '8px', padding: '11px 20px', cursor: 'pointer', fontSize: '14px', fontWeight: '700' },
-  msg: { background: '#F1F8E9', border: '1px solid #AED581', color: '#33691E', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' },
-  tableWrap: { background: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  thead: { background: '#1B6B6B' },
-  th: { color: '#fff', padding: '13px 14px', textAlign: 'left', fontSize: '13px', fontWeight: '600' },
-  tr: { borderBottom: '1px solid #F0F7F7' },
-  td: { padding: '13px 14px', fontSize: '13px', color: '#333' },
-  badge: { padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '500' },
-  btnEdit: { background: '#E3F2FD', color: '#1565C0', border: 'none', borderRadius: '6px', padding: '5px 12px', cursor: 'pointer', fontSize: '12px', marginRight: '6px' },
-  btnDel: { background: '#FFEBEE', color: '#C62828', border: 'none', borderRadius: '6px', padding: '5px 12px', cursor: 'pointer', fontSize: '12px' },
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal: { background: '#fff', borderRadius: '16px', padding: '32px', width: '560px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  modalTitle: { color: '#0F2A2A', fontSize: '20px', fontWeight: '700', marginBottom: '24px', marginTop: 0 },
-  grid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' },
-  field: { display: 'flex', flexDirection: 'column', gap: '5px' },
-  label: { fontSize: '13px', fontWeight: '600', color: '#333' },
-  input: { padding: '10px 12px', borderRadius: '8px', border: '1.5px solid #ddd', fontSize: '14px', outline: 'none' },
-  actions: { display: 'flex', gap: '12px', justifyContent: 'flex-end' },
-  btnCancel: { background: '#F5F5F5', color: '#333', border: 'none', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer', fontSize: '14px' },
-  btnSave: { background: 'linear-gradient(135deg, #1B6B6B, #2A9090)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 20px', cursor: 'pointer', fontSize: '14px', fontWeight: '700' },
+  page: { display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-family-sans)', background: 'var(--color-page-bg)', color: 'var(--color-text-primary)' },
+  main: { flex: 1, background: 'var(--color-page-bg)', padding: 'var(--spacing-6)' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-5)', flexWrap: 'wrap', gap: 'var(--spacing-4)' },
+  h1: { fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: 'var(--color-text-primary)', margin: '0 0 var(--spacing-2)' },
+  sub: { color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', margin: 0 },
+  btnAdd: { background: 'linear-gradient(135deg, var(--color-primary), var(--color-success))', color: 'var(--color-on-primary)', border: 'none', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: 'var(--font-size-sm)', fontWeight: 700 },
+  msg: { background: 'var(--color-primary-soft)', border: '1px solid var(--color-border)', color: 'var(--color-primary-strong)', padding: '0.8rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: 'var(--spacing-4)', fontSize: 'var(--font-size-sm)' },
+  tableWrap: { background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)', overflow: 'auto' },
+  table: { width: '100%', borderCollapse: 'collapse', minWidth: '900px' },
+  thead: { background: 'var(--color-primary)' },
+  th: { color: 'var(--color-on-primary)', padding: '0.8rem 0.9rem', textAlign: 'left', fontSize: 'var(--font-size-xs)', fontWeight: 700 },
+  tr: { borderBottom: '1px solid var(--color-border)' },
+  td: { padding: '0.8rem 0.9rem', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' },
+  emptyState: { textAlign: 'center', padding: '2.6rem', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' },
+  badge: { padding: '0.25rem 0.6rem', borderRadius: 'var(--radius-pill)', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center' },
+  actions: { display: 'flex', gap: 'var(--spacing-2)', flexWrap: 'wrap' },
+  btnEdit: { background: 'var(--color-primary-soft)', color: 'var(--color-primary-strong)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.7rem', cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 },
+  btnDel: { background: '#FFEBEE', color: 'var(--color-danger)', border: 'none', borderRadius: 'var(--radius-sm)', padding: '0.4rem 0.7rem', cursor: 'pointer', fontSize: '0.76rem', fontWeight: 700 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(15, 42, 48, 0.48)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 'var(--z-modal)', padding: 'var(--spacing-5)' },
+  modal: { background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '1.3rem', width: '100%', maxWidth: '620px', boxShadow: 'var(--shadow-lg)' },
+  modalTitle: { color: 'var(--color-text-primary)', fontSize: 'var(--font-size-xl)', fontWeight: 700, marginBottom: 'var(--spacing-5)', marginTop: 0 },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 'var(--spacing-4)', marginBottom: 'var(--spacing-4)' },
+  field: { display: 'flex', flexDirection: 'column', gap: 'var(--spacing-2)' },
+  label: { fontSize: 'var(--font-size-xs)', fontWeight: 700, color: 'var(--color-text-secondary)' },
+  input: { padding: '0.7rem 0.8rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', fontSize: 'var(--font-size-sm)', outline: 'none', background: 'var(--color-surface)', color: 'var(--color-text-primary)', boxSizing: 'border-box' },
+  checkboxRow: { display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: 'var(--font-size-sm)', cursor: 'pointer', marginBottom: 'var(--spacing-5)' },
+  actions: { display: 'flex', gap: 'var(--spacing-3)', justifyContent: 'flex-end' },
+  btnCancel: { background: 'var(--color-surface-muted)', color: 'var(--color-text-primary)', border: 'none', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: 'var(--font-size-sm)', fontWeight: 700 },
+  btnSave: { background: 'linear-gradient(135deg, var(--color-primary), var(--color-success))', color: 'var(--color-on-primary)', border: 'none', borderRadius: 'var(--radius-md)', padding: '0.7rem 1rem', cursor: 'pointer', fontSize: 'var(--font-size-sm)', fontWeight: 700 },
 };

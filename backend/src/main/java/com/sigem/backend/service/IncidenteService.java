@@ -163,7 +163,31 @@ public class IncidenteService {
         result.put("overTime", overTime);
         result.put("vehicles", vehicles);
         result.put("motives", motives);
+        result.put("totalIncidents", incidenteRepository.countIncidentsInRange(start, end));
+        result.put("activeVehicles", incidenteRepository.countActiveVehicles());
+        result.put("vehiclesWithIncidents", incidenteRepository.countVehiclesWithIncidents(start, end));
+
+        List<Object[]> topMotive = incidenteRepository.findTopMotive(start, end);
+        result.put("mostFrequentMotive", topMotive.isEmpty() ? "N/A" : String.valueOf(topMotive.get(0)[0]));
+
+        List<Object[]> peakDay = incidenteRepository.findPeakDay(start, end);
+        if (!peakDay.isEmpty()) {
+            Object dayValue = peakDay.get(0)[0];
+            result.put("peakIncidentDay", dayValue instanceof java.sql.Timestamp ts ? ts.toLocalDateTime().toLocalDate().toString() : String.valueOf(dayValue));
+        } else {
+            result.put("peakIncidentDay", "N/A");
+        }
+
+        result.put("averageIncidentsPerDay", calculateAveragePerDay(overTime, start, end));
         return result;
+    }
+
+    private double calculateAveragePerDay(List<Map<String, Object>> overTime, java.time.LocalDateTime start, java.time.LocalDateTime end) {
+        if (overTime.isEmpty()) return 0;
+        long daysCount = java.time.Duration.between(start, end).toDays() + 1;
+        if (daysCount <= 0) daysCount = overTime.size();
+        int total = overTime.stream().mapToInt(item -> ((Number) item.get("count")).intValue()).sum();
+        return daysCount == 0 ? 0 : Math.round((total / (double) daysCount) * 100.0) / 100.0;
     }
 
     // ─── Validación de creación ───────────────────────────────
