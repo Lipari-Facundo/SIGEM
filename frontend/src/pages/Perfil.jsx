@@ -163,13 +163,13 @@ export default function Perfil() {
           {msg && <div style={S.msgOk}>{msg}</div>}
           {error && <div style={S.msgErr}>{error}</div>}
 
-          <div style={S.grid}>
+          <div style={{ ...S.grid, gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(420px, 1fr))', gap: isMobile ? '14px' : '18px' }}>
             {/* ── Información Personal ── */}
             <section style={S.card}>
               <h2 style={S.cardTitle}>
                 <span style={S.cardIcon}>👤</span> Información personal
               </h2>
-              <div style={S.formGrid}>
+              <div style={{ ...S.formGrid, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', alignItems: 'start' }}>
                 <Field label="Nombre *" value={form.nombre} onChange={(v) => setForm({ ...form, nombre: v })} />
                 <Field label="Apellido *" value={form.apellido} onChange={(v) => setForm({ ...form, apellido: v })} />
                 <Field label="DNI" value={form.dni} onChange={(v) => setForm({ ...form, dni: v })} placeholder="Sin puntos" />
@@ -183,7 +183,7 @@ export default function Perfil() {
               <h2 style={S.cardTitle}>
                 <span style={S.cardIcon}>📬</span> Contacto y Sistema
               </h2>
-              <div style={{...S.formGrid, marginBottom: '20px'}}>
+              <div style={{ ...S.formGrid, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '20px' }}>
                 <Field label="Email *" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
                 <Field label="Teléfono" value={form.telefono} onChange={(v) => setForm({ ...form, telefono: v })} />
               </div>
@@ -203,17 +203,16 @@ export default function Perfil() {
                 <span style={S.cardIcon}>🔐</span> Seguridad
               </h2>
               <p style={S.cardHint}>Completar solo si desea cambiar la clave actual.</p>
-              <div style={S.formGrid}>
+              <div style={{ ...S.formGrid, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
                 <Field label="Nueva contraseña" type="password" value={password} onChange={setPassword} />
                 <Field label="Confirmar contraseña" type="password" value={confirmPassword} onChange={setConfirmPassword} />
               </div>
+              <div style={S.actions}>
+                <button onClick={guardar} style={{...S.btnSave, width: isMobile ? '100%' : 'auto'}} disabled={loading}>
+                  {loading ? '⏳ Guardando...' : '💾 Guardar cambios'}
+                </button>
+              </div>
             </section>
-          </div>
-
-          <div style={S.actions}>
-            <button onClick={guardar} style={{...S.btnSave, width: isMobile ? '100%' : 'auto'}} disabled={loading}>
-              {loading ? '⏳ Guardando...' : '💾 Guardar cambios'}
-            </button>
           </div>
         </div>
       </main>
@@ -239,60 +238,59 @@ function Field({ label, value, onChange, type = 'text', placeholder = '', span =
 const S = {
   page: { display: 'flex', minHeight: '100vh', background: '#F0F7F7', fontFamily: "'Inter', system-ui, sans-serif", overflowX: 'hidden' },
   main: { flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' },
-  container: { padding: '0 20px 32px', maxWidth: '1080px', margin: '0 auto', width: '100%', boxSizing: 'border-box' },
+  container: { padding: '12px 16px 18px', maxWidth: '1320px', margin: '0 auto', width: '100%', boxSizing: 'border-box' },
 
   // Hero Dinámico
-  hero: { display: 'flex', alignItems: 'center', gap: '18px', padding: '20px 18px', marginBottom: '20px', borderBottom: '1px solid #dde8e8', transition: 'all 0.3s' },
+  hero: { display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 18px', marginBottom: '12px', borderRadius: '18px', border: '1px solid #E8F2F5', boxShadow: '0 12px 24px rgba(15,42,42,0.06)', transition: 'all 0.3s' },
   avatarWrap: { position: 'relative', display: 'inline-block' },
-  avatarImg: { width: '98px', height: '98px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #fff', boxShadow: '0 6px 18px rgba(0,0,0,0.12)' },
-  avatarPlaceholder: { width: '98px', height: '98px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid #fff', boxShadow: '0 6px 18px rgba(0,0,0,0.12)' },
-  initials: { color: '#ffffff', fontSize: '34px', fontWeight: '800' }, // Este se mantiene blanco porque va sobre fondos de colores fuertes
-  cameraBtn: { position: 'absolute', bottom: '4px', right: '4px', width: '32px', height: '32px', borderRadius: '50%', border: '3px solid #fff', background: '#1B6B6B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' },
+  avatarImg: { width: '78px', height: '78px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #fff', boxShadow: '0 8px 18px rgba(0,0,0,0.12)' },
+  avatarPlaceholder: { width: '78px', height: '78px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid #fff', boxShadow: '0 8px 18px rgba(0,0,0,0.12)' },
+  initials: { color: '#ffffff', fontSize: '28px', fontWeight: '800' },
+  cameraBtn: { position: 'absolute', bottom: '-1px', right: '-1px', width: '30px', height: '30px', borderRadius: '50%', border: '3px solid #fff', background: '#1B6B6B', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' },
   
-  heroInfo: { flex: 1 },
-  heroName: { fontSize: 'clamp(1.5rem, 5vw, 2rem)', fontWeight: '800', color: '#0F2A2A', margin: '0 0 10px' },
-  heroBadges: { display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' },
-  badge: { padding: '6px 16px', borderRadius: '30px', fontSize: '13px', fontWeight: '700' },
-  // CAMBIO: Color más oscuro para el badge del usuario (@username)
-  badgeUser: { color: '#1A1A1A', fontSize: '14px', fontWeight: '600' }, 
+  heroInfo: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' },
+  heroName: { fontSize: 'clamp(1.4rem, 4vw, 1.85rem)', fontWeight: '800', color: '#0F2A2A', margin: '0 0 6px' },
+  heroBadges: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' },
+  badge: { padding: '6px 14px', borderRadius: '999px', fontSize: '13px', fontWeight: '700' },
+  badgeUser: { color: '#1A1A1A', fontSize: '14px', fontWeight: '600', border: '1px solid #E2E8F2', padding: '6px 14px', borderRadius: '999px', background: '#F7F9FA' }, 
 
   // Grid Simétrico
   grid: { 
     display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
-    gap: '20px',
-    width: '100%'
+    gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', 
+    gridAutoRows: '1fr',
+    gap: '12px',
+    width: '100%',
+    alignItems: 'stretch'
   },
   card: { 
     background: '#fff', 
-    borderRadius: '16px', 
-    padding: '20px', 
-    boxShadow: '0 8px 18px rgba(0,0,0,0.05)',
+    borderRadius: '18px', 
+    padding: '16px', 
+    boxShadow: '0 14px 30px rgba(15,42,42,0.06)',
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    height: '100%',
+    border: '1px solid #E8F2F5'
   },
-  cardTitle: { fontSize: '15px', fontWeight: '700', color: '#1B6B6B', margin: '0 0 18px', display: 'flex', alignItems: 'center', gap: '10px' },
-  // CAMBIO: Gris más oscuro para el texto de ayuda
-  cardHint: { color: '#4A4A4A', fontSize: '13px', marginBottom: '16px', marginTop: '-10px' },
+  cardTitle: { fontSize: '15px', fontWeight: '700', color: '#134E4A', margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: '10px' },
+  cardIcon: { fontSize: '1.2rem' },
+  cardHint: { color: '#4C5B65', fontSize: '13px', marginBottom: '12px', marginTop: '0' },
 
-  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' },
-  // CAMBIO: Etiquetas de los inputs más oscuras
-  label: { fontSize: '11px', fontWeight: '700', color: '#333333', textTransform: 'uppercase', letterSpacing: '0.8px' },
-  // CAMBIO: Texto ingresado en los inputs más oscuro (#111) y fondo blanco puro
-  input: { padding: '11px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '13px', background: '#FFFFFF', color: '#111111', width: '100%', boxSizing: 'border-box' },
+  formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' },
+  label: { fontSize: '12px', fontWeight: '700', color: '#3B4A54', textTransform: 'uppercase', letterSpacing: '0.75px' },
+  input: { padding: '12px 14px', borderRadius: '14px', border: '1px solid #D8E3EA', fontSize: '14px', background: '#FCFEFF', color: '#111111', width: '100%', boxSizing: 'border-box', minHeight: '48px' },
 
-  readOnly: { display: 'flex', justifyContent: 'space-between', padding: '14px 0', borderTop: '1px solid #E2E8F0' },
-  // CAMBIO: Etiqueta de solo lectura más oscura
-  readLabel: { fontSize: '12px', color: '#333333', fontWeight: '700' },
-  // CAMBIO: Valor de solo lectura casi negro
+  readOnly: { display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: '1px solid #E5EDF0' },
+  readLabel: { fontSize: '12px', color: '#3B4A54', fontWeight: '700' },
   readValue: { fontSize: '14px', fontWeight: '700', color: '#1A1A1A' },
 
-  actions: { marginTop: '24px', display: 'flex', justifyContent: 'flex-end' },
+  actions: { marginTop: '14px', display: 'flex', justifyContent: 'flex-end' },
   btnSave: { 
-    background: '#1B6B6B', color: '#fff', border: 'none', borderRadius: '12px', 
-    padding: '16px 40px', fontSize: '16px', fontWeight: '700', cursor: 'pointer',
-    boxShadow: '0 10px 15px -3px rgba(27, 107, 107, 0.3)', transition: 'transform 0.2s'
+    background: '#1B6B6B', color: '#fff', border: 'none', borderRadius: '14px', 
+    padding: '14px 32px', fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+    boxShadow: '0 14px 24px rgba(27, 107, 107, 0.22)', transition: 'transform 0.2s ease'
   },
-  msgOk: { background: '#DEF7EC', color: '#03543F', padding: '16px', borderRadius: '12px', marginBottom: '20px', fontWeight: '600', textAlign: 'center' },
-  msgErr: { background: '#FDE8E8', color: '#9B1C1C', padding: '16px', borderRadius: '12px', marginBottom: '20px', fontWeight: '600', textAlign: 'center' },
+  msgOk: { background: '#DEF7EC', color: '#03543F', padding: '14px 16px', borderRadius: '12px', marginBottom: '18px', fontWeight: '600', textAlign: 'center' },
+  msgErr: { background: '#FDE8E8', color: '#9B1C1C', padding: '14px 16px', borderRadius: '12px', marginBottom: '18px', fontWeight: '600', textAlign: 'center' },
 };
