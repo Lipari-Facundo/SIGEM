@@ -42,6 +42,11 @@ public class Incidente {
     @JoinColumn(name = "asignado_a_id")
     private Usuario asignadoA;
 
+    @JsonIgnoreProperties({"password", "authorities"})
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "creado_por_id")
+    private Usuario creadoPor;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "movil_id")
     private Movil movil;
@@ -85,6 +90,9 @@ public class Incidente {
 
     public Usuario getAsignadoA() { return asignadoA; }
     public void setAsignadoA(Usuario asignadoA) { this.asignadoA = asignadoA; }
+
+    public Usuario getCreadoPor() { return creadoPor; }
+    public void setCreadoPor(Usuario creadoPor) { this.creadoPor = creadoPor; }
 
     public Movil getMovil() { return movil; }
     public void setMovil(Movil movil) { this.movil = movil; }

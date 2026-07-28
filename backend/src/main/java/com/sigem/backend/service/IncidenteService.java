@@ -34,7 +34,7 @@ public class IncidenteService {
                 .findByAsignadoAUsernameOrderByFechaAsignacionDesc(usuario.getUsername());
     }
 
-    public Incidente crearIncidente(IncidenteCreateDTO dto) {
+    public Incidente crearIncidente(IncidenteCreateDTO dto, Usuario creador) {
         validarCreacion(dto);
 
         Guardia guardia = guardiaRepository
@@ -58,11 +58,16 @@ public class IncidenteService {
         incidente.setNumeroIncidente(max == null ? 1L : max + 1);
 
         incidente.setAsignadoA(guardia.getEnfermero());
+        incidente.setCreadoPor(creador);
         incidente.setMovil(guardia.getMovil());
         incidente.setFechaAsignacion(LocalDateTime.now());
         incidente.setEstado(EstadoIncidente.PENDIENTE);
 
         return incidenteRepository.save(incidente);
+    }
+
+    public List<Incidente> listarPorUsuarioRelacionado(Long userId) {
+        return incidenteRepository.findByCreadoPorIdOrAsignadoAId(userId);
     }
 
     public List<Guardia> listarGuardiasActivas() {
@@ -180,6 +185,24 @@ public class IncidenteService {
 
         result.put("averageIncidentsPerDay", calculateAveragePerDay(overTime, start, end));
         return result;
+    }
+
+    public Map<String, Object> getGlobalMetrics() {
+        Map<String, Object> metrics = new LinkedHashMap<>();
+        metrics.put("totalIncidents", incidenteRepository.count());
+        metrics.put("incidentsByPriority", mapCounts(incidenteRepository.countByPriority()));
+        metrics.put("incidentsByStatus", mapCounts(incidenteRepository.countByStatus()));
+        return metrics;
+    }
+
+    private Map<String, Long> mapCounts(List<Object[]> rows) {
+        Map<String, Long> mapped = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            String key = String.valueOf(row[0]);
+            Long count = row[1] instanceof Number ? ((Number) row[1]).longValue() : 0L;
+            mapped.put(key, count);
+        }
+        return mapped;
     }
 
     private double calculateAveragePerDay(List<Map<String, Object>> overTime, java.time.LocalDateTime start, java.time.LocalDateTime end) {

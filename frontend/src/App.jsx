@@ -9,6 +9,7 @@ import Guardias   from './pages/Guardias';
 import Incidentes from './pages/Incidentes';
 import Perfil     from './pages/Perfil';
 import DirectorDashboard from './pages/DirectorDashboard';
+import MetricasUGL from './pages/MetricasUGL';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/incidentes" element={<PrivateRoute><Incidentes /></PrivateRoute>} />
           <Route path="/perfil"     element={<PrivateRoute><Perfil /></PrivateRoute>} />
           <Route path="/director-dashboard" element={<PrivateRoute><DirectorDashboard /></PrivateRoute>} />
+          <Route path="/metricas-ugl" element={<PrivateRoute><MetricasUGL /></PrivateRoute>} />
           <Route path="*"           element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

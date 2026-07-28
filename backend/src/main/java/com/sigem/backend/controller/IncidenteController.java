@@ -9,6 +9,8 @@ import com.sigem.backend.service.IncidenteService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,19 +42,39 @@ public class IncidenteController {
         return ResponseEntity.ok(incidenteService.listarGuardiasActivas());
     }
 
-    // Seguimiento total (DES)
+    // Seguimiento total (DES) filtrado por incidentes relacionados al despachador
     @GetMapping("/seguimiento")
     @PreAuthorize("hasRole('DES')")
     public ResponseEntity<List<Incidente>> seguimiento() {
-        return ResponseEntity.ok(incidenteService.listarTodos());
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Object principal = authentication != null ? authentication.getPrincipal() : null;
+        if (!(principal instanceof Usuario usuario)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(incidenteService.listarPorUsuarioRelacionado(usuario.getId()));
     }
 
     // Crear incidente (DES)
     @PostMapping
     @PreAuthorize("hasRole('DES')")
-    public ResponseEntity<Incidente> crear(@RequestBody IncidenteCreateDTO dto) {
+    public ResponseEntity<Incidente> crear(
+            @RequestBody IncidenteCreateDTO dto,
+            @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(incidenteService.crearIncidente(dto));
+                .body(incidenteService.crearIncidente(dto, usuario));
+    }
+
+    // Incidentes globales para Directivo/Gerencia/Administrador
+    @GetMapping
+    @PreAuthorize("hasAnyRole('DIR','ADM')")
+    public ResponseEntity<List<Incidente>> listarTodos() {
+        return ResponseEntity.ok(incidenteService.listarTodos());
+    }
+
+    @GetMapping("/metricas-ugl")
+    @PreAuthorize("hasAnyRole('DIR','ADM')")
+    public ResponseEntity<Map<String, Object>> metricasUGL() {
+        return ResponseEntity.ok(incidenteService.getGlobalMetrics());
     }
 
     // Cambiar estado: aceptar (EN_PROCESO), rechazar (RECHAZADO), finalizar (FINALIZADO)

@@ -18,6 +18,17 @@ public interface IncidenteRepository extends JpaRepository<Incidente, Long> {
     @Query(value = "SELECT COALESCE(MAX(CAST(numero_incidente AS bigint)), 0) FROM incidentes", nativeQuery = true)
     Long findMaxNumeroIncidente();
 
+    @Query("SELECT i FROM Incidente i " +
+           "WHERE i.creadoPor.id = :userId OR i.asignadoA.id = :userId " +
+           "ORDER BY i.fechaAsignacion DESC")
+    List<Incidente> findByCreadoPorIdOrAsignadoAId(@Param("userId") Long userId);
+
+    @Query("SELECT i.prioridad, COUNT(i) FROM Incidente i GROUP BY i.prioridad")
+    List<Object[]> countByPriority();
+
+    @Query("SELECT i.estado, COUNT(i) FROM Incidente i GROUP BY i.estado")
+    List<Object[]> countByStatus();
+
     // Atenciones del día para el enfermero — para la tabla resumen de guardia
     @Query("SELECT i FROM Incidente i WHERE i.asignadoA.username = :username " +
            "AND i.fechaAsignacion >= :inicioDia AND i.fechaAsignacion <= :finDia " +

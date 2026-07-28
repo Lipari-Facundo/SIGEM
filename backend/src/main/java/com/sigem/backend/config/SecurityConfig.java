@@ -78,6 +78,10 @@ public class SecurityConfig {
                     .hasAnyRole("ENF", "JEF")
                 .requestMatchers(HttpMethod.GET, "/api/incidentes/atenciones-hoy")
                     .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.GET, "/api/incidentes")
+                    .hasAnyRole("DIR", "ADM")
+                .requestMatchers(HttpMethod.GET, "/api/incidentes/metricas-ugl")
+                    .hasAnyRole("DIR", "ADM")
                 .requestMatchers(HttpMethod.PUT, "/api/incidentes/*/estado")
                     .hasAnyRole("ENF", "JEF")
 

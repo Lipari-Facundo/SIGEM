@@ -521,6 +521,7 @@ const S = {
   grid2:      { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' },
   input:      { width: '100%', border: '1.5px solid #D6E4E3', borderRadius: '10px', padding: '11px 14px', fontSize: '14px', color: '#1F3838', outline: 'none', background: '#fff', boxSizing: 'border-box' },
   btnPrimary: { background: '#0F5C68', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 24px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' },
+  btnSecondary: { borderRadius: '10px', padding: '12px 24px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' },
   table:      { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
   th:         { textAlign: 'left', padding: '11px 12px', borderBottom: '2px solid #E8EDF1', color: '#334456', fontSize: '13px', fontWeight: '700', whiteSpace: 'normal' },
   td:         { padding: '11px 12px', borderBottom: '1px solid #F3F6F8', color: '#3C4B58', fontSize: '13px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word' },
