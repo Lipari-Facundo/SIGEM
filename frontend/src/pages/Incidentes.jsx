@@ -149,22 +149,22 @@ export default function Incidentes() {
     <div style={S.page}>
       <Sidebar />
       <main style={S.main}>
+        <div style={S.content}>
+          <header style={S.header}>
+            <div>
+              <h1 style={S.title}>
+                {user?.rol === 'DES' ? 'Gestión de Incidentes' : 'Mis Incidentes'}
+              </h1>
+              <p style={S.subtitle}>
+                {user?.rol === 'DES'
+                  ? 'Registrá y asigná incidentes a enfermeros que estén de guardia.'
+                  : 'Atenciones asignadas desde UGL. Aceptá, rechazá o finalizá cada una.'}
+              </p>
+            </div>
+          </header>
 
-        <header style={S.header}>
-          <div>
-            <h1 style={S.h1}>
-              {user?.rol === 'DES' ? 'Gestión de Incidentes' : 'Mis Incidentes'}
-            </h1>
-            <p style={S.sub}>
-              {user?.rol === 'DES'
-                ? 'Registrá y asigná incidentes a enfermeros que estén de guardia.'
-                : 'Atenciones asignadas desde UGL. Aceptá, rechazá o finalizá cada una.'}
-            </p>
-          </div>
-        </header>
-
-        {msg   && <div style={S.msgBar}>{msg}</div>}
-        {error && <div style={S.errorBar}>{error}</div>}
+          {msg   && <div style={S.msgBar}>{msg}</div>}
+          {error && <div style={S.errorBar}>{error}</div>}
 
         {/* ══════════════════════════════════════════════════════
             VISTA DESPACHADOR (DES)
@@ -313,7 +313,7 @@ export default function Incidentes() {
               {atencionesDia.length === 0 ? (
                 <p style={S.emptyText}>No hay atenciones registradas hoy.</p>
               ) : (
-                <div style={{ overflowX: 'auto' }}>
+                <div style={S.tableWrapper}>
                   <table style={S.table}>
                     <thead>
                       <tr>
@@ -333,12 +333,12 @@ export default function Incidentes() {
                             <td style={S.td}>{inc.motivo    || '-'}</td>
                             <td style={S.td}>{inc.pacienteNombre || '-'}</td>
                             <td style={S.td}>
-                              <span style={{ ...S.badge, ...pc }}>
+                              <span style={{ ...S.badge, background: pc.bg || '#eee', color: pc.color || '#333' }}>
                                 {inc.prioridad || '-'}
                               </span>
                             </td>
                             <td style={S.td}>
-                              <span style={{ ...S.badge, ...ec }}>
+                              <span style={{ ...S.badge, background: ec.bg || '#eee', color: ec.color || '#333' }}>
                                 {ESTADO_LABELS[inc.estado] || inc.estado}
                               </span>
                             </td>
@@ -358,6 +358,7 @@ export default function Incidentes() {
           </>
         )}
 
+        </div>
       </main>
     </div>
   );
@@ -374,8 +375,8 @@ function IncidenteCard({ inc, acciones, onAccion, loading }) {
       {/* Header de la tarjeta */}
       <div style={SC.cardHeader}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <span style={{ ...SC.badge, ...pc }}>{inc.prioridad}</span>
-          <span style={{ ...SC.badge, ...ec }}>{ESTADO_LABELS[inc.estado]}</span>
+          <span style={{ ...SC.badge, background: pc.bg || '#F8FFFE', color: pc.color || '#000' }}>{inc.prioridad}</span>
+          <span style={{ ...SC.badge, background: ec.bg || '#F8FFFE', color: ec.color || '#000' }}>{ESTADO_LABELS[inc.estado]}</span>
         </div>
         <span style={SC.idTag}>#{inc.id}</span>
       </div>
@@ -447,7 +448,7 @@ function TableSeguimiento({ incidentes }) {
     return <p style={S.emptyText}>No hay incidentes registrados todavía.</p>;
   }
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={S.tableWrapper}>
       <table style={S.table}>
         <thead>
           <tr>
@@ -476,10 +477,10 @@ function TableSeguimiento({ incidentes }) {
                     : '-'}
                 </td>
                 <td style={S.td}>
-                  <span style={{ ...S.badge, ...pc }}>{inc.prioridad || '-'}</span>
+                  <span style={{ ...S.badge, background: pc.bg || '#eee', color: pc.color || '#333' }}>{inc.prioridad || '-'}</span>
                 </td>
                 <td style={S.td}>
-                  <span style={{ ...S.badge, ...ec }}>
+                  <span style={{ ...S.badge, background: ec.bg || '#eee', color: ec.color || '#333' }}>
                     {ESTADO_LABELS[inc.estado] || inc.estado}
                   </span>
                 </td>
@@ -510,26 +511,47 @@ function Field({ label, children }) {
 // ─── Estilos principales ──────────────────────────────────────────────────────
 
 const S = {
-  page:       { display: 'flex', minHeight: '100vh', fontFamily: "'Segoe UI', sans-serif" },
-  main:       { flex: 1, background: '#F3F8F9', padding: '20px' },
-  header:     { marginBottom: '16px' },
-  h1:         { fontSize: '28px', margin: 0, color: '#0E3F3F', fontWeight: '700' },
-  sub:        { color: '#5C6F72', marginTop: '6px', fontSize: '14px' },
-  card:       { background: '#fff', borderRadius: '16px', padding: '20px', marginBottom: '18px', boxShadow: '0 4px 16px rgba(0,0,0,0.06)' },
-  sectionTitle:{ fontSize: '16px', fontWeight: '700', marginBottom: '18px', color: '#0F3E3E', display: 'flex', alignItems: 'center', gap: '10px' },
-  countBadge: { background: '#1B6B6B', color: '#fff', borderRadius: '20px', padding: '2px 10px', fontSize: '13px', fontWeight: '700' },
-  grid2:      { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' },
-  input:      { width: '100%', border: '1.5px solid #D6E4E3', borderRadius: '10px', padding: '11px 14px', fontSize: '14px', color: '#1F3838', outline: 'none', background: '#fff', boxSizing: 'border-box' },
-  btnPrimary: { background: '#0F5C68', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 24px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' },
-  btnSecondary: { borderRadius: '10px', padding: '12px 24px', cursor: 'pointer', fontWeight: '700', fontSize: '14px' },
-  table:      { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
-  th:         { textAlign: 'left', padding: '11px 12px', borderBottom: '2px solid #E8EDF1', color: '#334456', fontSize: '13px', fontWeight: '700', whiteSpace: 'normal' },
-  td:         { padding: '11px 12px', borderBottom: '1px solid #F3F6F8', color: '#3C4B58', fontSize: '13px', verticalAlign: 'top', whiteSpace: 'normal', wordBreak: 'break-word' },
-  badge:      { display: 'inline-flex', padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
-  emptyText:  { color: '#777', fontSize: '14px', textAlign: 'center', padding: '24px 0' },
-  msgBar:     { background: '#ECF9F0', border: '1px solid #A8D7A8', color: '#235A35', borderRadius: '12px', padding: '11px 14px', marginBottom: '14px' },
-  errorBar:   { background: '#FFF2F2', border: '1px solid #F0B3B3', color: '#9B2A2A', borderRadius: '12px', padding: '11px 14px', marginBottom: '14px' },
-  cardGrid:   { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' },
+  page: { display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-family-sans)', background: 'var(--color-page-bg)', color: 'var(--color-text-primary)' },
+  main: { flex: 1, padding: 'var(--spacing-6)', background: 'var(--color-page-bg)' },
+  content: { width: '100%', maxWidth: 'var(--content-width)', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' },
+  header: { display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end' },
+  title: { margin: 0, fontSize: '2rem', fontWeight: 800 },
+  subtitle: { margin: '0.5rem 0 0', color: 'var(--color-text-secondary)' },
+
+  // Notifications / Bars
+  msgBar: { background: 'var(--color-success-soft, #ECF9F0)', border: '1px solid var(--color-success)', color: 'var(--color-success-text, #235A35)', borderRadius: '0.75rem', padding: '0.65rem 1rem', marginBottom: '1rem' },
+  errorBar: { background: 'var(--color-danger-soft, #FFF2F2)', border: '1px solid var(--color-danger)', color: 'var(--color-danger)', borderRadius: '0.75rem', padding: '0.65rem 1rem', marginBottom: '1rem' },
+
+  // Cards and controls
+  card: { background: 'var(--color-surface, #fff)', borderRadius: '1rem', padding: '1.5rem', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm, 0 1px 3px rgba(0,0,0,0.1))', display: 'flex', flexDirection: 'column', gap: '1rem' },
+  sectionTitle: { margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--color-text-primary)' },
+  countBadge: { background: 'var(--color-primary)', color: '#fff', borderRadius: '20px', padding: '2px 10px', fontSize: '0.82rem', fontWeight: 700 },
+
+  grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' },
+  input: { width: '100%', border: '1px solid var(--color-border)', borderRadius: '0.5rem', padding: '0.65rem 1rem', fontSize: '0.9rem', outline: 'none', background: 'var(--color-surface, #fff)', color: 'var(--color-text-primary)', boxSizing: 'border-box' },
+  btnPrimary: { padding: '0.65rem 1rem', borderRadius: '0.6rem', background: 'var(--color-primary)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' },
+
+  // Table
+  tableSection: { marginTop: '1.5rem' },
+  tableHeader: { marginBottom: '1rem' },
+  tableTitle: { margin: 0, fontSize: '1.4rem' },
+  tableSubtitle: { margin: '0.4rem 0 0', color: 'var(--color-text-secondary)' },
+  tableWrapper: { overflowX: 'auto', borderRadius: '1rem', border: '1px solid var(--color-border)' },
+  table: { width: '100%', borderCollapse: 'collapse', minWidth: '900px' },
+  loading: { padding: '2.5rem', textAlign: 'center', color: 'var(--color-text-secondary)' },
+  th: { textAlign: 'left', padding: '1rem', borderBottom: '1px solid var(--color-border)', background: 'var(--color-surface-muted)', color: 'var(--color-text-secondary)', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.08em' },
+  td: { padding: '1rem', borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-primary)', verticalAlign: 'middle' },
+  badge: { display: 'inline-flex', padding: '3px 10px', borderRadius: '9999px', fontSize: '0.78rem', fontWeight: 700 },
+  emptyText: { color: 'var(--color-text-secondary)', fontSize: '0.9rem', textAlign: 'center', padding: '24px 0' },
+
+  // Layout helpers
+  filtrosRow: { display: 'flex', flexDirection: 'column', gap: '0.75rem' },
+  filtroGroup: { display: 'flex', flexDirection: 'column', gap: '0.4rem' },
+  chipRow: { display: 'flex', gap: '6px', flexWrap: 'wrap' },
+  chip: { padding: '5px 12px', borderRadius: '9999px', border: '1px solid', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, transition: 'all 0.15s' },
+
+  cardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' },
+  resultadoTexto: { fontSize: '0.82rem', color: 'var(--color-text-secondary)', margin: 0 },
 };
 
 // ─── Estilos tarjeta de incidente ─────────────────────────────────────────────
