@@ -1,9 +1,10 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const items = [
   { path: '/dashboard',          label: 'Panel de control',   icon: '🏠', roles: ['ADM','ENF','JEF','DES','DIR'] },
-  { path: '/director-dashboard', label: 'Management Dashboard', icon: '📊', roles: ['DIR','ADM'] },
+  { path: '/director-dashboard', label: 'Panel de dirección', icon: '📊', roles: ['DIR','ADM'] },
   { path: '/metricas-ugl',       label: 'Métricas UGL',        icon: '📈', roles: ['DIR','ADM'] },
   { path: '/guardias',           label: 'Guardia',           icon: '🩺', roles: ['ENF','JEF'] },
   { path: '/incidentes',         label: 'Incidentes',        icon: '📋', roles: ['ENF','JEF','DES'] },
@@ -30,9 +31,11 @@ export default function Sidebar() {
         <div style={S.logoIcon}>🛡</div>
         <div>
           <div style={S.logoText}>SIGEM</div>
-          <div style={S.logoSub}>Health Development</div>
+          <div style={S.logoSub}>Desarrollo de la salud</div>
         </div>
       </div>
+
+      <NotificationBell />
 
       <nav style={S.nav}>
         {items

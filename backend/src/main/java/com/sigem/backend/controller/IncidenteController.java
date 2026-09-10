@@ -2,6 +2,8 @@ package com.sigem.backend.controller;
 
 import com.sigem.backend.dto.IncidenteCreateDTO;
 import com.sigem.backend.dto.IncidenteEstadoDTO;
+import com.sigem.backend.dto.IncidenteRechazoDTO;
+import com.sigem.backend.dto.IncidenteReasignarDTO;
 import com.sigem.backend.model.Guardia;
 import com.sigem.backend.model.Incidente;
 import com.sigem.backend.model.Usuario;
@@ -86,6 +88,38 @@ public class IncidenteController {
             @RequestBody IncidenteEstadoDTO dto) {
         return ResponseEntity.ok(
                 incidenteService.actualizarEstado(id, usuario, dto.getEstado()));
+    }
+
+    @PutMapping("/{id}/rechazar")
+    @PreAuthorize("hasAnyRole('ENF', 'JEF')")
+    public ResponseEntity<Incidente> rechazar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario,
+            @RequestBody IncidenteRechazoDTO dto) {
+        return ResponseEntity.ok(incidenteService.rechazarIncidente(id, usuario, dto.getMotivo()));
+    }
+
+    @PutMapping("/{id}/llegada")
+    @PreAuthorize("hasAnyRole('ENF', 'JEF')")
+    public ResponseEntity<Incidente> marcarLlegada(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(incidenteService.marcarLlegada(id, usuario));
+    }
+
+    @PutMapping("/{id}/reasignar")
+    @PreAuthorize("hasRole('DES')")
+    public ResponseEntity<Incidente> reasignar(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario,
+            @RequestBody IncidenteReasignarDTO dto) {
+        return ResponseEntity.ok(incidenteService.reasignarIncidente(id, dto.getGuardiaId(), usuario));
+    }
+
+    @GetMapping("/pendientes-reasignacion")
+    @PreAuthorize("hasRole('DES')")
+    public ResponseEntity<List<Incidente>> pendientesReasignacion() {
+        return ResponseEntity.ok(incidenteService.listarPendientesReasignacion());
     }
 
     // Atenciones del día — tabla resumen del enfermero logueado

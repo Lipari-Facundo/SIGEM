@@ -86,3 +86,8 @@
   50% { opacity: 0.6; }
   100% { opacity: 1; }
 }
+
+@keyframes notificationPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}

@@ -4,9 +4,9 @@ export default function DashboardHeader({ startDate, endDate, onStartChange, onE
   return (
     <div style={S.header}>
       <div>
-        <p style={S.overline}>Executive Analytics</p>
-        <h1 style={S.title}>Incident Operations Dashboard</h1>
-        <p style={S.subtitle}>Monitorea el comportamiento de incidentes, detecta tendencias y toma decisiones con un vista clara y ejecutiva.</p>
+        <p style={S.overline}>Análisis ejecutivo</p>
+        <h1 style={S.title}>Panel de operaciones de incidentes</h1>
+        <p style={S.subtitle}>Monitoreá el comportamiento de los incidentes, detectá tendencias y tomá decisiones con una vista clara y ejecutiva.</p>
       </div>
 
       <div style={S.filterGroup}>

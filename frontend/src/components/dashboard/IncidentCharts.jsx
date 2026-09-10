@@ -80,13 +80,13 @@ export default function IncidentCharts() {
       {
         icon: '🔥',
         title: 'Motivo más frecuente',
-        value: series.mostFrequentMotive ?? 'N/A',
+        value: series.mostFrequentMotive ?? 'No disponible',
         subtitle: 'Motivo principal',
       },
       {
         icon: '📅',
         title: 'Día pico',
-        value: series.peakIncidentDay ?? 'N/A',
+        value: series.peakIncidentDay ?? 'No disponible',
         subtitle: 'Mayor actividad del período',
       },
     ];
@@ -119,7 +119,7 @@ export default function IncidentCharts() {
 
       {error ? <div style={S.errorBanner}>{error}</div> : null}
 
-      <section style={S.kpiSection} aria-label="KPI summary">
+      <section style={S.kpiSection} aria-label="Resumen de indicadores">
         {loading ? Array.from({ length: 6 }).map((_, index) => <SkeletonCard key={index} />) : <KpiSummary items={kpis} />}
       </section>
 
@@ -137,7 +137,7 @@ export default function IncidentCharts() {
             {loading ? <SkeletonCard /> : motives.length ? <DonutChart data={motives} /> : <div style={S.empty}>No hay datos para este rango.</div>}
           </ChartCard>
 
-          <ChartCard title="Insight clave" description="Puntos de atención rápida">
+          <ChartCard title="Hallazgo clave" description="Puntos de atención rápida">
             <div style={S.insightList}>
               <div style={S.insightItem}>
                 <span style={S.insightLabel}>Incidentes totales</span>

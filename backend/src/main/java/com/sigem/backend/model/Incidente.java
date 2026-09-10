@@ -57,9 +57,15 @@ public class Incidente {
     @Column(name = "fecha_cierre")
     private LocalDateTime fechaCierre;
 
+    @Column(name = "fecha_llegada_lugar")
+    private LocalDateTime fechaLlegadaLugar;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EstadoIncidente estado;
+
+    @Transient
+    private String motivoUltimoRechazo;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -103,6 +109,16 @@ public class Incidente {
     public LocalDateTime getFechaCierre() { return fechaCierre; }
     public void setFechaCierre(LocalDateTime fechaCierre) { this.fechaCierre = fechaCierre; }
 
+    public LocalDateTime getFechaLlegadaLugar() { return fechaLlegadaLugar; }
+    public void setFechaLlegadaLugar(LocalDateTime fechaLlegadaLugar) {
+        this.fechaLlegadaLugar = fechaLlegadaLugar;
+    }
+
     public EstadoIncidente getEstado() { return estado; }
     public void setEstado(EstadoIncidente estado) { this.estado = estado; }
+
+    public String getMotivoUltimoRechazo() { return motivoUltimoRechazo; }
+    public void setMotivoUltimoRechazo(String motivoUltimoRechazo) {
+        this.motivoUltimoRechazo = motivoUltimoRechazo;
+    }
 }

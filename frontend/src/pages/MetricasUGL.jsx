@@ -13,6 +13,7 @@ const PRIORIDAD_COLORS = {
 
 const ESTADO_COLORS = {
   PENDIENTE:  { bg: '#FFF8E1', color: '#F57F17' },
+  PENDIENTE_REASIGNACION: { bg: '#FFEBEE', color: '#B91F1F' },
   EN_PROCESO: { bg: '#E3F2FD', color: '#1565C0' },
   RECHAZADO:  { bg: '#FFEBEE', color: '#C62828' },
   FINALIZADO: { bg: '#E8F5E9', color: '#2E7D32' },
@@ -20,13 +21,14 @@ const ESTADO_COLORS = {
 
 const ESTADO_LABELS = {
   PENDIENTE: 'Pendiente', 
+  PENDIENTE_REASIGNACION: 'Pendiente de reasignación',
   EN_PROCESO: 'En atención',
   RECHAZADO: 'Rechazado', 
   FINALIZADO: 'Finalizado',
 };
 
 const PRIORIDADES = ['TODAS', 'ALTA', 'MEDIA', 'BAJA'];
-const ESTADOS     = ['TODOS', 'PENDIENTE', 'EN_PROCESO', 'RECHAZADO', 'FINALIZADO'];
+const ESTADOS     = ['TODOS', 'PENDIENTE', 'PENDIENTE_REASIGNACION', 'EN_PROCESO', 'RECHAZADO', 'FINALIZADO'];
 
 export default function MetricasUGL() {
   const [incidents, setIncidents] = useState([]);

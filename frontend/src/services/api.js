@@ -51,6 +51,12 @@ export const guardiaService = {
   finalizar: (id)     => api.put(`/guardias/${id}/finalizar`),
 };
 
+export const notificacionService = {
+  misNotificaciones: () => api.get('/notificaciones/mias'),
+  contarNoLeidas:    () => api.get('/notificaciones/mias/no-leidas/count'),
+  marcarLeida:       (id) => api.put(`/notificaciones/${id}/leer`),
+};
+
 export const incidenteService = {
   listarAsignados:   ()       => api.get('/incidentes/asignados'),
   listarSeguimiento: ()       => api.get('/incidentes/seguimiento'),
@@ -59,6 +65,10 @@ export const incidenteService = {
   metricasUGL:       ()       => api.get('/incidentes/metricas-ugl'),
   crear:             (data)   => api.post('/incidentes', data),
   cambiarEstado:     (id, estado) => api.put(`/incidentes/${id}/estado`, { estado }),
+  rechazar:          (id, motivo) => api.put(`/incidentes/${id}/rechazar`, { motivo }),
+  marcarLlegada:     (id) => api.put(`/incidentes/${id}/llegada`),
+  reasignar:         (id, guardiaId) => api.put(`/incidentes/${id}/reasignar`, { guardiaId }),
+  pendientesReasignacion: () => api.get('/incidentes/pendientes-reasignacion'),
   atencionesDel:     ()       => api.get('/incidentes/atenciones-hoy'),
   dashboard:         (params) => api.get('/incidentes/dashboard', { params }),
 };

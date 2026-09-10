@@ -54,3 +54,33 @@ ALTER TABLE incidentes ALTER COLUMN sexo DROP NOT NULL;
 ALTER TABLE incidentes ALTER COLUMN telefono DROP NOT NULL;
 ALTER TABLE incidentes ALTER COLUMN tipo_incidente DROP NOT NULL;
 ALTER TABLE incidentes ALTER COLUMN usuario_creador_id DROP NOT NULL;
+ALTER TABLE incidentes ADD COLUMN IF NOT EXISTS fecha_llegada_lugar timestamp;
+
+CREATE TABLE IF NOT EXISTS notificaciones (
+    id serial PRIMARY KEY,
+    usuario_id bigint NOT NULL,
+    incidente_id bigint NOT NULL,
+    mensaje text NOT NULL,
+    leida boolean NOT NULL DEFAULT false,
+    fecha_creacion timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_notificacion_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+    CONSTRAINT fk_notificacion_incidente FOREIGN KEY (incidente_id) REFERENCES incidentes(id)
+);
+
+ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS mensaje text;
+ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS leida boolean NOT NULL DEFAULT false;
+ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS fecha_creacion timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP;
+ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS tipo varchar(50) NOT NULL DEFAULT 'INCIDENTE_ASIGNADO';
+
+CREATE TABLE IF NOT EXISTS incidente_historial_asignacion (
+    id serial PRIMARY KEY,
+    incidente_id bigint NOT NULL,
+    enfermero_id bigint NOT NULL,
+    movil_id bigint,
+    tipo varchar(50) NOT NULL,
+    motivo text,
+    fecha timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_historial_incidente FOREIGN KEY (incidente_id) REFERENCES incidentes(id),
+    CONSTRAINT fk_historial_enfermero FOREIGN KEY (enfermero_id) REFERENCES usuarios(id),
+    CONSTRAINT fk_historial_movil FOREIGN KEY (movil_id) REFERENCES moviles(id)
+);

@@ -68,6 +68,9 @@ public class SecurityConfig {
                 // ── Guardias ──────────────────────────────────────────────
                 .requestMatchers("/api/guardias/**").hasAnyRole("ENF", "JEF")
 
+                // ── Notificaciones ────────────────────────────────────────
+                .requestMatchers("/api/notificaciones/**").hasAnyRole("ENF", "JEF", "DES")
+
                 // ── Incidentes ────────────────────────────────────────────
                 .requestMatchers(HttpMethod.POST, "/api/incidentes").hasRole("DES")
                 .requestMatchers(HttpMethod.GET, "/api/incidentes/guardias-disponibles")
@@ -84,6 +87,14 @@ public class SecurityConfig {
                     .hasAnyRole("DIR", "ADM")
                 .requestMatchers(HttpMethod.PUT, "/api/incidentes/*/estado")
                     .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.PUT, "/api/incidentes/*/rechazar")
+                    .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.PUT, "/api/incidentes/*/llegada")
+                    .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.PUT, "/api/incidentes/*/reasignar")
+                    .hasRole("DES")
+                .requestMatchers(HttpMethod.GET, "/api/incidentes/pendientes-reasignacion")
+                    .hasRole("DES")
 
                 .anyRequest().authenticated()
             )

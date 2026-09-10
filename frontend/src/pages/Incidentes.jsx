@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 
 const ESTADO_LABELS = {
   PENDIENTE:  'Pendiente',
+  PENDIENTE_REASIGNACION: 'Pendiente de reasignación',
   EN_PROCESO: 'En atención',
   RECHAZADO:  'Rechazado',
   FINALIZADO: 'Finalizado',
@@ -14,6 +15,7 @@ const ESTADO_LABELS = {
 
 const ESTADO_COLORS = {
   PENDIENTE:  { bg: '#FFF8E1', color: '#F57F17' },
+  PENDIENTE_REASIGNACION: { bg: '#FFEBEE', color: '#B91F1F' },
   EN_PROCESO: { bg: '#E3F2FD', color: '#1565C0' },
   RECHAZADO:  { bg: '#FFEBEE', color: '#C62828' },
   FINALIZADO: { bg: '#E8F5E9', color: '#2E7D32' },
@@ -52,6 +54,11 @@ export default function Incidentes() {
   const [loading, setLoading]           = useState(false);
   const [msg, setMsg]                   = useState('');
   const [error, setError]               = useState('');
+  const [pendientesReasignacion, setPendientesReasignacion] = useState([]);
+  const [incidenteRechazo, setIncidenteRechazo] = useState(null);
+  const [motivoRechazo, setMotivoRechazo] = useState('');
+  const [incidenteReasignar, setIncidenteReasignar] = useState(null);
+  const [guardiaReasignacion, setGuardiaReasignacion] = useState('');
 
   useEffect(() => { cargarDatos(); }, [user]);
 
@@ -66,6 +73,8 @@ export default function Incidentes() {
         ]);
         setGuardias(gRes.data);
         setIncidentes(sRes.data);
+        const pendientesRes = await incidenteService.pendientesReasignacion();
+        setPendientesReasignacion(pendientesRes.data);
       } catch {
         mostrarError('No se pudieron cargar los datos. Intentá de nuevo.');
       }
@@ -134,11 +143,71 @@ export default function Incidentes() {
     }
   };
 
+  const marcarLlegada = async (id) => {
+    setLoading(true);
+    try {
+      await incidenteService.marcarLlegada(id);
+      mostrarMsg('Llegada al lugar registrada correctamente.');
+      await cargarDatos();
+    } catch (e) {
+      mostrarError(e.response?.data?.message || 'No se pudo registrar la llegada al lugar.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const abrirRechazo = (incidente) => {
+    setIncidenteRechazo(incidente);
+    setMotivoRechazo('');
+  };
+
+  const rechazarIncidente = async () => {
+    const motivo = motivoRechazo.trim();
+    if (motivo.length < 10) {
+      mostrarError('El motivo de rechazo debe tener al menos 10 caracteres.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await incidenteService.rechazar(incidenteRechazo.id, motivo);
+      mostrarMsg('Incidente rechazado y enviado a reasignación.');
+      setIncidenteRechazo(null);
+      await cargarDatos();
+    } catch (e) {
+      mostrarError(e.response?.data?.message || 'No se pudo rechazar el incidente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const abrirReasignacion = (incidente) => {
+    setIncidenteReasignar(incidente);
+    setGuardiaReasignacion('');
+  };
+
+  const reasignarIncidente = async () => {
+    if (!guardiaReasignacion) {
+      mostrarError('Debe seleccionar una guardia activa para reasignar el incidente.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await incidenteService.reasignar(incidenteReasignar.id, Number(guardiaReasignacion));
+      mostrarMsg('Incidente reasignado correctamente.');
+      setIncidenteReasignar(null);
+      await cargarDatos();
+    } catch (e) {
+      mostrarError(e.response?.data?.message || 'No se pudo reasignar el incidente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ─── Helpers para la tabla ENF ───────────────────────────────
 
   // Dado el estado actual del incidente, qué acciones puede hacer el enfermero
   const accionesDisponibles = (estado) => {
-    if (estado === 'PENDIENTE')  return ['EN_PROCESO', 'RECHAZADO'];
+    if (estado === 'PENDIENTE')  return ['EN_PROCESO', 'RECHAZAR'];
     if (estado === 'EN_PROCESO') return ['FINALIZADO'];
     return [];
   };
@@ -268,7 +337,24 @@ export default function Incidentes() {
             {/* ── Tabla de seguimiento ── */}
             <section style={S.card}>
               <h2 style={S.sectionTitle}>Seguimiento de incidentes</h2>
-              <TableSeguimiento incidentes={incidentes} />
+              {pendientesReasignacion.length > 0 && (
+                <section style={S.urgentSection}>
+                  <h3 style={S.urgentTitle}>🚨 Incidentes pendientes de reasignación</h3>
+                  {pendientesReasignacion.map(incidente => (
+                    <div key={incidente.id} style={S.urgentItem}>
+                      <div>
+                        <strong>Incidente #{incidente.id}: {incidente.motivo}</strong>
+                        <div>📍 {incidente.ubicacion}</div>
+                        <div><b>Motivo del rechazo:</b> {incidente.motivoUltimoRechazo || 'No informado'}</div>
+                      </div>
+                      <button style={S.btnUrgent} onClick={() => abrirReasignacion(incidente)}>
+                        Reasignar ahora
+                      </button>
+                    </div>
+                  ))}
+                </section>
+              )}
+              <TableSeguimiento incidentes={incidentes} onReasignar={abrirReasignacion} />
             </section>
           </>
         )}
@@ -296,6 +382,8 @@ export default function Incidentes() {
                         inc={inc}
                         acciones={accionesDisponibles(inc.estado)}
                         onAccion={cambiarEstado}
+                        onLlegada={marcarLlegada}
+                        onRechazar={abrirRechazo}
                         loading={loading}
                       />
                     ))}
@@ -359,13 +447,57 @@ export default function Incidentes() {
         )}
 
       </main>
+      {incidenteRechazo && (
+        <div style={S.overlay}>
+          <div style={S.modal}>
+            <h2 style={S.modalTitle}>🚨 Rechazar incidente #{incidenteRechazo.id}</h2>
+            <p style={S.modalText}>El motivo es obligatorio y será enviado al despachador.</p>
+            <textarea
+              autoFocus
+              value={motivoRechazo}
+              onChange={e => setMotivoRechazo(e.target.value)}
+              placeholder="Indicá por qué no podés atender este incidente..."
+              style={{ ...S.input, minHeight: '120px', resize: 'vertical' }}
+            />
+            <div style={S.modalActions}>
+              <button style={S.btnCancel} onClick={() => setIncidenteRechazo(null)}>Cancelar</button>
+              <button style={S.btnDanger} disabled={loading || motivoRechazo.trim().length < 10} onClick={rechazarIncidente}>
+                Confirmar rechazo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {incidenteReasignar && (
+        <div style={S.overlay}>
+          <div style={S.modal}>
+            <h2 style={S.modalTitle}>🚑 Reasignar incidente #{incidenteReasignar.id}</h2>
+            <p style={S.modalText}>Seleccioná la guardia activa que continuará la atención.</p>
+            <select style={S.input} value={guardiaReasignacion} onChange={e => setGuardiaReasignacion(e.target.value)}>
+              <option value="">Seleccioná una guardia activa</option>
+              {guardias.map(guardia => (
+                <option key={guardia.id} value={guardia.id}>
+                  {guardia.movil?.baseOperativa} - {guardia.enfermero?.nombre} {guardia.enfermero?.apellido}
+                </option>
+              ))}
+            </select>
+            <div style={S.modalActions}>
+              <button style={S.btnCancel} onClick={() => setIncidenteReasignar(null)}>Cancelar</button>
+              <button style={S.btnPrimary} disabled={loading || !guardiaReasignacion} onClick={reasignarIncidente}>
+                Confirmar reasignación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Sub-componente: tarjeta de incidente activo (ENF) ────────────────────────
 
-function IncidenteCard({ inc, acciones, onAccion, loading }) {
+function IncidenteCard({ inc, acciones, onAccion, onLlegada, onRechazar, loading }) {
   const ec = ESTADO_COLORS[inc.estado]    || {};
   const pc = PRIORIDAD_COLORS[inc.prioridad] || {};
 
@@ -376,6 +508,16 @@ function IncidenteCard({ inc, acciones, onAccion, loading }) {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <span style={{ ...SC.badge, ...pc }}>{inc.prioridad}</span>
           <span style={{ ...SC.badge, ...ec }}>{ESTADO_LABELS[inc.estado]}</span>
+          {inc.estado === 'EN_PROCESO' && !inc.fechaLlegadaLugar && (
+            <span style={{ ...SC.badge, background: '#E3F2FD', color: '#1565C0' }}>
+              🚗 En camino
+            </span>
+          )}
+          {inc.estado === 'EN_PROCESO' && inc.fechaLlegadaLugar && (
+            <span style={{ ...SC.badge, background: '#E8F5E9', color: '#2E7D32' }}>
+              📍 En el lugar
+            </span>
+          )}
         </div>
         <span style={SC.idTag}>#{inc.id}</span>
       </div>
@@ -397,6 +539,15 @@ function IncidenteCard({ inc, acciones, onAccion, loading }) {
       {/* Acciones */}
       {acciones.length > 0 && (
         <div style={SC.cardActions}>
+          {inc.estado === 'EN_PROCESO' && !inc.fechaLlegadaLugar && (
+            <button
+              style={{ ...SC.btn, background: '#E3F2FD', color: '#1565C0' }}
+              disabled={loading}
+              onClick={() => onLlegada(inc.id)}
+            >
+              📍 Marcar llegada al lugar
+            </button>
+          )}
           {acciones.includes('EN_PROCESO') && (
             <button
               style={{ ...SC.btn, background: '#1565C0', color: '#fff' }}
@@ -406,11 +557,11 @@ function IncidenteCard({ inc, acciones, onAccion, loading }) {
               ✅ Aceptar
             </button>
           )}
-          {acciones.includes('RECHAZADO') && (
+          {acciones.includes('RECHAZAR') && (
             <button
               style={{ ...SC.btn, background: '#FFEBEE', color: '#C62828' }}
               disabled={loading}
-              onClick={() => onAccion(inc.id, 'RECHAZADO')}
+              onClick={() => onRechazar(inc)}
             >
               ❌ Rechazar
             </button>
@@ -442,7 +593,7 @@ function DataRow({ icon, label, value }) {
 
 // ─── Sub-componente: tabla de seguimiento (DES) ───────────────────────────────
 
-function TableSeguimiento({ incidentes }) {
+function TableSeguimiento({ incidentes, onReasignar }) {
   if (incidentes.length === 0) {
     return <p style={S.emptyText}>No hay incidentes registrados todavía.</p>;
   }
@@ -451,7 +602,7 @@ function TableSeguimiento({ incidentes }) {
       <table style={S.table}>
         <thead>
           <tr>
-            {['#','Ubicación','Motivo','Asignado a','Móvil','Prioridad','Estado','Paciente','Asignación'].map(h => (
+            {['#','Ubicación','Motivo','Asignado a','Móvil','Prioridad','Estado','Paciente','Asignación','Acción'].map(h => (
               <th key={h} style={S.th}>{h}</th>
             ))}
           </tr>
@@ -482,10 +633,37 @@ function TableSeguimiento({ incidentes }) {
                   <span style={{ ...S.badge, ...ec }}>
                     {ESTADO_LABELS[inc.estado] || inc.estado}
                   </span>
+                  {inc.estado === 'EN_PROCESO' && (
+                    <span style={{
+                      ...S.badge,
+                      ...(inc.fechaLlegadaLugar
+                        ? { background: '#E8F5E9', color: '#2E7D32' }
+                        : { background: '#E3F2FD', color: '#1565C0' }),
+                      marginTop: '5px',
+                    }}>
+                      {inc.fechaLlegadaLugar ? '📍 En el lugar' : '🚗 En camino'}
+                    </span>
+                  )}
                 </td>
                 <td style={S.td}>{inc.pacienteNombre || '-'}</td>
                 <td style={S.td}>
                   {new Date(inc.fechaAsignacion).toLocaleString('es-AR')}
+                </td>
+                <td style={S.td}>
+                  {(inc.estado === 'PENDIENTE'
+                    || inc.estado === 'PENDIENTE_REASIGNACION'
+                    || inc.estado === 'EN_PROCESO') && (
+                    <button
+                      style={inc.estado === 'EN_PROCESO' && inc.fechaLlegadaLugar
+                        ? S.btnSmallDisabled : S.btnSmall}
+                      disabled={inc.estado === 'EN_PROCESO' && Boolean(inc.fechaLlegadaLugar)}
+                      title={inc.estado === 'EN_PROCESO' && inc.fechaLlegadaLugar
+                        ? 'El enfermero ya llegó al lugar' : 'Reasignar incidente'}
+                      onClick={() => onReasignar(inc)}
+                    >
+                      Reasignar
+                    </button>
+                  )}
                 </td>
               </tr>
             );
@@ -530,6 +708,19 @@ const S = {
   msgBar:     { background: '#ECF9F0', border: '1px solid #A8D7A8', color: '#235A35', borderRadius: '12px', padding: '11px 14px', marginBottom: '14px' },
   errorBar:   { background: '#FFF2F2', border: '1px solid #F0B3B3', color: '#9B2A2A', borderRadius: '12px', padding: '11px 14px', marginBottom: '14px' },
   cardGrid:   { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' },
+  urgentSection: { background: '#FFF5F5', border: '2px solid var(--color-danger)', borderRadius: '12px', padding: '14px', marginBottom: '18px' },
+  urgentTitle: { color: 'var(--color-danger)', margin: '0 0 12px', fontSize: '16px' },
+  urgentItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', padding: '12px', background: '#fff', borderRadius: '8px', marginTop: '8px', color: '#4a1c1c' },
+  btnUrgent: { background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 14px', cursor: 'pointer', fontWeight: '700', whiteSpace: 'nowrap' },
+  btnSmall: { background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: '7px', padding: '6px 9px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' },
+  btnSmallDisabled: { background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', borderRadius: '7px', padding: '6px 9px', cursor: 'not-allowed', fontSize: '12px', fontWeight: '700' },
+  overlay: { position: 'fixed', inset: 0, zIndex: 'var(--z-modal)', background: 'rgba(15, 42, 48, 0.5)', display: 'grid', placeItems: 'center', padding: '1rem' },
+  modal: { width: 'min(32rem, 100%)', background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '1.4rem', boxShadow: 'var(--shadow-lg)' },
+  modalTitle: { margin: 0, color: 'var(--color-text-primary)', fontSize: '1.15rem' },
+  modalText: { color: 'var(--color-text-secondary)', fontSize: '0.9rem' },
+  modalActions: { display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', marginTop: '1rem' },
+  btnCancel: { background: 'var(--color-surface-muted)', color: 'var(--color-text-primary)', border: 'none', borderRadius: '8px', padding: '10px 15px', cursor: 'pointer', fontWeight: '700' },
+  btnDanger: { background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: '8px', padding: '10px 15px', cursor: 'pointer', fontWeight: '700' },
 };
 
 // ─── Estilos tarjeta de incidente ─────────────────────────────────────────────
