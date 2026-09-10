@@ -7,6 +7,8 @@ const items = [
   { path: '/director-dashboard', label: 'Panel de dirección', icon: '📊', roles: ['DIR','ADM'] },
   { path: '/metricas-ugl',       label: 'Métricas UGL',        icon: '📈', roles: ['DIR','ADM'] },
   { path: '/guardias',           label: 'Guardia',           icon: '🩺', roles: ['ENF','JEF'] },
+  { path: '/inventario',          label: 'Inventario Móvil',  icon: '🎒', roles: ['ENF','JEF'] },
+  { path: '/solicitudes-reposicion', label: 'Reposiciones',    icon: '📋', roles: ['ADM','DES'] },
   { path: '/incidentes',         label: 'Incidentes',        icon: '📋', roles: ['ENF','JEF','DES'] },
   { path: '/usuarios',           label: 'Usuarios',          icon: '👥', roles: ['ADM'] },
   { path: '/moviles',            label: 'Gestión de Móviles', icon: '🚑', roles: ['ADM'] },

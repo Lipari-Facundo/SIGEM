@@ -15,6 +15,8 @@ public interface GuardiaRepository extends JpaRepository<Guardia, Long> {
 
     boolean existsByEnfermeroUsernameAndEstado(String username, GuardiaEstado estado);
 
+    Optional<Guardia> findByEnfermeroUsernameAndEstado(String username, GuardiaEstado estado);
+
     List<Guardia> findByEstadoOrderByFechaInicioDesc(GuardiaEstado estado);
 
     Optional<Guardia> findByIdAndEstado(Long id, GuardiaEstado estado);

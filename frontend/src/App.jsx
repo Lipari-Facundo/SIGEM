@@ -10,6 +10,8 @@ import Incidentes from './pages/Incidentes';
 import Perfil     from './pages/Perfil';
 import DirectorDashboard from './pages/DirectorDashboard';
 import MetricasUGL from './pages/MetricasUGL';
+import InventarioMovil from './pages/InventarioMovil';
+import SolicitudesReposicion from './pages/SolicitudesReposicion';
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
           <Route path="/usuarios"   element={<PrivateRoute><Usuarios /></PrivateRoute>} />
           <Route path="/moviles"    element={<PrivateRoute><Moviles /></PrivateRoute>} />
           <Route path="/guardias"   element={<PrivateRoute><Guardias /></PrivateRoute>} />
+          <Route path="/inventario" element={<PrivateRoute><InventarioMovil /></PrivateRoute>} />
+          <Route path="/solicitudes-reposicion" element={<PrivateRoute><SolicitudesReposicion /></PrivateRoute>} />
           <Route path="/incidentes" element={<PrivateRoute><Incidentes /></PrivateRoute>} />
           <Route path="/perfil"     element={<PrivateRoute><Perfil /></PrivateRoute>} />
           <Route path="/director-dashboard" element={<PrivateRoute><DirectorDashboard /></PrivateRoute>} />

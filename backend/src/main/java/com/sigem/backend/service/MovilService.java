@@ -12,9 +12,11 @@ import java.util.List;
 public class MovilService {
 
     private final MovilRepository movilRepository;
+    private final InventarioMovilService inventarioMovilService;
 
-    public MovilService(MovilRepository movilRepository) {
+    public MovilService(MovilRepository movilRepository, InventarioMovilService inventarioMovilService) {
         this.movilRepository = movilRepository;
+        this.inventarioMovilService = inventarioMovilService;
     }
 
     // ─── Listar todos ─────────────────────────────────────────
@@ -50,7 +52,9 @@ public class MovilService {
 
         Movil m = new Movil();
         mapearDesdeDTO(m, dto);
-        return movilRepository.save(m);
+        Movil movilGuardado = movilRepository.save(m);
+        inventarioMovilService.inicializarStockMovil(movilGuardado);
+        return movilGuardado;
     }
 
     // ─── Modificar ────────────────────────────────────────────

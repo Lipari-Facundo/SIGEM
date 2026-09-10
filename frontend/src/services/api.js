@@ -45,6 +45,20 @@ export const movilService = {
   eliminar:         (id)         => api.delete(`/moviles/${id}`),
 };
 
+export const inventarioService = {
+  miInventario:       ()       => api.get('/inventario/mi-movil'),
+  inventarioDeMovil:  (movilId) => api.get(`/inventario/movil/${movilId}`),
+  inicializar:        (movilId) => api.post(`/inventario/movil/${movilId}/inicializar`),
+  registrarConsumo:   (dto)    => api.post('/inventario/consumo', dto),
+  miHistorial:        ()       => api.get('/inventario/mi-movil/historial'),
+  historialDeMovil:   (movilId) => api.get(`/inventario/movil/${movilId}/historial`),
+  sugerenciaReposicion: () => api.get('/inventario/mi-movil/sugerencia-reposicion'),
+  crearReposicion:    (dto)    => api.post('/inventario/reposicion', dto),
+  misSolicitudes:    ()       => api.get('/inventario/reposicion/mias'),
+  cancelarSolicitud: (id)     => api.put(`/inventario/reposicion/${id}/cancelar`),
+  solicitudesPendientes: ()   => api.get('/inventario/reposicion/pendientes'),
+};
+
 export const guardiaService = {
   listar:    ()       => api.get('/guardias/mias'),
   iniciar:   (data)   => api.post('/guardias', data),

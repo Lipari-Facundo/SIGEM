@@ -84,3 +84,59 @@ CREATE TABLE IF NOT EXISTS incidente_historial_asignacion (
     CONSTRAINT fk_historial_enfermero FOREIGN KEY (enfermero_id) REFERENCES usuarios(id),
     CONSTRAINT fk_historial_movil FOREIGN KEY (movil_id) REFERENCES moviles(id)
 );
+
+CREATE TABLE IF NOT EXISTS insumos (
+    id bigserial PRIMARY KEY,
+    nombre varchar(255) NOT NULL,
+    categoria varchar(50) NOT NULL,
+    tipo varchar(50) NOT NULL,
+    unidad_medida varchar(100),
+    activo boolean NOT NULL DEFAULT true
+);
+
+CREATE TABLE IF NOT EXISTS stock_estandar_movil (
+    id bigserial PRIMARY KEY,
+    tipo_movil varchar(50) NOT NULL,
+    insumo_id bigint NOT NULL,
+    cantidad_recomendada integer NOT NULL,
+    CONSTRAINT uk_stock_estandar_tipo_insumo UNIQUE (tipo_movil, insumo_id),
+    CONSTRAINT fk_stock_estandar_insumo FOREIGN KEY (insumo_id) REFERENCES insumos(id)
+);
+
+CREATE TABLE IF NOT EXISTS movil_insumo (
+    id bigserial PRIMARY KEY,
+    movil_id bigint NOT NULL,
+    insumo_id bigint NOT NULL,
+    cantidad_actual integer NOT NULL DEFAULT 0,
+    CONSTRAINT uk_movil_insumo UNIQUE (movil_id, insumo_id),
+    CONSTRAINT fk_movil_insumo_movil FOREIGN KEY (movil_id) REFERENCES moviles(id),
+    CONSTRAINT fk_movil_insumo_insumo FOREIGN KEY (insumo_id) REFERENCES insumos(id)
+);
+
+CREATE TABLE IF NOT EXISTS consumo_insumo (
+    id serial PRIMARY KEY,
+    movil_id bigint NOT NULL REFERENCES moviles(id),
+    insumo_id bigint NOT NULL REFERENCES insumos(id),
+    cantidad integer NOT NULL,
+    enfermero_id bigint NOT NULL REFERENCES usuarios(id),
+    incidente_id bigint REFERENCES incidentes(id),
+    lote_id varchar(64) NOT NULL,
+    fecha timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS solicitud_reposicion (
+    id serial PRIMARY KEY,
+    movil_id bigint NOT NULL REFERENCES moviles(id),
+    enfermero_id bigint NOT NULL REFERENCES usuarios(id),
+    fecha timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    estado varchar(50) NOT NULL DEFAULT 'PENDIENTE',
+    observaciones text
+);
+
+CREATE TABLE IF NOT EXISTS solicitud_reposicion_item (
+    id serial PRIMARY KEY,
+    solicitud_id bigint NOT NULL REFERENCES solicitud_reposicion(id),
+    insumo_id bigint NOT NULL REFERENCES insumos(id),
+    cantidad_solicitada integer NOT NULL,
+    cantidad_actual_al_momento integer NOT NULL
+);

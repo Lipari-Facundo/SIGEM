@@ -65,6 +65,30 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PUT, "/api/moviles/*").hasRole("ADM")
                 .requestMatchers(HttpMethod.DELETE, "/api/moviles/*").hasRole("ADM")
 
+                // ── Inventario de móviles ───────────────────────────────
+                .requestMatchers(HttpMethod.GET, "/api/inventario/mi-movil")
+                    .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.GET, "/api/inventario/movil/*")
+                    .hasAnyRole("ADM", "DES", "JEF")
+                .requestMatchers(HttpMethod.POST, "/api/inventario/movil/*/inicializar")
+                    .hasRole("ADM")
+                .requestMatchers(HttpMethod.POST, "/api/inventario/consumo")
+                    .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.GET, "/api/inventario/mi-movil/historial")
+                    .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.GET, "/api/inventario/movil/*/historial")
+                    .hasAnyRole("ADM", "DES", "JEF")
+                .requestMatchers(HttpMethod.GET, "/api/inventario/mi-movil/sugerencia-reposicion")
+                    .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.POST, "/api/inventario/reposicion")
+                    .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.GET, "/api/inventario/reposicion/mias")
+                    .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.PUT, "/api/inventario/reposicion/*/cancelar")
+                    .hasAnyRole("ENF", "JEF")
+                .requestMatchers(HttpMethod.GET, "/api/inventario/reposicion/pendientes")
+                    .hasAnyRole("DES", "ADM")
+
                 // ── Guardias ──────────────────────────────────────────────
                 .requestMatchers("/api/guardias/**").hasAnyRole("ENF", "JEF")
 
