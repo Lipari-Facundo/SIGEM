@@ -57,7 +57,7 @@ const S = {
   chartWrapper: { position: 'relative', width: '140px', height: '140px' },
   svg: { width: '100%', height: '100%' },
   centerValue: { position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', textAlign: 'center' },
-  centerNumber: { fontSize: '22px', fontWeight: 700, color: '#0F2A2A' },
+  centerNumber: { fontSize: '22px', fontWeight: 700, color: '#ff8000' },
   centerLabel: { fontSize: '10px', color: '#4B5563', marginTop: '2px', display: 'block' },
   legend: { display: 'grid', gap: '8px', width: '100%' },
   legendItem: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#47525D' },
