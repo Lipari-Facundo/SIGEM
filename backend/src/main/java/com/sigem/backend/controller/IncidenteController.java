@@ -4,6 +4,7 @@ import com.sigem.backend.dto.IncidenteCreateDTO;
 import com.sigem.backend.dto.IncidenteEstadoDTO;
 import com.sigem.backend.dto.IncidenteRechazoDTO;
 import com.sigem.backend.dto.IncidenteReasignarDTO;
+import com.sigem.backend.dto.IncidenteCancelacionDTO;
 import com.sigem.backend.model.Guardia;
 import com.sigem.backend.model.Incidente;
 import com.sigem.backend.model.Usuario;
@@ -114,6 +115,14 @@ public class IncidenteController {
             @AuthenticationPrincipal Usuario usuario,
             @RequestBody IncidenteReasignarDTO dto) {
         return ResponseEntity.ok(incidenteService.reasignarIncidente(id, dto.getGuardiaId(), usuario));
+    }
+
+    @PutMapping("/{id}/cancelar")
+    @PreAuthorize("hasRole('DES')")
+    public ResponseEntity<Incidente> cancelar(
+            @PathVariable Long id,
+            @RequestBody IncidenteCancelacionDTO dto) {
+        return ResponseEntity.ok(incidenteService.cancelarIncidente(id, dto.getMotivo()));
     }
 
     @GetMapping("/pendientes-reasignacion")

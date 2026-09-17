@@ -198,6 +198,44 @@ public class IncidenteService {
         return guardado;
         }
 
+        @Transactional
+        public Incidente cancelarIncidente(Long incidenteId, String motivo) {
+        if (motivo == null || motivo.isBlank()) {
+            throw new RuntimeException("El motivo de cancelación es obligatorio");
+        }
+
+        Incidente incidente = incidenteRepository.findById(incidenteId)
+            .orElseThrow(() -> new RuntimeException("No se encontró el incidente " + incidenteId));
+
+        if (incidente.getEstado() != EstadoIncidente.PENDIENTE
+            && incidente.getEstado() != EstadoIncidente.PENDIENTE_REASIGNACION
+            && incidente.getEstado() != EstadoIncidente.EN_PROCESO) {
+            throw new RuntimeException("No se puede cancelar un incidente en estado "
+                + incidente.getEstado());
+        }
+
+        String motivoLimpio = motivo.trim();
+        Usuario enfermero = incidente.getAsignadoA();
+        Movil movil = incidente.getMovil();
+        if (enfermero != null) {
+            guardarHistorial(incidente, enfermero, movil, TipoDesasignacion.CANCELACION, motivoLimpio);
+        }
+
+        incidente.setMotivoCancelacion(motivoLimpio);
+        incidente.setEstado(EstadoIncidente.CANCELADO);
+        incidente.setFechaCierre(LocalDateTime.now());
+        incidente.setAsignadoA(null);
+        incidente.setMovil(null);
+
+        Incidente cancelado = incidenteRepository.save(incidente);
+        if (enfermero != null) {
+            notificacionService.crearNotificacion(
+                enfermero, cancelado, TipoNotificacion.INCIDENTE_CANCELADO,
+                "El incidente fue cancelado. Motivo: " + motivoLimpio);
+        }
+        return cancelado;
+        }
+
         @Transactional(readOnly = true)
         public List<Incidente> listarPendientesReasignacion() {
         List<Incidente> pendientes = incidenteRepository

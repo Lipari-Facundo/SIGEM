@@ -48,6 +48,21 @@ button {
   background: none;
 }
 
+/* Utility equivalents used by the incident tracking table. */
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.align-middle { vertical-align: middle; }
+.px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+.py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+.bg-white { background-color: #fff; }
+.bg-red-50 { background-color: #fef2f2; }
+.hover\:bg-gray-50:hover { background-color: #f9fafb; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.gap-2 { gap: 0.5rem; }
+
 a {
   color: inherit;
   text-decoration: none;

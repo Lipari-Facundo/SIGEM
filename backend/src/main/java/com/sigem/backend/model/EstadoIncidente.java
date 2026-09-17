@@ -5,5 +5,6 @@ public enum EstadoIncidente {
     PENDIENTE_REASIGNACION,
     EN_PROCESO,
     RECHAZADO,
-    FINALIZADO
+    FINALIZADO,
+    CANCELADO
 }

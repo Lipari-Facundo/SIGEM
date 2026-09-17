@@ -83,6 +83,7 @@ export const incidenteService = {
   rechazar:          (id, motivo) => api.put(`/incidentes/${id}/rechazar`, { motivo }),
   marcarLlegada:     (id) => api.put(`/incidentes/${id}/llegada`),
   reasignar:         (id, guardiaId) => api.put(`/incidentes/${id}/reasignar`, { guardiaId }),
+  cancelar:          (id, motivo) => api.put(`/incidentes/${id}/cancelar`, { motivo }),
   pendientesReasignacion: () => api.get('/incidentes/pendientes-reasignacion'),
   atencionesDel:     ()       => api.get('/incidentes/atenciones-hoy'),
   dashboard:         (params) => api.get('/incidentes/dashboard', { params }),

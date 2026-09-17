@@ -55,6 +55,10 @@ ALTER TABLE incidentes ALTER COLUMN telefono DROP NOT NULL;
 ALTER TABLE incidentes ALTER COLUMN tipo_incidente DROP NOT NULL;
 ALTER TABLE incidentes ALTER COLUMN usuario_creador_id DROP NOT NULL;
 ALTER TABLE incidentes ADD COLUMN IF NOT EXISTS fecha_llegada_lugar timestamp;
+ALTER TABLE incidentes ADD COLUMN IF NOT EXISTS motivo_cancelacion text;
+ALTER TABLE incidentes DROP CONSTRAINT IF EXISTS incidentes_estado_check;
+ALTER TABLE incidentes ADD CONSTRAINT incidentes_estado_check
+    CHECK (estado IN ('PENDIENTE', 'PENDIENTE_REASIGNACION', 'EN_PROCESO', 'RECHAZADO', 'FINALIZADO', 'CANCELADO'));
 
 CREATE TABLE IF NOT EXISTS notificaciones (
     id serial PRIMARY KEY,

@@ -57,6 +57,9 @@ public class Incidente {
     @Column(name = "fecha_cierre")
     private LocalDateTime fechaCierre;
 
+    @Column(name = "motivo_cancelacion", columnDefinition = "text")
+    private String motivoCancelacion;
+
     @Column(name = "fecha_llegada_lugar")
     private LocalDateTime fechaLlegadaLugar;
 
@@ -108,6 +111,9 @@ public class Incidente {
 
     public LocalDateTime getFechaCierre() { return fechaCierre; }
     public void setFechaCierre(LocalDateTime fechaCierre) { this.fechaCierre = fechaCierre; }
+
+    public String getMotivoCancelacion() { return motivoCancelacion; }
+    public void setMotivoCancelacion(String motivoCancelacion) { this.motivoCancelacion = motivoCancelacion; }
 
     public LocalDateTime getFechaLlegadaLugar() { return fechaLlegadaLugar; }
     public void setFechaLlegadaLugar(LocalDateTime fechaLlegadaLugar) {

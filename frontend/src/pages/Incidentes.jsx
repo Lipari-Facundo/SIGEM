@@ -11,6 +11,7 @@ const ESTADO_LABELS = {
   EN_PROCESO: 'En atención',
   RECHAZADO:  'Rechazado',
   FINALIZADO: 'Finalizado',
+  CANCELADO: 'Cancelado',
 };
 
 const ESTADO_COLORS = {
@@ -19,6 +20,7 @@ const ESTADO_COLORS = {
   EN_PROCESO: { bg: '#E3F2FD', color: '#1565C0' },
   RECHAZADO:  { bg: '#FFEBEE', color: '#C62828' },
   FINALIZADO: { bg: '#E8F5E9', color: '#2E7D32' },
+  CANCELADO: { bg: '#F3F4F6', color: '#4B5563' },
 };
 
 const PRIORIDAD_COLORS = {
@@ -59,6 +61,8 @@ export default function Incidentes() {
   const [motivoRechazo, setMotivoRechazo] = useState('');
   const [incidenteReasignar, setIncidenteReasignar] = useState(null);
   const [guardiaReasignacion, setGuardiaReasignacion] = useState('');
+  const [incidenteCancelar, setIncidenteCancelar] = useState(null);
+  const [motivoCancelacion, setMotivoCancelacion] = useState('');
 
   useEffect(() => { cargarDatos(); }, [user]);
 
@@ -198,6 +202,30 @@ export default function Incidentes() {
       await cargarDatos();
     } catch (e) {
       mostrarError(e.response?.data?.message || 'No se pudo reasignar el incidente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const abrirCancelacion = (incidente) => {
+    setIncidenteCancelar(incidente);
+    setMotivoCancelacion('');
+  };
+
+  const cancelarIncidente = async () => {
+    const motivo = motivoCancelacion.trim();
+    if (!motivo) {
+      mostrarError('El motivo de cancelación es obligatorio.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await incidenteService.cancelar(incidenteCancelar.id, motivo);
+      mostrarMsg('Incidente cancelado correctamente.');
+      setIncidenteCancelar(null);
+      await cargarDatos();
+    } catch (e) {
+      mostrarError(e.response?.data?.message || 'No se pudo cancelar el incidente.');
     } finally {
       setLoading(false);
     }
@@ -354,7 +382,7 @@ export default function Incidentes() {
                   ))}
                 </section>
               )}
-              <TableSeguimiento incidentes={incidentes} onReasignar={abrirReasignacion} />
+              <TableSeguimiento incidentes={incidentes} onReasignar={abrirReasignacion} onCancelar={abrirCancelacion} />
             </section>
           </>
         )}
@@ -491,6 +519,28 @@ export default function Incidentes() {
           </div>
         </div>
       )}
+
+      {incidenteCancelar && (
+        <div style={S.overlay}>
+          <div style={S.modal}>
+            <h2 style={S.modalTitle}>Cancelar incidente #{incidenteCancelar.id}</h2>
+            <p style={S.modalText}>El motivo de cancelación es obligatorio y será informado al enfermero asignado.</p>
+            <textarea
+              autoFocus
+              value={motivoCancelacion}
+              onChange={e => setMotivoCancelacion(e.target.value)}
+              placeholder="Indicá el motivo de la cancelación..."
+              style={{ ...S.input, minHeight: '120px', resize: 'vertical' }}
+            />
+            <div style={S.modalActions}>
+              <button style={S.btnCancel} onClick={() => setIncidenteCancelar(null)}>Volver</button>
+              <button style={S.btnDanger} disabled={loading || !motivoCancelacion.trim()} onClick={cancelarIncidente}>
+                Confirmar cancelación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -593,7 +643,7 @@ function DataRow({ icon, label, value }) {
 
 // ─── Sub-componente: tabla de seguimiento (DES) ───────────────────────────────
 
-function TableSeguimiento({ incidentes, onReasignar }) {
+function TableSeguimiento({ incidentes, onReasignar, onCancelar }) {
   if (incidentes.length === 0) {
     return <p style={S.emptyText}>No hay incidentes registrados todavía.</p>;
   }
@@ -603,7 +653,13 @@ function TableSeguimiento({ incidentes, onReasignar }) {
         <thead>
           <tr>
             {['#','Ubicación','Motivo','Asignado a','Móvil','Prioridad','Estado','Paciente','Asignación','Acción'].map(h => (
-              <th key={h} style={S.th}>{h}</th>
+              <th
+                key={h}
+                className={h === 'Ubicación' || h === 'Motivo' ? 'text-left px-4 py-3' : 'text-center px-4 py-3'}
+                style={S.th}
+              >
+                {h}
+              </th>
             ))}
           </tr>
         </thead>
@@ -612,16 +668,19 @@ function TableSeguimiento({ incidentes, onReasignar }) {
             const ec = ESTADO_COLORS[inc.estado]       || {};
             const pc = PRIORIDAD_COLORS[inc.prioridad] || {};
             return (
-              <tr key={inc.id}>
-                <td style={S.td}>{inc.id}</td>
-                <td style={S.td}>{inc.ubicacion || '-'}</td>
-                <td style={S.td}>{inc.motivo    || '-'}</td>
-                <td style={S.td}>
+              <tr
+                key={inc.id}
+                className={inc.estado === 'CANCELADO' ? 'bg-red-50' : 'bg-white hover:bg-gray-50'}
+              >
+                <td className="text-center align-middle px-4 py-3" style={S.td}>{inc.id}</td>
+                <td className="text-left align-middle px-4 py-3" style={S.td}>{inc.ubicacion || '-'}</td>
+                <td className="text-left align-middle px-4 py-3" style={S.td}>{inc.motivo    || '-'}</td>
+                <td className="text-center align-middle px-4 py-3" style={S.td}>
                   {inc.asignadoA
                     ? `${inc.asignadoA.nombre} ${inc.asignadoA.apellido}`
                     : '-'}
                 </td>
-                <td style={S.td}>
+                <td className="text-center align-middle px-4 py-3" style={S.td}>
                   {inc.movil
                     ? `${inc.movil.patente} (${inc.movil.numeroInterno})`
                     : '-'}
@@ -629,7 +688,7 @@ function TableSeguimiento({ incidentes, onReasignar }) {
                 <td style={S.td}>
                   <span style={{ ...S.badge, ...pc }}>{inc.prioridad || '-'}</span>
                 </td>
-                <td style={S.td}>
+                <td className="text-center align-middle px-4 py-3" style={S.td}>
                   <span style={{ ...S.badge, ...ec }}>
                     {ESTADO_LABELS[inc.estado] || inc.estado}
                   </span>
@@ -645,11 +704,12 @@ function TableSeguimiento({ incidentes, onReasignar }) {
                     </span>
                   )}
                 </td>
-                <td style={S.td}>{inc.pacienteNombre || '-'}</td>
-                <td style={S.td}>
+                <td className="text-center align-middle px-4 py-3" style={S.td}>{inc.pacienteNombre || '-'}</td>
+                <td className="text-center align-middle px-4 py-3" style={S.td}>
                   {new Date(inc.fechaAsignacion).toLocaleString('es-AR')}
                 </td>
-                <td style={S.td}>
+                <td className="text-center align-middle px-4 py-3" style={{ ...S.td, textAlign: 'center' }}>
+                  <div className="flex flex-col items-center justify-center gap-2">
                   {(inc.estado === 'PENDIENTE'
                     || inc.estado === 'PENDIENTE_REASIGNACION'
                     || inc.estado === 'EN_PROCESO') && (
@@ -664,6 +724,17 @@ function TableSeguimiento({ incidentes, onReasignar }) {
                       Reasignar
                     </button>
                   )}
+                  {(inc.estado === 'PENDIENTE'
+                    || inc.estado === 'PENDIENTE_REASIGNACION'
+                    || inc.estado === 'EN_PROCESO') && (
+                    <button
+                      style={{ ...S.btnSmall, ...S.btnSmallDanger }}
+                      onClick={() => onCancelar(inc)}
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                  </div>
                 </td>
               </tr>
             );
@@ -712,7 +783,8 @@ const S = {
   urgentTitle: { color: 'var(--color-danger)', margin: '0 0 12px', fontSize: '16px' },
   urgentItem: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px', padding: '12px', background: '#fff', borderRadius: '8px', marginTop: '8px', color: '#4a1c1c' },
   btnUrgent: { background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: '8px', padding: '9px 14px', cursor: 'pointer', fontWeight: '700', whiteSpace: 'nowrap' },
-  btnSmall: { background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: '7px', padding: '6px 9px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' },
+  btnSmall: { background: 'var(--color-primary)', color: '#fff', border: 'none', borderRadius: '7px', padding: '8px 16px', cursor: 'pointer', fontSize: '12px', fontWeight: '700' },
+  btnSmallDanger: { background: '#B91C1C', color: '#fff' },
   btnSmallDisabled: { background: 'var(--color-surface-muted)', color: 'var(--color-text-muted)', border: '1px solid var(--color-border)', borderRadius: '7px', padding: '6px 9px', cursor: 'not-allowed', fontSize: '12px', fontWeight: '700' },
   overlay: { position: 'fixed', inset: 0, zIndex: 'var(--z-modal)', background: 'rgba(15, 42, 48, 0.5)', display: 'grid', placeItems: 'center', padding: '1rem' },
   modal: { width: 'min(32rem, 100%)', background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '1.4rem', boxShadow: 'var(--shadow-lg)' },
