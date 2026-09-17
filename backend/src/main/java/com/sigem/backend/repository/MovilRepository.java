@@ -21,4 +21,6 @@ public interface MovilRepository extends JpaRepository<Movil, Long> {
 
     // Para el módulo UGL: solo traer operativos disponibles para asignación
     List<Movil> findByEstadoMovil(EstadoMovil estadoMovil);
+
+    long countByEstadoMovil(EstadoMovil estadoMovil);
 }

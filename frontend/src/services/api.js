@@ -39,6 +39,7 @@ export const usuarioService = {
 export const movilService = {
   listar:           ()           => api.get('/moviles'),
   listarOperativos: ()           => api.get('/moviles/operativos'),
+  metricasEstado:   ()           => api.get('/moviles/metricas-estado'),
   registrar:        (data)       => api.post('/moviles', data),
   modificar:        (id, data)   => api.put(`/moviles/${id}`, data),
   cambiarEstado:    (id, estado) => api.put(`/moviles/${id}/estado`, { estadoMovil: estado }),

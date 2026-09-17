@@ -7,6 +7,8 @@ import com.sigem.backend.repository.MovilRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 @Service
 public class MovilService {
@@ -23,6 +25,14 @@ public class MovilService {
 
     public List<Movil> listarTodos() {
         return movilRepository.findAll();
+    }
+
+    public Map<String, Long> contarPorEstado() {
+        Map<String, Long> resultado = new LinkedHashMap<>();
+        for (EstadoMovil estado : EstadoMovil.values()) {
+            resultado.put(estado.name(), movilRepository.countByEstadoMovil(estado));
+        }
+        return resultado;
     }
 
     // ─── Solo operativos (para asignación de incidentes) ──────

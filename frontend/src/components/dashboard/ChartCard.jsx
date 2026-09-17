@@ -18,10 +18,9 @@ const S = {
   card: {
     background: '#fff',
     borderRadius: '18px',
-    padding: '12px 14px',
+    padding: '1.5rem',
     boxShadow: '0 8px 18px rgba(15, 42, 42, 0.06)',
     border: '1px solid #E8F5F5',
-    minHeight: '130px',
     display: 'flex',
     flexDirection: 'column',
     transition: 'transform 0.2s ease, box-shadow 0.2s ease',

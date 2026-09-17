@@ -1,10 +1,10 @@
 import React from 'react';
 
-export default function KpiSummary({ items = [] }) {
+export default function KpiSummary({ items = [], className = '', itemClassName = '' }) {
   return (
-    <div style={S.grid}>
+    <div className={className} style={{ ...S.grid, ...(className ? { display: 'contents' } : {}) }}>
       {items.map((item) => (
-        <article key={item.title} style={S.card} tabIndex={0} aria-label={`${item.title}: ${item.value}`}>
+        <article key={item.title} className={itemClassName} style={S.card} tabIndex={0} aria-label={`${item.title}: ${item.value}`}>
           <div style={S.topRow}>
             <div style={S.meta}>{item.icon}</div>
             <div style={S.trend}>{item.subtitle}</div>

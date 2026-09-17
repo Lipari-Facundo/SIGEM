@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/moviles")
@@ -33,6 +34,12 @@ public class MovilController {
     @PreAuthorize("hasAnyRole('ADM', 'DES', 'ENF', 'JEF')")
     public ResponseEntity<List<Movil>> listarOperativos() {
         return ResponseEntity.ok(movilService.listarOperativos());
+    }
+
+    @GetMapping("/metricas-estado")
+    @PreAuthorize("hasAnyRole('ADM', 'DIR')")
+    public ResponseEntity<Map<String, Long>> contarPorEstado() {
+        return ResponseEntity.ok(movilService.contarPorEstado());
     }
 
     // PP1-73 — Registrar Móvil (solo ADM)
