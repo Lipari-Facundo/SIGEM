@@ -32,7 +32,7 @@ public class IncidenteController {
 
     // Incidentes asignados al enfermero logueado
     @GetMapping("/asignados")
-    @PreAuthorize("hasAnyRole('ENF', 'JEF')")
+    @PreAuthorize("hasRole('ENF')")
     public ResponseEntity<List<Incidente>> asignados(
             @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(incidenteService.listarAsignados(usuario));
@@ -82,7 +82,7 @@ public class IncidenteController {
 
     // Cambiar estado: aceptar (EN_PROCESO), rechazar (RECHAZADO), finalizar (FINALIZADO)
     @PutMapping("/{id}/estado")
-    @PreAuthorize("hasAnyRole('ENF', 'JEF')")
+    @PreAuthorize("hasRole('ENF')")
     public ResponseEntity<Incidente> cambiarEstado(
             @PathVariable Long id,
             @AuthenticationPrincipal Usuario usuario,
@@ -92,7 +92,7 @@ public class IncidenteController {
     }
 
     @PutMapping("/{id}/rechazar")
-    @PreAuthorize("hasAnyRole('ENF', 'JEF')")
+    @PreAuthorize("hasRole('ENF')")
     public ResponseEntity<Incidente> rechazar(
             @PathVariable Long id,
             @AuthenticationPrincipal Usuario usuario,
@@ -101,7 +101,7 @@ public class IncidenteController {
     }
 
     @PutMapping("/{id}/llegada")
-    @PreAuthorize("hasAnyRole('ENF', 'JEF')")
+    @PreAuthorize("hasRole('ENF')")
     public ResponseEntity<Incidente> marcarLlegada(
             @PathVariable Long id,
             @AuthenticationPrincipal Usuario usuario) {
@@ -133,7 +133,7 @@ public class IncidenteController {
 
     // Atenciones del día — tabla resumen del enfermero logueado
     @GetMapping("/atenciones-hoy")
-    @PreAuthorize("hasAnyRole('ENF', 'JEF')")
+    @PreAuthorize("hasRole('ENF')")
     public ResponseEntity<List<Incidente>> atencionesDel(
             @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(incidenteService.atencionesDel(usuario));

@@ -7,7 +7,7 @@ import Sidebar from '../components/Sidebar';
 const ROL_INFO = {
   ADM: { label: 'Administrador', color: '#1B6B6B', desc: 'Acceso completo al sistema', icon: '🔐' },
   ENF: { label: 'Enfermero', color: '#2E7D32', desc: 'Atención al paciente y registro clínico', icon: '🏥' },
-  JEF: { label: 'Jefe de Enfermería', color: '#1565C0', desc: 'Supervisión de personal', icon: '👔' },
+  JEF: { label: 'Coordinador de Enfermería', color: '#1565C0', desc: 'Gestión operativa, informes y abastecimiento de enfermería', icon: '👔' },
   DES: { label: 'Despachador', color: '#E65100', desc: 'Coordinación de emergencias', icon: '🚑' },
   DIR: { label: 'Directivo', color: '#6A1B9A', desc: 'Reportes estratégicos', icon: '📊' },
 };

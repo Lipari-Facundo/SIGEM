@@ -32,6 +32,16 @@ public class SolicitudReposicion {
     @Column(columnDefinition = "TEXT")
     private String observaciones;
 
+    @Column(name = "motivo_resolucion", length = 500)
+    private String motivoResolucion;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_ultima_gestion_id")
+    private Usuario usuarioUltimaGestion;
+
+    @Column(name = "fecha_ultima_gestion")
+    private LocalDateTime fechaUltimaGestion;
+
     @PrePersist
     protected void onCreate() {
         if (fecha == null) fecha = LocalDateTime.now();
@@ -50,4 +60,10 @@ public class SolicitudReposicion {
     public void setEstado(EstadoReposicion estado) { this.estado = estado; }
     public String getObservaciones() { return observaciones; }
     public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
+    public String getMotivoResolucion() { return motivoResolucion; }
+    public void setMotivoResolucion(String motivoResolucion) { this.motivoResolucion = motivoResolucion; }
+    public Usuario getUsuarioUltimaGestion() { return usuarioUltimaGestion; }
+    public void setUsuarioUltimaGestion(Usuario usuarioUltimaGestion) { this.usuarioUltimaGestion = usuarioUltimaGestion; }
+    public LocalDateTime getFechaUltimaGestion() { return fechaUltimaGestion; }
+    public void setFechaUltimaGestion(LocalDateTime fechaUltimaGestion) { this.fechaUltimaGestion = fechaUltimaGestion; }
 }

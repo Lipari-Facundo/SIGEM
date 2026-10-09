@@ -18,8 +18,12 @@ public class Guardia {
     private Usuario enfermero;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "movil_id", nullable = false)
+    @JoinColumn(name = "movil_id")
     private Movil movil;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_guardia", nullable = false)
+    private TipoGuardia tipoGuardia = TipoGuardia.MOVIL;
 
     @Column(nullable = false)
     private String turno;
@@ -56,6 +60,14 @@ public class Guardia {
 
     public void setMovil(Movil movil) {
         this.movil = movil;
+    }
+
+    public TipoGuardia getTipoGuardia() {
+        return tipoGuardia;
+    }
+
+    public void setTipoGuardia(TipoGuardia tipoGuardia) {
+        this.tipoGuardia = tipoGuardia;
     }
 
     public String getTurno() {

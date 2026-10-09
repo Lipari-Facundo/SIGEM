@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { movilService, guardiaService } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const TURNOS = [
   { value: '7-19', label: 'Turno 7:00 - 19:00' },
@@ -12,6 +13,7 @@ const TURNOS = [
 const estadoLabel = { ACTIVA: 'Activa', FINALIZADA: 'Finalizada' };
 
 export default function Guardias() {
+  const { user } = useAuth();
   const [moviles, setMoviles]   = useState([]);
   const [guardias, setGuardias] = useState([]);
   const [movilId, setMovilId]   = useState('');
@@ -20,15 +22,14 @@ export default function Guardias() {
   const [msg, setMsg]           = useState('');
   const [error, setError]       = useState('');
 
-  useEffect(() => { cargarDatos(); }, []);
+  const esCoordinador = user?.rol === 'JEF';
+
+  useEffect(() => { cargarDatos(); }, [user?.rol]);
 
   const cargarDatos = async () => {
     try {
-      const [movilesRes, guardiasRes] = await Promise.all([
-        movilService.listarOperativos(),
-        guardiaService.listar(),
-      ]);
-      setMoviles(movilesRes.data);
+      const guardiasRes = await guardiaService.listar();
+      setMoviles(esCoordinador ? [] : (await movilService.listarOperativos()).data);
       setGuardias(guardiasRes.data);
     } catch {
       setError('No se pudieron cargar los datos. Volvé a intentarlo.');
@@ -39,11 +40,12 @@ export default function Guardias() {
   const mostrarError = (t) => { setError(t); setTimeout(() => setError(''), 4500); };
 
   const iniciarGuardia = async () => {
-    if (!movilId) { mostrarError('Seleccioná una base operativa para iniciar la guardia.'); return; }
+    if (!esCoordinador && !movilId) { mostrarError('Seleccioná una base operativa para iniciar la guardia.'); return; }
     setLoading(true);
     try {
-      await guardiaService.iniciar({ movilId: Number(movilId), turno });
+      await guardiaService.iniciar(esCoordinador ? { turno } : { movilId: Number(movilId), turno });
       mostrarMsg('✅ Guardia iniciada correctamente');
+      window.dispatchEvent(new Event('sigem:guardia-actualizada'));
       setMovilId('');
       setTurno(TURNOS[0].value);
       await cargarDatos();
@@ -57,6 +59,7 @@ export default function Guardias() {
     try {
       await guardiaService.finalizar(id);
       mostrarMsg('✅ Guardia finalizada correctamente');
+      window.dispatchEvent(new Event('sigem:guardia-actualizada'));
       await cargarDatos();
     } catch (e) {
       mostrarError(e.response?.data?.message || 'Error al finalizar la guardia');
@@ -70,7 +73,7 @@ export default function Guardias() {
 
         <header style={S.header}>
           <h1 style={S.h1}>Guardia</h1>
-          <p style={S.sub}>Iniciá y finalizá tu turno desde aquí.</p>
+          <p style={S.sub}>{esCoordinador ? 'Registrá tu turno de coordinación desde la central de operaciones.' : 'Iniciá y finalizá tu turno desde aquí.'}</p>
         </header>
 
         {msg   && <div style={S.msgBar}>{msg}</div>}
@@ -79,9 +82,9 @@ export default function Guardias() {
         {/* ── Iniciar guardia ── */}
         <section style={S.card}>
           <h2 style={S.sectionTitle}>Iniciar guardia</h2>
-          <div style={S.grid2}>
+          <div style={esCoordinador ? S.gridCentral : S.grid2}>
 
-            <div style={S.field}>
+            {!esCoordinador && <div style={S.field}>
               <label style={S.label}>Base operativa</label>
               <select
                 style={S.input}
@@ -98,7 +101,14 @@ export default function Guardias() {
               {moviles.length === 0 && (
                 <p style={S.hint}>No hay móviles operativos disponibles en este momento.</p>
               )}
-            </div>
+            </div>}
+
+            {esCoordinador && (
+              <div style={S.centralLocation}>
+                <span style={S.centralIcon}>🏢</span>
+                <span><strong>Central de operaciones</strong><small>Guardia administrativa, sin móvil asignado</small></span>
+              </div>
+            )}
 
             <div style={S.field}>
               <label style={S.label}>Turno</label>
@@ -117,7 +127,7 @@ export default function Guardias() {
           <button
             style={S.btnPrimary}
             onClick={iniciarGuardia}
-            disabled={loading || moviles.length === 0}
+            disabled={loading || (!esCoordinador && moviles.length === 0)}
           >
             {loading ? 'Procesando...' : '🩺 Iniciar guardia'}
           </button>
@@ -130,7 +140,7 @@ export default function Guardias() {
             <table style={S.table}>
               <thead>
                 <tr>
-                  {['#','Base operativa','Móvil','Turno','Inicio','Fin','Estado','Acción'].map(h => (
+                  {['#','Destino de guardia','Móvil','Turno','Inicio','Fin','Estado','Acción'].map(h => (
                     <th key={h} style={S.th}>{h}</th>
                   ))}
                 </tr>
@@ -147,10 +157,10 @@ export default function Guardias() {
                     <tr key={g.id}>
                       <td style={S.td}>{g.id}</td>
                       <td style={{ ...S.td, fontWeight: '600' }}>
-                        {g.movil?.baseOperativa || '—'}
+                        {g.tipoGuardia === 'CENTRAL' ? 'Central de operaciones' : g.movil?.baseOperativa || '—'}
                       </td>
                       <td style={S.td}>
-                        {g.movil ? `${g.movil.patente} / ${g.movil.marca} ${g.movil.modelo}` : '—'}
+                        {g.movil ? `${g.movil.patente} / ${g.movil.marca} ${g.movil.modelo}` : g.tipoGuardia === 'CENTRAL' ? 'Sin móvil' : '—'}
                       </td>
                       <td style={S.td}>{g.turno}</td>
                       <td style={S.td}>
@@ -202,7 +212,10 @@ const S = {
   sub:         { color: '#5C6F72', marginTop: '4px', fontSize: '13px' },
   card:        { background: '#fff', borderRadius: '16px', padding: '20px', marginBottom: '18px', boxShadow: '0 4px 14px rgba(0,0,0,0.05)' },
   sectionTitle:{ fontSize: '15px', fontWeight: '700', marginBottom: '16px', color: '#0F3E3E' },
-  grid2:       { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' },
+  grid2:       { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))', gap: '16px', marginBottom: '16px' },
+  gridCentral: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))', gap: '16px', marginBottom: '16px', alignItems: 'stretch' },
+  centralLocation: { display: 'flex', alignItems: 'center', gap: '12px', minHeight: '48px', padding: '12px', background: 'var(--color-primary-soft)', border: '1px solid var(--color-border)', borderRadius: '10px', color: 'var(--color-text-primary)' },
+  centralIcon: { fontSize: '1.4rem' },
   field:       { display: 'flex', flexDirection: 'column', gap: '6px' },
   label:       { fontSize: '13px', fontWeight: '600', color: '#3A4A4C' },
   hint:        { fontSize: '12px', color: '#C62828', margin: '4px 0 0' },

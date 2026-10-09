@@ -11,6 +11,7 @@ public class InsumoStockDTO {
     private TipoInsumo tipo;
     private String unidadMedida;
     private Integer cantidadActual;
+    private Integer cantidadRecomendada;
 
     public Long getInsumoId() { return insumoId; }
     public void setInsumoId(Long insumoId) { this.insumoId = insumoId; }
@@ -29,4 +30,7 @@ public class InsumoStockDTO {
 
     public Integer getCantidadActual() { return cantidadActual; }
     public void setCantidadActual(Integer cantidadActual) { this.cantidadActual = cantidadActual; }
+
+    public Integer getCantidadRecomendada() { return cantidadRecomendada; }
+    public void setCantidadRecomendada(Integer cantidadRecomendada) { this.cantidadRecomendada = cantidadRecomendada; }
 }

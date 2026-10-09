@@ -12,6 +12,9 @@ public class SolicitudReposicionDTO {
     private LocalDateTime fecha;
     private EstadoReposicion estado;
     private String observaciones;
+    private String motivoResolucion;
+    private String usuarioUltimaGestion;
+    private LocalDateTime fechaUltimaGestion;
     private List<ItemReposicionDTO> items;
 
     public Long getId() { return id; }
@@ -26,6 +29,12 @@ public class SolicitudReposicionDTO {
     public void setEstado(EstadoReposicion estado) { this.estado = estado; }
     public String getObservaciones() { return observaciones; }
     public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
+    public String getMotivoResolucion() { return motivoResolucion; }
+    public void setMotivoResolucion(String motivoResolucion) { this.motivoResolucion = motivoResolucion; }
+    public String getUsuarioUltimaGestion() { return usuarioUltimaGestion; }
+    public void setUsuarioUltimaGestion(String usuarioUltimaGestion) { this.usuarioUltimaGestion = usuarioUltimaGestion; }
+    public LocalDateTime getFechaUltimaGestion() { return fechaUltimaGestion; }
+    public void setFechaUltimaGestion(LocalDateTime fechaUltimaGestion) { this.fechaUltimaGestion = fechaUltimaGestion; }
     public List<ItemReposicionDTO> getItems() { return items; }
     public void setItems(List<ItemReposicionDTO> items) { this.items = items; }
 }

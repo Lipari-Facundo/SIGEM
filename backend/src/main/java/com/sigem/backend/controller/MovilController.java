@@ -31,7 +31,7 @@ public class MovilController {
 
     // Para asignación de incidentes y guardia — solo operativos (Sprint 3)
     @GetMapping("/operativos")
-    @PreAuthorize("hasAnyRole('ADM', 'DES', 'ENF', 'JEF')")
+    @PreAuthorize("hasAnyRole('ADM', 'DES', 'ENF')")
     public ResponseEntity<List<Movil>> listarOperativos() {
         return ResponseEntity.ok(movilService.listarOperativos());
     }

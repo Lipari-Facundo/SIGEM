@@ -49,9 +49,9 @@ public class IncidenteService {
         validarCreacion(dto);
 
         Guardia guardia = guardiaRepository
-                .findByIdAndEstado(dto.getGuardiaId(), GuardiaEstado.ACTIVA)
+                .findByIdAndEstadoAndTipoGuardia(dto.getGuardiaId(), GuardiaEstado.ACTIVA, TipoGuardia.MOVIL)
                 .orElseThrow(() -> new RuntimeException(
-                        "Guardia activa no encontrada para el id proporcionado"));
+                    "Guardia móvil activa no encontrada para el id proporcionado"));
 
         validarEnfermeroDisponible(guardia.getEnfermero());
 
@@ -88,7 +88,8 @@ public class IncidenteService {
     }
 
     public List<Guardia> listarGuardiasActivas() {
-        return guardiaRepository.findByEstadoOrderByFechaInicioDesc(GuardiaEstado.ACTIVA)
+            return guardiaRepository.findByEstadoAndTipoGuardiaOrderByFechaInicioDesc(
+                            GuardiaEstado.ACTIVA, TipoGuardia.MOVIL)
             .stream()
             .filter(guardia -> estaDisponible(guardia.getEnfermero()))
             .toList();
@@ -169,8 +170,9 @@ public class IncidenteService {
             throw new RuntimeException("Debe seleccionar una guardia activa para reasignar el incidente");
         }
 
-        Guardia nuevaGuardia = guardiaRepository.findByIdAndEstado(nuevaGuardiaId, GuardiaEstado.ACTIVA)
-            .orElseThrow(() -> new RuntimeException("La guardia seleccionada no existe o no está activa"));
+        Guardia nuevaGuardia = guardiaRepository.findByIdAndEstadoAndTipoGuardia(
+                        nuevaGuardiaId, GuardiaEstado.ACTIVA, TipoGuardia.MOVIL)
+            .orElseThrow(() -> new RuntimeException("La guardia móvil seleccionada no existe o no está activa"));
 
         Usuario enfermeroAnterior = incidente.getAsignadoA();
         if (enfermeroAnterior == null

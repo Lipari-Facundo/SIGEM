@@ -1,15 +1,20 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
+import { guardiaService } from '../services/api';
+import { useEffect, useState } from 'react';
 
 const items = [
   { path: '/dashboard',          label: 'Panel de control',   icon: '🏠', roles: ['ADM','ENF','JEF','DES','DIR'] },
   { path: '/director-dashboard', label: 'Panel de dirección', icon: '📊', roles: ['DIR','ADM'] },
   { path: '/metricas-ugl',       label: 'Métricas UGL',        icon: '📈', roles: ['DIR','ADM'] },
   { path: '/guardias',           label: 'Guardia',           icon: '🩺', roles: ['ENF','JEF'] },
-  { path: '/inventario',          label: 'Inventario Móvil',  icon: '🎒', roles: ['ENF','JEF'] },
-  { path: '/solicitudes-reposicion', label: 'Reposiciones',    icon: '📋', roles: ['ADM','DES'] },
-  { path: '/incidentes',         label: 'Incidentes',        icon: '📋', roles: ['ENF','JEF','DES'] },
+  { path: '/inventario',          label: 'Inventario Móvil',  icon: '🎒', roles: ['ENF'] },
+  { path: '/control-movil',       label: 'Control de Móvil', icon: '✅', roles: ['ENF'] },
+  { path: '/informes-control',    label: 'Informes de Control', icon: '📑', roles: ['JEF','ADM','DIR'], requiresCentralShift: true },
+  { path: '/solicitudes-reposicion', label: 'Reposiciones',    icon: '📋', roles: ['ADM','DES','JEF'], requiresCentralShift: true },
+  { path: '/deposito-central',    label: 'Depósito central', icon: '🏥', roles: ['JEF','ADM'], requiresCentralShift: true },
+  { path: '/incidentes',         label: 'Incidentes',        icon: '📋', roles: ['ENF','DES'] },
   { path: '/usuarios',           label: 'Usuarios',          icon: '👥', roles: ['ADM'] },
   { path: '/moviles',            label: 'Gestión de Móviles', icon: '🚑', roles: ['ADM'] },
 ];
@@ -17,7 +22,7 @@ const items = [
 const rolLabels = {
   ADM: 'Administrador',
   ENF: 'Enfermero',
-  JEF: 'Jefe Enfermería',
+  JEF: 'Coordinador de Enfermería',
   DES: 'Despachador',
   DIR: 'Directivo',
 };
@@ -26,6 +31,29 @@ export default function Sidebar() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { user, logout } = useAuth();
+  const [guardiaCentralActiva, setGuardiaCentralActiva] = useState(false);
+
+  useEffect(() => {
+    if (user?.rol !== 'JEF') {
+      setGuardiaCentralActiva(false);
+      return;
+    }
+    let vigente = true;
+    const actualizarGuardiaCentral = () => {
+      guardiaService.listar().then(response => {
+        const centralActiva = (response.data || []).some(
+          guardia => guardia.estado === 'ACTIVA' && guardia.tipoGuardia === 'CENTRAL'
+        );
+        if (vigente) setGuardiaCentralActiva(centralActiva);
+      }).catch(() => { if (vigente) setGuardiaCentralActiva(false); });
+    };
+    actualizarGuardiaCentral();
+    window.addEventListener('sigem:guardia-actualizada', actualizarGuardiaCentral);
+    return () => {
+      vigente = false;
+      window.removeEventListener('sigem:guardia-actualizada', actualizarGuardiaCentral);
+    };
+  }, [user?.rol]);
 
   return (
     <aside style={S.sidebar}>
@@ -41,7 +69,8 @@ export default function Sidebar() {
 
       <nav style={S.nav}>
         {items
-          .filter(i => i.roles.includes(user?.rol))
+          .filter(i => i.roles.includes(user?.rol)
+            && (!i.requiresCentralShift || user?.rol !== 'JEF' || guardiaCentralActiva))
           .map(item => (
             <button
               key={item.path}
@@ -55,6 +84,9 @@ export default function Sidebar() {
               {item.label}
             </button>
           ))}
+        {user?.rol === 'JEF' && !guardiaCentralActiva && (
+          <div style={S.centralShiftHint}>Iniciá tu guardia central para habilitar informes, depósito y reposiciones.</div>
+        )}
       </nav>
 
       <div style={S.userBox}>
@@ -142,6 +174,15 @@ const S = {
     width: '100%',
     fontWeight: 600,
     transition: 'background var(--transition-base), color var(--transition-base)',
+  },
+  centralShiftHint: {
+    margin: 'var(--spacing-2) 0',
+    padding: 'var(--spacing-3)',
+    color: 'var(--color-text-secondary)',
+    background: 'var(--color-surface-muted)',
+    borderRadius: 'var(--radius-sm)',
+    fontSize: 'var(--font-size-xs)',
+    lineHeight: 1.35,
   },
   navActive: {
     background: 'var(--color-primary-soft)',

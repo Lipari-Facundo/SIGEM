@@ -1,0 +1,131 @@
+nombre	categoria	tipo	unidad_medida	cantidad_utim	cantidad_traslado	cantidad_vehiculo_apoyo	cantidad_otro
+Agua oxigenada	ANT	CONSUMIBLE	Frasco	1	-1	-1	-1
+Alcohol	ANT	CONSUMIBLE	Frasco	1	-1	-1	-1
+Pervinox / iodopovidona	ANT	CONSUMIBLE	Frasco	1	-1	-1	-1
+Agujas EV	DES	CONSUMIBLE	Unidad	10	-1	-1	-1
+Agujas IM	DES	CONSUMIBLE	Unidad	10	-1	-1	-1
+Agujas SC	DES	CONSUMIBLE	Unidad	10	-1	-1	-1
+Baja lenguas	DES	CONSUMIBLE	Unidad	3	-1	-1	-1
+Barbijos	DES	CONSUMIBLE	Unidad	10	-1	-1	-1
+Catéter ev n° 14	DES	CONSUMIBLE	Unidad	5	-1	-1	-1
+Catéter ev n° 16	DES	CONSUMIBLE	Unidad	5	-1	-1	-1
+Catéter ev n° 18	DES	CONSUMIBLE	Unidad	10	-1	-1	-1
+Catéter ev n° 20	DES	CONSUMIBLE	Unidad	8	-1	-1	-1
+Catéter ev n° 22	DES	CONSUMIBLE	Unidad	5	-1	-1	-1
+Catéter ev n° 24	DES	CONSUMIBLE	Unidad	5	-1	-1	-1
+Descartadores	DES	CONSUMIBLE	Unidad	2	-1	-1	-1
+Filtro Bacteriológico	DES	CONSUMIBLE	Unidad	2	-1	-1	-1
+Guantes L	DES	CONSUMIBLE	Caja	2	-1	-1	-1
+Guantes M	DES	CONSUMIBLE	Caja	2	-1	-1	-1
+Guantes S	DES	CONSUMIBLE	Caja	2	-1	-1	-1
+Hojas bisturí	DES	CONSUMIBLE	Unidad	2	-1	-1	-1
+Jeringas 10cc	DES	CONSUMIBLE	Unidad	10	-1	-1	-1
+Jeringas 20cc	DES	CONSUMIBLE	Unidad	3	-1	-1	-1
+Jeringas 5cc	DES	CONSUMIBLE	Unidad	10	-1	-1	-1
+Jeringas tuberculina	DES	CONSUMIBLE	Unidad	4	-1	-1	-1
+Manoplas	DES	CONSUMIBLE	Unidad	2	-1	-1	-1
+Perfus macro	DES	CONSUMIBLE	Unidad	10	-1	-1	-1
+Perfus micro	DES	CONSUMIBLE	Unidad	3	-1	-1	-1
+Precintos	DES	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tela adhesiva	DES	CONSUMIBLE	Unidad	2	-1	-1	-1
+Kit Parto	KIT	CONSUMIBLE	Kit	1	-1	-1	-1
+Kit Quemados	KIT	CONSUMIBLE	Kit	1	-1	-1	-1
+Kit de Bioseguridad	KIT	CONSUMIBLE	Kit	1	-1	-1	-1
+Ácido tranexámico 500 mg	MED	CONSUMIBLE	Ampolla/frasco	4	-1	-1	-1
+Adenosina 6 mg	MED	CONSUMIBLE	Ampolla/frasco	4	-1	-1	-1
+Adrenalina 1 mg	MED	CONSUMIBLE	Ampolla/frasco	10	-1	-1	-1
+Amiodarona 150 mg	MED	CONSUMIBLE	Ampolla/frasco	5	-1	-1	-1
+Aspirina 100 mg	MED	CONSUMIBLE	Comprimido	6	-1	-1	-1
+Atropina 1%	MED	CONSUMIBLE	Ampolla/frasco	10	-1	-1	-1
+Bicarbonato de sodio 100 ml	MED	CONSUMIBLE	Ampolla/frasco	2	-1	-1	-1
+Bromuro de hioscina 20 mg	MED	CONSUMIBLE	Ampolla/frasco	4	-1	-1	-1
+Clopidogrel 75 mg	MED	CONSUMIBLE	Comprimido	6	-1	-1	-1
+Dexametasona 8 mg	MED	CONSUMIBLE	Ampolla/frasco	5	-1	-1	-1
+Diazepam 10 mg	MED	CONSUMIBLE	Ampolla/frasco	5	-1	-1	-1
+Diclofenac 75 mg	MED	CONSUMIBLE	Ampolla/frasco	5	-1	-1	-1
+Difenhidramina 10 mg	MED	CONSUMIBLE	Ampolla/frasco	4	-1	-1	-1
+Dinitrato de isosorbide SL	MED	CONSUMIBLE	Comprimido	4	-1	-1	-1
+Dipirona 1 g	MED	CONSUMIBLE	Ampolla/frasco	3	-1	-1	-1
+Dopamina 100 mg	MED	CONSUMIBLE	Ampolla/frasco	2	-1	-1	-1
+Fenitoína 40 mg	MED	CONSUMIBLE	Ampolla/frasco	4	-1	-1	-1
+Furosemida	MED	CONSUMIBLE	Ampolla/frasco	4	-1	-1	-1
+Hidrocortisona 500 mg	MED	CONSUMIBLE	Ampolla/frasco	2	-1	-1	-1
+Ketorolac 30 mg	MED	CONSUMIBLE	Ampolla/frasco	5	-1	-1	-1
+Lidocaína 1% inyectable	MED	CONSUMIBLE	Ampolla/frasco	5	-1	-1	-1
+Lidocaína jalea 2%	MED	CONSUMIBLE	Tubo	1	-1	-1	-1
+Lorazepam 1 mg SL	MED	CONSUMIBLE	Comprimido	3	-1	-1	-1
+Metoclopramida 10 mg	MED	CONSUMIBLE	Ampolla/frasco	4	-1	-1	-1
+Midazolam 15 mg	MED	CONSUMIBLE	Ampolla/frasco	5	-1	-1	-1
+Morfina 10 mg	MED	CONSUMIBLE	Ampolla/frasco	2	-1	-1	-1
+Nitroglicerina 25 mg	MED	CONSUMIBLE	Ampolla/frasco	2	-1	-1	-1
+Ranitidina 50 mg	MED	CONSUMIBLE	Ampolla/frasco	5	-1	-1	-1
+Salbutamol aerosol	MED	CONSUMIBLE	Aerosol	1	-1	-1	-1
+Salbutamol gotas	MED	CONSUMIBLE	Frasco	1	-1	-1	-1
+Solución fisiológica 5 ml	MED	CONSUMIBLE	Ampolla	5	-1	-1	-1
+Solución glucosada 50%	MED	CONSUMIBLE	Ampolla	5	-1	-1	-1
+Succinilcolina 100 mg	MED	CONSUMIBLE	Ampolla/frasco	2	-1	-1	-1
+Vecuronio 10 mg	MED	CONSUMIBLE	Ampolla/frasco	2	-1	-1	-1
+Vitamina C 1 g	MED	CONSUMIBLE	Ampolla/frasco	5	-1	-1	-1
+Electrodos	MON	CONSUMIBLE	Unidad	6	-1	-1	-1
+Papel ECG	MON	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tiras reactivas	MON	CONSUMIBLE	Unidad	10	-1	-1	-1
+Apósitos Chicos	POR	CONSUMIBLE	Unidad	10	-1	-1	-1
+Apósitos especiales	POR	CONSUMIBLE	Unidad	2	-1	-1	-1
+Apósitos grandes	POR	CONSUMIBLE	Unidad	3	-1	-1	-1
+Gasas	POR	CONSUMIBLE	Unidad	13	-1	-1	-1
+Vendas	POR	CONSUMIBLE	Unidad	5	-1	-1	-1
+Solución dextrosa 5% 500ml	SOL	CONSUMIBLE	Frasco/bolsa	3	-1	-1	-1
+Solución fisiológica 500ml	SOL	CONSUMIBLE	Frasco/bolsa	9	-1	-1	-1
+Solución hipertonica ringer lactato 500ml	SOL	CONSUMIBLE	Frasco/bolsa	3	-1	-1	-1
+Bigotera adulto	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Bigotera pediatrico	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Mascara de oxigeno Adulto con reservorio	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Mascara de oxigeno pediatrico con reservorio	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Mascara Laríngea [N°1.5]	VIA	CONSUMIBLE	Unidad	1	-1	-1	-1
+Mascara Laríngea [N°2.5]	VIA	CONSUMIBLE	Unidad	1	-1	-1	-1
+Mascara Laríngea [N°3]	VIA	CONSUMIBLE	Unidad	1	-1	-1	-1
+Mascara Laríngea [N°4]	VIA	CONSUMIBLE	Unidad	1	-1	-1	-1
+Mascara Laríngea [N°5]	VIA	CONSUMIBLE	Unidad	1	-1	-1	-1
+Mascara para nebulización adulto	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Mascara para nebulización pediatrico	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo de mayo [N°2]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo de mayo [N°3]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo de mayo [N°4]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo de mayo [N°5]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo de mayo [N°6]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal Adulto [N°10]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal Adulto [N°6]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal Adulto [N°7.5]	VIA	CONSUMIBLE	Unidad	3	-1	-1	-1
+Tubo Endotraqueal Adulto [N°7]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal Adulto [N°8.5]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal Adulto [N°8]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal Adulto [N°9]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal pediatrico [N°2]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal pediatrico [N°3]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal pediatrico [N°4.5]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal pediatrico [N°4]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal pediatrico [N°5.5]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Tubo Endotraqueal pediatrico [N°5]	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Sonda nasogasrtica Adulto K9	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Sonda nasogasrtica Adulto K10	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Sonda nasogasrtica Pediatrico K33	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Sonda nasogasrtica Neonatal K31	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Sonda de aspiracion rigida	VIA	CONSUMIBLE	Unidad	1	-1	-1	-1
+Ambu c/mascara  Adulto	VIA	REUTILIZABLE	Unidad	1	-1	-1	-1
+Ambu c/mascara Pediatrico	VIA	REUTILIZABLE	Unidad	1	-1	-1	-1
+Tubuladura de oxigeno	VIA	CONSUMIBLE	Unidad	2	-1	-1	-1
+Kit de aspiracion c/SNG y sache aspiratvo	KIT	CONSUMIBLE	KIT	1	-1	-1	-1
+Tensiometro Adulto	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Tensiometro Pediatrico	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Estetoscopio Adulto	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Estetoscopio Pediatrico	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Laringoscopio Adulto	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Laringoscopio Pediatrico	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Linterna	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Tijera de Trauma	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Glucometro	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Desfibrilador	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Electrocardiograma	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Oximetro de pulso	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Termometro	EQM	REUTILIZABLE	Unidad	1	-1	-1	-1
+Ambu Neonatal	VIA	REUTILIZABLE	Unidad	1	-1	-1	-1

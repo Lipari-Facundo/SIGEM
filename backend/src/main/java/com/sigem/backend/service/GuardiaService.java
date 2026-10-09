@@ -4,6 +4,8 @@ import com.sigem.backend.dto.GuardiaDTO;
 import com.sigem.backend.model.Guardia;
 import com.sigem.backend.model.GuardiaEstado;
 import com.sigem.backend.model.Movil;
+import com.sigem.backend.model.Rol;
+import com.sigem.backend.model.TipoGuardia;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.GuardiaRepository;
 import com.sigem.backend.repository.MovilRepository;
@@ -27,10 +29,15 @@ public class GuardiaService {
         return guardiaRepository.findByEnfermeroUsernameOrderByFechaInicioDesc(usuario.getUsername());
     }
 
+    public void exigirGuardiaCentralActiva(Usuario coordinador) {
+        if (coordinador.getRol() != Rol.JEF) return;
+        guardiaRepository.findByEnfermeroUsernameAndEstadoAndTipoGuardia(
+                        coordinador.getUsername(), GuardiaEstado.ACTIVA, TipoGuardia.CENTRAL)
+                .orElseThrow(() -> new RuntimeException(
+                        "Iniciá tu guardia en la central de operaciones para acceder a esta sección"));
+    }
+
     public Guardia iniciarGuardia(Usuario enfermero, GuardiaDTO dto) {
-        if (dto.getMovilId() == null) {
-            throw new RuntimeException("Debe seleccionarse un móvil operativo");
-        }
         if (isBlank(dto.getTurno())) {
             throw new RuntimeException("Debe seleccionarse un turno");
         }
@@ -38,12 +45,24 @@ public class GuardiaService {
             throw new RuntimeException("Ya existe una guardia activa para este enfermero");
         }
 
-        Movil movil = movilRepository.findById(dto.getMovilId())
-                .orElseThrow(() -> new RuntimeException("Móvil no encontrado con id: " + dto.getMovilId()));
+        boolean coordinador = enfermero.getRol() == Rol.JEF;
+        Movil movil = null;
+        if (coordinador) {
+            if (dto.getMovilId() != null) {
+                throw new RuntimeException("La guardia del coordinador se inicia en la central, sin asignar un móvil");
+            }
+        } else {
+            if (dto.getMovilId() == null) {
+                throw new RuntimeException("Debe seleccionarse un móvil operativo");
+            }
+            movil = movilRepository.findById(dto.getMovilId())
+                    .orElseThrow(() -> new RuntimeException("Móvil no encontrado con id: " + dto.getMovilId()));
+        }
 
         Guardia guardia = new Guardia();
         guardia.setEnfermero(enfermero);
         guardia.setMovil(movil);
+        guardia.setTipoGuardia(coordinador ? TipoGuardia.CENTRAL : TipoGuardia.MOVIL);
         guardia.setTurno(dto.getTurno());
         guardia.setFechaInicio(LocalDateTime.now());
         guardia.setEstado(GuardiaEstado.ACTIVA);

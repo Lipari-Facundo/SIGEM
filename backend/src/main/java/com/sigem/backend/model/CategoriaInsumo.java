@@ -6,5 +6,10 @@ public enum CategoriaInsumo {
     TRAUMA,
     VIA_AEREA,
     EQUIPO_MEDICO,
-    OXIGENO
+    OXIGENO,
+    ANTISEPTICO,
+    KIT,
+    MONITOREO,
+    CURACION,
+    SOLUCION
 }

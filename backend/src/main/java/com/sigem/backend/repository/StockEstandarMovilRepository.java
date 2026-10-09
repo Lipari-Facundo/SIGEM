@@ -9,4 +9,6 @@ import java.util.List;
 public interface StockEstandarMovilRepository extends JpaRepository<StockEstandarMovil, Long> {
 
     List<StockEstandarMovil> findByTipoMovil(TipoMovil tipoMovil);
+
+    List<StockEstandarMovil> findByTipoMovilAndInsumo_ActivoTrue(TipoMovil tipoMovil);
 }

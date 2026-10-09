@@ -145,7 +145,7 @@ public class UsuarioController {
     private String obtenerEtiquetaRol(Rol rol) {
         if (rol == null) return "Sin rol";
         return switch (rol) {
-            case JEF -> "Jefe de Enfermería";
+            case JEF -> "Coordinador de Enfermería";
             case DES -> "Despachador";
             case ENF -> "Enfermero";
             case DIR -> "Directivo";

@@ -2,6 +2,7 @@ package com.sigem.backend.repository;
 
 import com.sigem.backend.model.Guardia;
 import com.sigem.backend.model.GuardiaEstado;
+import com.sigem.backend.model.TipoGuardia;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -17,7 +18,15 @@ public interface GuardiaRepository extends JpaRepository<Guardia, Long> {
 
     Optional<Guardia> findByEnfermeroUsernameAndEstado(String username, GuardiaEstado estado);
 
+        Optional<Guardia> findByEnfermeroUsernameAndEstadoAndTipoGuardia(
+            String username, GuardiaEstado estado, TipoGuardia tipoGuardia);
+
     List<Guardia> findByEstadoOrderByFechaInicioDesc(GuardiaEstado estado);
 
+    List<Guardia> findByEstadoAndTipoGuardiaOrderByFechaInicioDesc(
+            GuardiaEstado estado, TipoGuardia tipoGuardia);
+
     Optional<Guardia> findByIdAndEstado(Long id, GuardiaEstado estado);
+
+    Optional<Guardia> findByIdAndEstadoAndTipoGuardia(Long id, GuardiaEstado estado, TipoGuardia tipoGuardia);
 }

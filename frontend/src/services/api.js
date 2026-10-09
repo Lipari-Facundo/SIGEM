@@ -58,6 +58,26 @@ export const inventarioService = {
   misSolicitudes:    ()       => api.get('/inventario/reposicion/mias'),
   cancelarSolicitud: (id)     => api.put(`/inventario/reposicion/${id}/cancelar`),
   solicitudesPendientes: ()   => api.get('/inventario/reposicion/pendientes'),
+  entregarReposicion: (id, data) => api.post(`/inventario/reposicion/${id}/entregas`, data),
+  rechazarReposicion: (id, motivo) => api.put(`/inventario/reposicion/${id}/rechazar`, { motivo }),
+};
+
+export const depositoCentralService = {
+  stock: () => api.get('/deposito-central/stock'),
+  catalogo: () => api.get('/deposito-central/catalogo'),
+  movimientos: () => api.get('/deposito-central/movimientos'),
+  agregarInsumo: (data) => api.post('/deposito-central/stock', data),
+  actualizarMinimo: (id, cantidadMinima) => api.put(`/deposito-central/stock/${id}/minimo`, { cantidadMinima }),
+  archivarInsumo: (id) => api.delete(`/deposito-central/stock/${id}`),
+  registrarMovimiento: (data) => api.post('/deposito-central/movimientos', data),
+};
+
+export const controlService = {
+  plantilla: () => api.get('/controles/mi-movil/plantilla'),
+  crear:     (dto) => api.post('/controles', dto),
+  mis:       () => api.get('/controles/mis'),
+  listar:    () => api.get('/controles'),
+  detalle:   (id) => api.get(`/controles/${id}`),
 };
 
 export const guardiaService = {

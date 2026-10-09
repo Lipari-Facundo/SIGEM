@@ -31,7 +31,7 @@ const ROL_LABELS = {
   ADM: 'Administrador',
   DES: 'Despachador',
   ENF: 'Enfermero',
-  JEF: 'Jefe Enfermería',
+  JEF: 'Coordinador de Enfermería',
   DIR: 'Directivo',
 };
 
@@ -46,7 +46,7 @@ const ROL_COLORS = {
 // Tabs de filtro: "TODOS" más cada rol existente
 const TABS = [
   { key: 'TODOS', label: 'Todos' },
-  { key: 'JEF',   label: 'Jefe Enfermería' },
+  { key: 'JEF',   label: 'Coordinador de Enfermería' },
   { key: 'DES',   label: 'Despachador' },
   { key: 'ENF',   label: 'Enfermero' },
   { key: 'DIR',   label: 'Directivo' },
@@ -437,7 +437,7 @@ export default function Usuarios() {
   // ─── Etiqueta dinámica del botón de exportación ─────────────
   const LABEL_EXPORT_POR_ROL = {
     TODOS: { PDF: 'Exportar PDF', CSV: 'Exportar CSV' },
-    JEF:   { PDF: 'Exportar PDF — Jefes de Enfermería', CSV: 'Exportar CSV — Jefes de Enfermería' },
+    JEF:   { PDF: 'Exportar PDF — Coordinadores de Enfermería', CSV: 'Exportar CSV — Coordinadores de Enfermería' },
     DES:   { PDF: 'Exportar PDF — Despachadores', CSV: 'Exportar CSV — Despachadores' },
     ENF:   { PDF: 'Exportar PDF — Enfermeros', CSV: 'Exportar CSV — Enfermeros' },
     DIR:   { PDF: 'Exportar PDF — Directivos', CSV: 'Exportar CSV — Directivos' },

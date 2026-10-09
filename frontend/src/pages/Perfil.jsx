@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 
 const ROL_LABEL = {
-  ADM: 'Administrador', ENF: 'Enfermero', JEF: 'Jefe Enfermería',
+  ADM: 'Administrador', ENF: 'Enfermero', JEF: 'Coordinador de Enfermería',
   DES: 'Despachador', DIR: 'Directivo',
 };
 

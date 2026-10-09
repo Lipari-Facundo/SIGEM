@@ -3,7 +3,7 @@ import Sidebar from '../components/Sidebar';
 import { empleadoService } from '../services/api';
 
 const ROLES = ['ENF', 'JEF', 'DES', 'DIR'];
-const ROL_LABEL = { ENF: 'Enfermero', JEF: 'Jefe Enfermería', DES: 'Despachador', DIR: 'Directivo', ADM: 'Administrador' };
+const ROL_LABEL = { ENF: 'Enfermero', JEF: 'Coordinador de Enfermería', DES: 'Despachador', DIR: 'Directivo', ADM: 'Administrador' };
 const EMPTY = { nombre: '', apellido: '', dni: '', email: '', telefono: '', rol: 'ENF', disponible: true };
 
 export default function Empleados() {
