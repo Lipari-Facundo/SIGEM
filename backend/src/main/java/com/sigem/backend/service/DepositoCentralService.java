@@ -35,8 +35,11 @@ public class DepositoCentralService {
     }
 
     @Transactional(readOnly = true)
-    public List<StockDepositoDTO> listarStock() {
-        return stockRepository.findByActivoTrueOrderByInsumoCategoriaAscInsumoNombreAsc()
+    public List<StockDepositoDTO> listarStock(boolean activo) {
+        List<StockDepositoCentral> stock = activo
+                ? stockRepository.findByActivoTrueAndInsumoActivoTrueOrderByInsumoCategoriaAscInsumoNombreAsc()
+                : stockRepository.findByActivoFalseOrInsumoActivoFalseOrderByInsumoCategoriaAscInsumoNombreAsc();
+        return stock
                 .stream().map(this::mapearStock).toList();
     }
 
@@ -101,17 +104,39 @@ public class DepositoCentralService {
     }
 
     @Transactional
-        public void archivarInsumo(Long stockId, Usuario usuario) {
-        StockDepositoCentral stock = stockRepository.findByIdForUpdate(stockId)
+    public void archivarInsumo(Long insumoId, Usuario usuario) {
+        Insumo insumo = insumoRepository.findByIdForUpdate(insumoId)
+                .filter(Insumo::isActivo)
+                .orElseThrow(() -> new RuntimeException("El insumo no está activo"));
+        StockDepositoCentral stock = stockRepository.findByInsumoIdForUpdate(insumoId)
                 .filter(StockDepositoCentral::isActivo)
                 .orElseThrow(() -> new RuntimeException("El insumo no está activo en el depósito"));
         if (stock.getCantidadActual() != 0) {
             throw new RuntimeException("No se puede archivar un insumo con existencia. Registrá primero el egreso o ajuste correspondiente");
         }
+        insumo.setActivo(false);
         stock.setActivo(false);
+        insumoRepository.save(insumo);
         stockRepository.save(stock);
         guardarMovimiento(stock, usuario, TipoMovimientoDeposito.ARCHIVO, 0,
-            "Insumo archivado del depósito central", null, stock.getCantidadActual());
+                "Insumo archivado del depósito central", null, stock.getCantidadActual());
+    }
+
+    @Transactional
+    public void desarchivarInsumo(Long insumoId, Usuario usuario) {
+        Insumo insumo = insumoRepository.findByIdForUpdate(insumoId)
+                .orElseThrow(() -> new RuntimeException("El insumo no existe"));
+        StockDepositoCentral stock = stockRepository.findByInsumoIdForUpdate(insumoId)
+                .orElseThrow(() -> new RuntimeException("El insumo no tiene una existencia en el depósito"));
+        if (insumo.isActivo() && stock.isActivo()) {
+            throw new RuntimeException("El insumo ya está activo en el depósito");
+        }
+        insumo.setActivo(true);
+        stock.setActivo(true);
+        insumoRepository.save(insumo);
+        stockRepository.save(stock);
+        guardarMovimiento(stock, usuario, TipoMovimientoDeposito.DESARCHIVO, 0,
+                "Insumo desarchivado del depósito central", null, stock.getCantidadActual());
     }
 
     @Transactional

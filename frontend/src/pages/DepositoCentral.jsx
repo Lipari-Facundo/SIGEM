@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
+import { useAuth } from '../context/AuthContext';
 import { depositoCentralService } from '../services/api';
 
 const TIPOS_MOVIMIENTO = [
@@ -11,7 +12,9 @@ const TIPOS_MOVIMIENTO = [
 ];
 
 export default function DepositoCentral() {
+  const { user } = useAuth();
   const [stock, setStock] = useState([]);
+  const [archivados, setArchivados] = useState([]);
   const [catalogo, setCatalogo] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [vista, setVista] = useState('stock');
@@ -28,6 +31,7 @@ export default function DepositoCentral() {
   const [tipoMovimiento, setTipoMovimiento] = useState('INGRESO');
   const [cantidadMovimiento, setCantidadMovimiento] = useState('');
   const [motivoMovimiento, setMotivoMovimiento] = useState('');
+  const puedeGestionarArchivo = ['ADM', 'JEF'].includes(user?.rol);
 
   useEffect(() => {
     cargarDatos();
@@ -36,12 +40,14 @@ export default function DepositoCentral() {
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      const [stockResponse, catalogoResponse, movimientosResponse] = await Promise.all([
-        depositoCentralService.stock(),
+      const [stockResponse, archivadosResponse, catalogoResponse, movimientosResponse] = await Promise.all([
+        depositoCentralService.stock(true),
+        depositoCentralService.stock(false),
         depositoCentralService.catalogo(),
         depositoCentralService.movimientos(),
       ]);
       setStock(stockResponse.data || []);
+      setArchivados(archivadosResponse.data || []);
       setCatalogo(catalogoResponse.data || []);
       setMovimientos(movimientosResponse.data || []);
       setError('');
@@ -107,11 +113,25 @@ export default function DepositoCentral() {
     setGuardando(true);
     setError('');
     try {
-      await depositoCentralService.archivarInsumo(item.id);
+      await depositoCentralService.archivarInsumo(item.insumoId);
       setMensaje(`${item.nombre} archivado del depósito.`);
       await cargarDatos();
     } catch (exception) {
       setError(exception.response?.data?.message || 'No se pudo archivar el insumo.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const desarchivarInsumo = async (item) => {
+    setGuardando(true);
+    setError('');
+    try {
+      await depositoCentralService.desarchivarInsumo(item.insumoId);
+      setMensaje(`${item.nombre} desarchivado del depósito.`);
+      await cargarDatos();
+    } catch (exception) {
+      setError(exception.response?.data?.message || 'No se pudo desarchivar el insumo.');
     } finally {
       setGuardando(false);
     }
@@ -170,6 +190,7 @@ export default function DepositoCentral() {
 
         <nav style={S.tabs} aria-label="Secciones del depósito">
           <button type="button" style={{ ...S.tab, ...(vista === 'stock' ? S.tabActive : {}) }} onClick={() => setVista('stock')}>Existencias</button>
+          {puedeGestionarArchivo && <button type="button" style={{ ...S.tab, ...(vista === 'archivados' ? S.tabActive : {}) }} onClick={() => setVista('archivados')}>Archivados ({archivados.length})</button>}
           <button type="button" style={{ ...S.tab, ...(vista === 'movimientos' ? S.tabActive : {}) }} onClick={() => setVista('movimientos')}>Movimientos</button>
         </nav>
 
@@ -214,7 +235,7 @@ export default function DepositoCentral() {
                           <button type="button" style={S.smallAction} disabled={guardando} onClick={() => guardarMinimo(item)}>Guardar mínimo</button>
                         )}
                         <button type="button" style={S.smallAction} disabled={guardando} onClick={() => abrirMovimiento(item)}>Registrar movimiento</button>
-                        {item.cantidadActual === 0 && <button type="button" style={S.archiveAction} disabled={guardando} onClick={() => archivarInsumo(item)}>Archivar</button>}
+                        {puedeGestionarArchivo && <button type="button" style={S.archiveAction} disabled={guardando || item.cantidadActual !== 0} title={item.cantidadActual !== 0 ? 'Para archivar, la existencia debe ser cero.' : undefined} onClick={() => archivarInsumo(item)}>Archivar</button>}
                       </div>
                     </article>
                   );
@@ -222,6 +243,28 @@ export default function DepositoCentral() {
               </div>
             )}
           </>
+        ) : vista === 'archivados' && puedeGestionarArchivo ? (
+          archivados.length === 0 ? (
+            <EmptyState icon="📦" title="Sin insumos archivados" description="Los insumos archivados aparecerán aquí." />
+          ) : (
+            <div style={S.stockList}>
+              {archivados.map(item => (
+                <article key={item.id} style={S.stockItem}>
+                  <div style={S.stockIdentity}>
+                    <div style={S.stockNameLine}><strong>{item.nombre}</strong><span style={S.lowBadge}>Archivado</span></div>
+                    <span style={S.muted}>{item.categoria} · {item.tipo}{item.unidadMedida ? ` · ${item.unidadMedida}` : ''}</span>
+                  </div>
+                  <div style={S.quantityBlock}>
+                    <strong style={S.quantityValue}>{item.cantidadActual}</strong>
+                    <span style={S.muted}>existencia</span>
+                  </div>
+                  <div style={S.rowActions}>
+                    <button type="button" style={S.smallAction} disabled={guardando} onClick={() => desarchivarInsumo(item)}>Desarchivar</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )
         ) : (
           movimientos.length === 0 ? (
             <EmptyState icon="↕" title="Sin movimientos todavía" description="Los ingresos, ajustes y entregas de reposición aparecerán aquí con usuario y motivo." />
@@ -287,6 +330,7 @@ function etiquetaMovimiento(tipo) {
     ENTREGA_REPOSICION: 'Entrega a móvil',
     CAMBIO_MINIMO: 'Cambio de mínimo',
     ARCHIVO: 'Archivo de insumo',
+    DESARCHIVO: 'Desarchivo de insumo',
   })[tipo] || tipo;
 }
 

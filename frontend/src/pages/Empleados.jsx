@@ -65,7 +65,7 @@ export default function Empleados() {
           <table style={S.table}>
             <thead>
               <tr style={S.thead}>
-                {['Nombre y Apellido', 'DNI', 'Email', 'Teléfono', 'Rol', 'Disponible', 'Estado', 'Acciones'].map(h => (
+                {['Nombre y Apellido', 'DNI', 'Correo electrónico', 'Teléfono', 'Rol', 'Disponible', 'Estado', 'Acciones'].map(h => (
                   <th key={h} style={S.th}>{h}</th>
                 ))}
               </tr>
@@ -105,7 +105,7 @@ export default function Empleados() {
           <div style={S.modal}>
             <h3 style={S.modalTitle}>{modal === 'crear' ? '➕ Registrar Empleado' : '✏️ Modificar Empleado'}</h3>
             <div style={S.grid}>
-              {[['nombre', 'Nombre'], ['apellido', 'Apellido'], ['dni', 'DNI'], ['email', 'Email'], ['telefono', 'Teléfono']].map(([k, l]) => (
+              {[['nombre', 'Nombre'], ['apellido', 'Apellido'], ['dni', 'DNI'], ['email', 'Correo electrónico'], ['telefono', 'Teléfono']].map(([k, l]) => (
                 <div key={k} style={S.field}>
                   <label style={S.label}>{l}</label>
                   <input style={S.input} value={form[k]} onChange={e => setForm({ ...form, [k]: e.target.value })} />

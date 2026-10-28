@@ -2,6 +2,7 @@ package com.sigem.backend.dto;
 
 import com.sigem.backend.model.Rol;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDate;
 
 public class UsuarioDTO {
@@ -11,6 +12,7 @@ public class UsuarioDTO {
     private String password;
     private String nombre;
     private String apellido;
+    @NotBlank(message = "DNI is required")
     private String dni;
     private String email;
     private String telefono;

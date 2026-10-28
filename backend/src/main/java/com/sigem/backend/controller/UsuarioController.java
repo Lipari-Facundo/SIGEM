@@ -4,6 +4,7 @@ import com.sigem.backend.dto.UsuarioDTO;
 import com.sigem.backend.model.Rol;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.service.UsuarioService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -45,7 +46,7 @@ public class UsuarioController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADM')")
-    public ResponseEntity<Usuario> crear(@RequestBody UsuarioDTO dto) {
+    public ResponseEntity<Usuario> crear(@Valid @RequestBody UsuarioDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(usuarioService.crear(dto));
     }
 

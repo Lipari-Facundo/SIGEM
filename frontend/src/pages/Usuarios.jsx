@@ -166,6 +166,7 @@ export default function Usuarios() {
     if (!form.username.trim()) { setError('El nombre de usuario es obligatorio'); return; }
     if (!form.nombre.trim())   { setError('El nombre es obligatorio'); return; }
     if (!form.apellido.trim()) { setError('El apellido es obligatorio'); return; }
+    if (!form.dni.trim())      { setError('El DNI es obligatorio'); return; }
     if (!form.email.trim())    { setError('El correo electrónico es obligatorio'); return; }
     if (modal === 'crear' && !form.password.trim()) {
       setError('La contraseña es obligatoria al crear un usuario'); return;
@@ -653,10 +654,10 @@ export default function Usuarios() {
                   onChange={e => setForm({ ...form, apellido: e.target.value })}
                   placeholder="Ej: Pérez" />
               </Field>
-              <Field label="DNI">
+              <Field label="DNI *">
                 <input style={S.input} value={form.dni}
                   onChange={e => setForm({ ...form, dni: e.target.value })}
-                  placeholder="Ej: 30123456" maxLength={10} />
+                  placeholder="Ej: 30123456" maxLength={10} required />
               </Field>
               <Field label="Teléfono">
                 <input style={S.input} value={form.telefono}

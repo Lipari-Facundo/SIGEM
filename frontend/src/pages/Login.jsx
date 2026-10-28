@@ -20,7 +20,9 @@ export default function Login() {
       login({ username: data.username, nombre: data.nombre, apellido: data.apellido, rol: data.rol, activo: data.activo, fotoPerfil: data.fotoPerfil }, data.token);
       navigate('/dashboard');
     } catch (err) {
-      const message = err?.response?.data?.message || err?.response?.data?.error || 'Usuario o contraseña incorrectos';
+      const message = err?.response?.status === 401
+        ? 'Usuario o contraseña incorrectos'
+        : err?.response?.data?.message || err?.response?.data?.error || 'No se pudo iniciar sesión. Intentá nuevamente.';
       setError(message);
     } finally {
       setLoading(false);

@@ -7,5 +7,6 @@ public enum TipoMovimientoDeposito {
     AJUSTE_NEGATIVO,
     ENTREGA_REPOSICION,
     CAMBIO_MINIMO,
-    ARCHIVO
+    ARCHIVO,
+    DESARCHIVO
 }

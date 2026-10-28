@@ -111,7 +111,7 @@ export default function ControlMovil() {
       setBorradorListo(Boolean(draftKey));
       setGuardiaActiva(true);
     } catch (exception) {
-      const message = String(exception.response?.data?.message || exception.message || '');
+      const message = String(exception.response?.data?.message || '');
       const normalizedMessage = message.toLowerCase();
 
       if (normalizedMessage.includes('guardia') || normalizedMessage.includes('móvil') || normalizedMessage.includes('movil')) {

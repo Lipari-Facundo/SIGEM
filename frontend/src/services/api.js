@@ -1,5 +1,18 @@
 import axios from 'axios';
 
+const API_ERROR_TRANSLATIONS = {
+  'bad credentials': 'Usuario o contraseña incorrectos',
+  'dni is required': 'El DNI es obligatorio',
+  'name is required': 'El nombre es obligatorio',
+  'first name is required': 'El nombre es obligatorio',
+  'last name is required': 'El apellido es obligatorio',
+};
+
+const localizeApiMessage = (message) => {
+  if (typeof message !== 'string') return message;
+  return API_ERROR_TRANSLATIONS[message.trim().toLowerCase()] || message;
+};
+
 const api = axios.create({
   baseURL: 'http://localhost:8081/api',
 });
@@ -13,7 +26,21 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const responseData = error.response?.data;
+    if (responseData && typeof responseData === 'object') {
+      error.response.data = {
+        ...responseData,
+        ...(typeof responseData.message === 'string'
+          ? { message: localizeApiMessage(responseData.message) }
+          : {}),
+        ...(typeof responseData.error === 'string'
+          ? { error: localizeApiMessage(responseData.error) }
+          : {}),
+      };
+    }
+
+    const isLoginRequest = error.config?.url?.includes('/auth/login');
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.clear();
       window.location.href = '/login';
     }
@@ -63,12 +90,13 @@ export const inventarioService = {
 };
 
 export const depositoCentralService = {
-  stock: () => api.get('/deposito-central/stock'),
+  stock: (activo = true) => api.get('/deposito-central/stock', { params: { activo } }),
   catalogo: () => api.get('/deposito-central/catalogo'),
   movimientos: () => api.get('/deposito-central/movimientos'),
   agregarInsumo: (data) => api.post('/deposito-central/stock', data),
   actualizarMinimo: (id, cantidadMinima) => api.put(`/deposito-central/stock/${id}/minimo`, { cantidadMinima }),
-  archivarInsumo: (id) => api.delete(`/deposito-central/stock/${id}`),
+  archivarInsumo: (id) => api.put(`/insumos/${id}/archivar`),
+  desarchivarInsumo: (id) => api.put(`/insumos/${id}/desarchivar`),
   registrarMovimiento: (data) => api.post('/deposito-central/movimientos', data),
 };
 

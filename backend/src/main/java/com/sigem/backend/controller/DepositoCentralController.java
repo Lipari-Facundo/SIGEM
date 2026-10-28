@@ -32,9 +32,11 @@ public class DepositoCentralController {
     }
 
     @GetMapping("/stock")
-    public ResponseEntity<List<StockDepositoDTO>> listarStock(@AuthenticationPrincipal Usuario usuario) {
+    public ResponseEntity<List<StockDepositoDTO>> listarStock(
+            @RequestParam(defaultValue = "true") boolean activo,
+            @AuthenticationPrincipal Usuario usuario) {
         guardiaService.exigirGuardiaCentralActiva(usuario);
-        return ResponseEntity.ok(depositoCentralService.listarStock());
+        return ResponseEntity.ok(depositoCentralService.listarStock(activo));
     }
 
     @GetMapping("/catalogo")
@@ -59,15 +61,6 @@ public class DepositoCentralController {
             @AuthenticationPrincipal Usuario usuario) {
         guardiaService.exigirGuardiaCentralActiva(usuario);
         return ResponseEntity.ok(depositoCentralService.actualizarMinimo(stockId, dto, usuario));
-    }
-
-    @DeleteMapping("/stock/{stockId}")
-    public ResponseEntity<Void> archivarInsumo(
-            @PathVariable Long stockId,
-            @AuthenticationPrincipal Usuario usuario) {
-        guardiaService.exigirGuardiaCentralActiva(usuario);
-        depositoCentralService.archivarInsumo(stockId, usuario);
-        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/movimientos")

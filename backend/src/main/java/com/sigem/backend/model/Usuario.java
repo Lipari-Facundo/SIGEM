@@ -1,6 +1,7 @@
 package com.sigem.backend.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,8 +30,9 @@ public class Usuario implements UserDetails {
     @Column(nullable = false)
     private String apellido;
 
-   @Column(unique = true)
-   private String dni;
+    @NotBlank(message = "DNI is required")
+    @Column(unique = true)
+    private String dni;
 
     @Column(nullable = false, unique = true)
     private String email;

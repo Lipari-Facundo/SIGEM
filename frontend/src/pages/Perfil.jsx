@@ -52,7 +52,7 @@ export default function Perfil() {
       });
       setPreviewFoto(data.fotoPerfil || null);
     } catch (e) {
-      setError(`Error ${e.response?.status}: ${e.response?.data?.message || e.message}`);
+      setError(e.response?.data?.message || 'No se pudo cargar el perfil. Intentá nuevamente.');
     }
   };
 
@@ -184,7 +184,7 @@ export default function Perfil() {
                 <span style={S.cardIcon}>📬</span> Contacto y Sistema
               </h2>
               <div style={{ ...S.formGrid, gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', marginBottom: '20px' }}>
-                <Field label="Email *" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
+                <Field label="Correo electrónico *" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
                 <Field label="Teléfono" value={form.telefono} onChange={(v) => setForm({ ...form, telefono: v })} />
               </div>
               <div style={S.readOnly}>

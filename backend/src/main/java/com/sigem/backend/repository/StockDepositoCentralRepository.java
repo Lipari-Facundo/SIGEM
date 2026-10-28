@@ -12,13 +12,19 @@ import java.util.Optional;
 
 public interface StockDepositoCentralRepository extends JpaRepository<StockDepositoCentral, Long> {
 
-    List<StockDepositoCentral> findByActivoTrueOrderByInsumoCategoriaAscInsumoNombreAsc();
+    List<StockDepositoCentral> findByActivoTrueAndInsumoActivoTrueOrderByInsumoCategoriaAscInsumoNombreAsc();
+
+    List<StockDepositoCentral> findByActivoFalseOrInsumoActivoFalseOrderByInsumoCategoriaAscInsumoNombreAsc();
 
     Optional<StockDepositoCentral> findByInsumoId(Long insumoId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select stock from StockDepositoCentral stock where stock.id = :id")
     Optional<StockDepositoCentral> findByIdForUpdate(@Param("id") Long id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select stock from StockDepositoCentral stock where stock.insumo.id = :insumoId")
+    Optional<StockDepositoCentral> findByInsumoIdForUpdate(@Param("insumoId") Long insumoId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select stock from StockDepositoCentral stock where stock.insumo.id = :insumoId and stock.activo = true")

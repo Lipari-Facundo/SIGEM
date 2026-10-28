@@ -88,7 +88,7 @@ export default function Dashboard() {
               <p style={S.fieldValue}>{loading ? 'Cargando...' : (perfil?.dni || '-')}</p>
             </div>
             <div style={S.profileField}>
-              <label style={S.fieldLabel}>Email</label>
+              <label style={S.fieldLabel}>Correo electrónico</label>
               <p style={S.fieldValue}>{loading ? 'Cargando...' : (perfil?.email || '-')}</p>
             </div>
             <div style={S.profileField}>

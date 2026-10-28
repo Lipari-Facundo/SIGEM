@@ -96,6 +96,8 @@ public class SecurityConfig {
                 // ── Depósito central ──────────────────────────────────────
                 .requestMatchers("/api/deposito-central/**")
                     .hasAnyRole("ADM", "JEF")
+                .requestMatchers("/api/insumos/**")
+                    .hasAnyRole("ADM", "JEF")
 
                 // ── Controles de móvil ────────────────────────────────────
                 .requestMatchers(HttpMethod.GET, "/api/controles/mi-movil/plantilla")
