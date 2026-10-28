@@ -56,7 +56,7 @@ public class SecurityConfig {
 
                 // ── Móviles ───────────────────────────────────────────────
                 .requestMatchers(HttpMethod.GET, "/api/moviles/operativos")
-                    .hasAnyRole("ADM", "DES", "ENF")
+                    .hasAnyRole("ADM", "DES", "ENF", "JEF")
                 .requestMatchers(HttpMethod.GET, "/api/moviles")
                     .hasAnyRole("ADM", "DES")
                 .requestMatchers(HttpMethod.POST, "/api/moviles").hasRole("ADM")
@@ -98,6 +98,16 @@ public class SecurityConfig {
                     .hasAnyRole("ADM", "JEF")
                 .requestMatchers("/api/insumos/**")
                     .hasAnyRole("ADM", "JEF")
+
+                // ── Equipos médicos ───────────────────────────────────────
+                .requestMatchers(HttpMethod.GET, "/api/equipos/disponibles")
+                    .hasAnyRole("ADM", "JEF", "COORD_ENF")
+                .requestMatchers(HttpMethod.GET, "/api/equipos/asignados")
+                    .hasAnyRole("ADM", "JEF", "COORD_ENF")
+                .requestMatchers(HttpMethod.POST, "/api/equipos/asignar")
+                    .hasAnyRole("JEF", "COORD_ENF", "ADM")
+                .requestMatchers(HttpMethod.PUT, "/api/equipos/*/desasignar")
+                    .hasAnyRole("JEF", "COORD_ENF", "ADM")
 
                 // ── Controles de móvil ────────────────────────────────────
                 .requestMatchers(HttpMethod.GET, "/api/controles/mi-movil/plantilla")

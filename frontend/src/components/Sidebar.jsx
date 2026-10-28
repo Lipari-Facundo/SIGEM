@@ -14,6 +14,7 @@ const items = [
   { path: '/informes-control',    label: 'Informes de Control', icon: '📑', roles: ['JEF','ADM','DIR'], requiresCentralShift: true },
   { path: '/solicitudes-reposicion', label: 'Reposiciones',    icon: '📋', roles: ['ADM','DES','JEF'], requiresCentralShift: true },
   { path: '/deposito-central',    label: 'Depósito central', icon: '🏥', roles: ['JEF','ADM'], requiresCentralShift: true },
+  { path: '/asignacion-equipos',  label: 'Asignar equipos', icon: '🧰', roles: ['JEF','ADM'], requiresCentralShift: false },
   { path: '/incidentes',         label: 'Incidentes',        icon: '📋', roles: ['ENF','DES'] },
   { path: '/usuarios',           label: 'Usuarios',          icon: '👥', roles: ['ADM'] },
   { path: '/moviles',            label: 'Gestión de Móviles', icon: '🚑', roles: ['ADM'] },

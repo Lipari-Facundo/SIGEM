@@ -15,6 +15,7 @@ import ControlMovil from './pages/ControlMovil';
 import InformesControl from './pages/InformesControl';
 import SolicitudesReposicion from './pages/SolicitudesReposicion';
 import DepositoCentral from './pages/DepositoCentral';
+import RegistroAsignacionEquipos from './pages/RegistroAsignacionEquipos';
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/informes-control" element={<PrivateRoute roles={['JEF', 'ADM', 'DIR']}><InformesControl /></PrivateRoute>} />
           <Route path="/solicitudes-reposicion" element={<PrivateRoute roles={['JEF', 'ADM', 'DES']}><SolicitudesReposicion /></PrivateRoute>} />
           <Route path="/deposito-central" element={<PrivateRoute roles={['JEF', 'ADM']}><DepositoCentral /></PrivateRoute>} />
+          <Route path="/asignacion-equipos" element={<PrivateRoute roles={['JEF','ADM']}><RegistroAsignacionEquipos /></PrivateRoute>} />
           <Route path="/incidentes" element={<PrivateRoute roles={['ENF', 'DES']}><Incidentes /></PrivateRoute>} />
           <Route path="/perfil"     element={<PrivateRoute><Perfil /></PrivateRoute>} />
           <Route path="/director-dashboard" element={<PrivateRoute><DirectorDashboard /></PrivateRoute>} />

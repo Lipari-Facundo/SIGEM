@@ -100,6 +100,13 @@ export const depositoCentralService = {
   registrarMovimiento: (data) => api.post('/deposito-central/movimientos', data),
 };
 
+export const equipoMedicoService = {
+  disponibles: () => api.get('/equipos/disponibles'),
+  asignados: () => api.get('/equipos/asignados'),
+  asignar: (data) => api.post('/equipos/asignar', data),
+  desasignar: (id) => api.put(`/equipos/${id}/desasignar`),
+};
+
 export const controlService = {
   plantilla: () => api.get('/controles/mi-movil/plantilla'),
   crear:     (dto) => api.post('/controles', dto),

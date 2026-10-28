@@ -216,3 +216,34 @@ CREATE TABLE IF NOT EXISTS control_movil_item (
 
 ALTER TABLE control_movil_item ADD COLUMN IF NOT EXISTS numero_serie varchar(100);
 ALTER TABLE control_movil_item ADD COLUMN IF NOT EXISTS test_ok boolean;
+
+CREATE TABLE IF NOT EXISTS equipos_medicos (
+    id bigserial PRIMARY KEY,
+    nombre varchar(255) NOT NULL,
+    numero_serie varchar(100) NOT NULL UNIQUE,
+    marca varchar(100),
+    modelo varchar(100),
+    estado varchar(50) NOT NULL DEFAULT 'DISPONIBLE'
+);
+
+CREATE TABLE IF NOT EXISTS asignaciones_equipos (
+    id bigserial PRIMARY KEY,
+    equipo_id bigint NOT NULL,
+    movil_id bigint NOT NULL,
+    coordinador_id bigint NOT NULL,
+    fecha_asignacion timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_desasignacion timestamp,
+    activo boolean NOT NULL DEFAULT true,
+    CONSTRAINT fk_asignacion_equipo FOREIGN KEY (equipo_id) REFERENCES equipos_medicos(id),
+    CONSTRAINT fk_asignacion_movil FOREIGN KEY (movil_id) REFERENCES moviles(id),
+    CONSTRAINT fk_asignacion_coordinador FOREIGN KEY (coordinador_id) REFERENCES usuarios(id)
+);
+ALTER TABLE asignaciones_equipos ADD COLUMN IF NOT EXISTS fecha_desasignacion timestamp;
+ALTER TABLE asignaciones_equipos ADD COLUMN IF NOT EXISTS activo boolean NOT NULL DEFAULT true;
+
+INSERT INTO equipos_medicos (nombre, numero_serie, marca, modelo, estado)
+VALUES
+    ('Desfibrilador', 'DF-0001', 'Philips', 'HeartStart', 'DISPONIBLE'),
+    ('Monitor multiparamétrico', 'MM-0001', 'Mindray', 'BeneView', 'DISPONIBLE'),
+    ('Oxímetro portátil', 'OX-0001', 'Masimo', 'Rad-5', 'DISPONIBLE')
+ON CONFLICT (numero_serie) DO NOTHING;
