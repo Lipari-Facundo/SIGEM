@@ -13,6 +13,8 @@ import java.util.Optional;
 public interface EquipoMedicoRepository extends JpaRepository<EquipoMedico, Long> {
     List<EquipoMedico> findByEstadoOrderByNombreAscNumeroSerieAsc(EstadoEquipoMedico estado);
 
+    Optional<EquipoMedico> findFirstByNombreIgnoreCaseOrderByIdAsc(String nombre);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from EquipoMedico e where e.id = :id")
     Optional<EquipoMedico> findByIdForUpdate(@Param("id") Long id);

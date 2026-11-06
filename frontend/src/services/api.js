@@ -104,6 +104,8 @@ export const equipoMedicoService = {
   disponibles: () => api.get('/equipos/disponibles'),
   asignados: () => api.get('/equipos/asignados'),
   asignar: (data) => api.post('/equipos/asignar', data),
+  modificarAsignacion: (id, data) => api.put(`/equipos/asignacion/${id}`, data),
+  modificarEstado: (id, estado) => api.put(`/equipos/${id}/estado`, { estado }),
   desasignar: (id) => api.put(`/equipos/${id}/desasignar`),
 };
 

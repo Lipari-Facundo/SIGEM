@@ -2,9 +2,11 @@ package com.sigem.backend.service;
 
 import com.sigem.backend.dto.AsignacionEquipoDTO;
 import com.sigem.backend.dto.AsignacionEquipoResponseDTO;
+import com.sigem.backend.dto.ModificarAsignacionDTO;
 import com.sigem.backend.model.*;
 import com.sigem.backend.repository.AsignacionEquipoRepository;
 import com.sigem.backend.repository.EquipoMedicoRepository;
+import com.sigem.backend.repository.InsumoRepository;
 import com.sigem.backend.repository.MovilRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,18 +19,23 @@ public class AsignacionEquipoService {
     private final EquipoMedicoRepository equipoRepository;
     private final AsignacionEquipoRepository asignacionRepository;
     private final MovilRepository movilRepository;
+    private final InsumoRepository insumoRepository;
 
     public AsignacionEquipoService(EquipoMedicoRepository equipoRepository,
                                    AsignacionEquipoRepository asignacionRepository,
-                                   MovilRepository movilRepository) {
+                                   MovilRepository movilRepository,
+                                   InsumoRepository insumoRepository) {
         this.equipoRepository = equipoRepository;
         this.asignacionRepository = asignacionRepository;
         this.movilRepository = movilRepository;
+        this.insumoRepository = insumoRepository;
     }
 
     @Transactional(readOnly = true)
-    public List<EquipoMedico> listarDisponibles() {
-        return equipoRepository.findByEstadoOrderByNombreAscNumeroSerieAsc(EstadoEquipoMedico.DISPONIBLE);
+    public List<Insumo> listarDisponibles() {
+        return insumoRepository.findByCategoriaAndTipoAndActivoTrueOrderByNombreAsc(
+                CategoriaInsumo.EQUIPO_MEDICO,
+                TipoInsumo.REUTILIZABLE);
     }
 
     @Transactional(readOnly = true)
@@ -77,8 +84,23 @@ public class AsignacionEquipoService {
             throw new IllegalArgumentException("Equipo y móvil son obligatorios");
         }
 
-        EquipoMedico equipo = equipoRepository.findByIdForUpdate(dto.getEquipoId())
-                .orElseThrow(() -> new IllegalArgumentException("Equipo médico no encontrado"));
+        EquipoMedico equipo = equipoRepository.findByIdForUpdate(dto.getEquipoId()).orElse(null);
+        if (equipo == null) {
+            Insumo insumo = insumoRepository.findById(dto.getEquipoId())
+                    .filter(item -> item.isActivo()
+                            && item.getCategoria() == CategoriaInsumo.EQUIPO_MEDICO
+                            && item.getTipo() == TipoInsumo.REUTILIZABLE)
+                    .orElseThrow(() -> new IllegalArgumentException("Equipo médico reutilizable disponible no encontrado"));
+
+            equipo = equipoRepository.findFirstByNombreIgnoreCaseOrderByIdAsc(insumo.getNombre())
+                    .orElseGet(() -> {
+                        EquipoMedico nuevo = new EquipoMedico();
+                        nuevo.setNombre(insumo.getNombre());
+                        nuevo.setNumeroSerie("INS-" + insumo.getId());
+                        nuevo.setEstado(EstadoEquipoMedico.DISPONIBLE);
+                        return equipoRepository.save(nuevo);
+                    });
+        }
         if (equipo.getEstado() != EstadoEquipoMedico.DISPONIBLE) {
             throw new IllegalArgumentException("El equipo ya no está disponible para asignación");
         }
@@ -112,5 +134,135 @@ public class AsignacionEquipoService {
         response.setCoordinadorId(coordinador.getId());
         response.setCoordinadorUsername(coordinador.getUsername());
         return response;
+    }
+
+    @Transactional
+    public AsignacionEquipoResponseDTO modificarAsignacion(
+            Long asignacionId,
+            ModificarAsignacionDTO dto,
+            Usuario coordinador) {
+        AsignacionEquipo asignacion = asignacionRepository.findById(asignacionId)
+                .filter(AsignacionEquipo::isActivo)
+                .orElseThrow(() -> new IllegalArgumentException("Asignación activa no encontrada"));
+
+        EquipoMedico equipoAnterior = asignacion.getEquipo();
+        EquipoMedico equipoNuevo = equipoAnterior;
+
+        if (!dto.getEquipoId().equals(equipoAnterior.getId())) {
+            EquipoMedico equipoSeleccionado = equipoRepository.findById(dto.getEquipoId()).orElse(null);
+            if (equipoSeleccionado == null) {
+                equipoSeleccionado = insumoRepository.findById(dto.getEquipoId())
+                        .filter(item -> item.isActivo()
+                                && item.getCategoria() == CategoriaInsumo.EQUIPO_MEDICO
+                                && item.getTipo() == TipoInsumo.REUTILIZABLE)
+                        .flatMap(item -> equipoRepository.findFirstByNombreIgnoreCaseOrderByIdAsc(item.getNombre()))
+                        .orElseGet(() -> {
+                            Insumo item = insumoRepository.findById(dto.getEquipoId())
+                                    .orElseThrow(() -> new IllegalArgumentException("Equipo médico reutilizable disponible no encontrado"));
+                            EquipoMedico nuevo = new EquipoMedico();
+                            nuevo.setNombre(item.getNombre());
+                            nuevo.setNumeroSerie("INS-" + item.getId());
+                            nuevo.setEstado(EstadoEquipoMedico.DISPONIBLE);
+                            return equipoRepository.save(nuevo);
+                        });
+            }
+
+            if (equipoSeleccionado.getId().equals(equipoAnterior.getId())) {
+                equipoNuevo = equipoAnterior;
+            } else {
+                if (equipoSeleccionado.getEstado() != EstadoEquipoMedico.DISPONIBLE) {
+                    throw new IllegalArgumentException("El equipo seleccionado ya no está disponible");
+                }
+                equipoNuevo = equipoSeleccionado;
+            }
+        }
+
+        if (!equipoNuevo.getId().equals(equipoAnterior.getId())) {
+            equipoAnterior.setEstado(EstadoEquipoMedico.DISPONIBLE);
+            equipoRepository.save(equipoAnterior);
+            equipoNuevo.setEstado(EstadoEquipoMedico.EN_USO);
+            equipoRepository.save(equipoNuevo);
+        }
+
+        Movil movil = movilRepository.findById(dto.getMovilId())
+                .orElseThrow(() -> new IllegalArgumentException("Móvil no encontrado"));
+        if (movil.getEstadoMovil() != EstadoMovil.OPERATIVO) {
+            throw new IllegalArgumentException("El móvil destino debe estar operativo");
+        }
+
+        asignacion.setEquipo(equipoNuevo);
+        asignacion.setMovil(movil);
+        asignacion.setCoordinador(coordinador);
+        asignacion = asignacionRepository.save(asignacion);
+        return toResponse(asignacion);
+    }
+
+    private EquipoMedico resolverEquipoDisponible(Long equipoId) {
+        EquipoMedico equipo = equipoRepository.findByIdForUpdate(equipoId).orElse(null);
+        if (equipo == null) {
+            Insumo insumo = insumoRepository.findById(equipoId)
+                    .filter(item -> item.isActivo()
+                            && item.getCategoria() == CategoriaInsumo.EQUIPO_MEDICO
+                            && item.getTipo() == TipoInsumo.REUTILIZABLE)
+                    .orElseThrow(() -> new IllegalArgumentException("Equipo médico reutilizable disponible no encontrado"));
+
+            equipo = equipoRepository.findFirstByNombreIgnoreCaseOrderByIdAsc(insumo.getNombre())
+                    .orElseGet(() -> {
+                        EquipoMedico nuevo = new EquipoMedico();
+                        nuevo.setNombre(insumo.getNombre());
+                        nuevo.setNumeroSerie("INS-" + insumo.getId());
+                        nuevo.setEstado(EstadoEquipoMedico.DISPONIBLE);
+                        return equipoRepository.save(nuevo);
+                    });
+        }
+
+        if (equipo.getEstado() != EstadoEquipoMedico.DISPONIBLE) {
+            throw new IllegalArgumentException("El equipo seleccionado ya no está disponible");
+        }
+        return equipo;
+    }
+
+    @Transactional
+    public void modificarEstado(Long equipoId, String estado) {
+        EquipoMedico equipo;
+
+        equipo = equipoRepository.findByIdForUpdate(equipoId).orElse(null);
+        if (equipo == null) {
+            Insumo insumo = insumoRepository.findById(equipoId)
+                    .filter(item -> item.isActivo()
+                            && item.getCategoria() == CategoriaInsumo.EQUIPO_MEDICO
+                            && item.getTipo() == TipoInsumo.REUTILIZABLE)
+                    .orElseThrow(() -> new IllegalArgumentException("Equipo médico no encontrado"));
+
+            equipo = equipoRepository.findFirstByNombreIgnoreCaseOrderByIdAsc(insumo.getNombre())
+                    .orElseGet(() -> {
+                        EquipoMedico nuevo = new EquipoMedico();
+                        nuevo.setNombre(insumo.getNombre());
+                        nuevo.setNumeroSerie("INS-" + insumo.getId());
+                        nuevo.setEstado(EstadoEquipoMedico.DISPONIBLE);
+                        return equipoRepository.save(nuevo);
+                    });
+        }
+
+        EstadoEquipoMedico estadoPersistido = switch (estado.trim().toUpperCase()) {
+            case "FUNCIONANDO" -> EstadoEquipoMedico.DISPONIBLE;
+            case "ASIGNADO" -> EstadoEquipoMedico.EN_USO;
+            case "AVERIADO" -> EstadoEquipoMedico.FUERA_DE_SERVICIO;
+            case "EN MANTENIMIENTO" -> EstadoEquipoMedico.MANTENIMIENTO;
+            default -> throw new IllegalArgumentException("Estado de equipo no válido");
+        };
+
+        boolean estaAsignado = asignacionRepository
+                .findByEquipoIdAndActivoTrue(equipo.getId())
+                .isPresent();
+        if (estaAsignado
+                && (estadoPersistido == EstadoEquipoMedico.DISPONIBLE
+                || estadoPersistido == EstadoEquipoMedico.MANTENIMIENTO)) {
+            throw new IllegalArgumentException(
+                    "Un equipo asignado no puede cambiarse a FUNCIONANDO ni EN MANTENIMIENTO");
+        }
+
+        equipo.setEstado(estadoPersistido);
+        equipoRepository.save(equipo);
     }
 }

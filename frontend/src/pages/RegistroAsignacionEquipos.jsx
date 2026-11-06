@@ -4,6 +4,197 @@ import Button from '../components/ui/Button';
 import { equipoMedicoService, movilService } from '../services/api';
 import './RegistroAsignacionEquipos.css';
 
+const ESTADO_STOCK_COLORS = {
+  FUNCIONANDO: 'stock-status-functioning',
+  ASIGNADO: 'stock-status-assigned',
+  AVERIADO: 'stock-status-broken',
+  'EN MANTENIMIENTO': 'stock-status-maintenance',
+};
+
+function normalizarEstadoEquipo(estado) {
+  const estados = {
+    DISPONIBLE: 'FUNCIONANDO',
+    EN_USO: 'ASIGNADO',
+    FUERA_DE_SERVICIO: 'AVERIADO',
+    MANTENIMIENTO: 'EN MANTENIMIENTO',
+  };
+
+  return ESTADO_STOCK_COLORS[estado] ? estado : (estados[estado] || 'FUNCIONANDO');
+}
+
+function StockStatusBadge({ estado }) {
+  const estadoNormalizado = normalizarEstadoEquipo(estado);
+
+  return (
+    <span className={`stock-status-badge ${ESTADO_STOCK_COLORS[estadoNormalizado]}`}>
+      <span className="stock-status-dot" />
+      {estadoNormalizado}
+    </span>
+  );
+}
+
+export function ModalEditarAsignacion({ open, asignacion, onClose, onUpdated }) {
+  const [equipos, setEquipos] = useState([]);
+  const [moviles, setMoviles] = useState([]);
+  const [equipoId, setEquipoId] = useState('');
+  const [movilId, setMovilId] = useState('');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!open || !asignacion) return;
+    setEquipoId(String(asignacion.equipoId));
+    setMovilId(String(asignacion.movilId));
+    Promise.all([equipoMedicoService.disponibles(), movilService.listarOperativos()])
+      .then(([equiposResponse, movilesResponse]) => {
+        setEquipos(equiposResponse.data || []);
+        setMoviles(movilesResponse.data || []);
+        setError('');
+      })
+      .catch(exception => setError(exception.response?.data?.message || 'No se pudieron cargar los datos.'));
+  }, [open, asignacion]);
+
+  if (!open) return null;
+
+  const guardar = async (event) => {
+    event.preventDefault();
+    if (!equipoId || !movilId) {
+      setError('Seleccioná un equipo médico y un móvil.');
+      return;
+    }
+    setGuardando(true);
+    setError('');
+    try {
+      await equipoMedicoService.modificarAsignacion(asignacion.asignacionId, {
+        equipoId: Number(equipoId),
+        movilId: Number(movilId),
+      });
+      onUpdated('Asignación modificada correctamente.');
+      onClose();
+    } catch (exception) {
+      setError(exception.response?.data?.message || 'No se pudo modificar la asignación.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div style={S.modalOverlay} onMouseDown={event => event.target === event.currentTarget && onClose()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="editar-asignacion-titulo" style={S.modal}>
+        <div style={S.modalHeader}>
+          <h2 id="editar-asignacion-titulo" style={{ margin: 0 }}>Editar asignación</h2>
+          <button type="button" onClick={onClose} style={S.closeButton} aria-label="Cerrar">×</button>
+        </div>
+        {error && <div className="assignment-error-bar" role="alert">{error}</div>}
+        <form style={S.form} onSubmit={guardar}>
+          <label style={S.field}>Equipo médico
+            <select style={S.input} value={equipoId} onChange={event => setEquipoId(event.target.value)}>
+              <option value={asignacion.equipoId}>
+                {asignacion.equipoNombre} - Serie: {asignacion.equipoNumeroSerie}
+              </option>
+              {equipos
+                .filter(equipo => equipo.id !== asignacion.equipoId && equipo.nombre !== asignacion.equipoNombre)
+                .map(equipo => (
+                  <option key={equipo.id} value={equipo.id}>
+                    {equipo.nombre} - Serie: {equipo.numeroSerie || `INS-${equipo.id}`}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label style={S.field}>Móvil destino
+            <select style={S.input} value={movilId} onChange={event => setMovilId(event.target.value)}>
+              {moviles.map(movil => (
+                <option key={movil.id} value={movil.id}>{movil.numeroInterno} · {movil.marca} {movil.modelo}</option>
+              ))}
+            </select>
+          </label>
+          <div style={S.modalActions}>
+            <Button type="button" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={guardando}>{guardando ? 'Guardando...' : 'Guardar cambios'}</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export function ModalEditarEstado({ open, item, onClose, onUpdated }) {
+  const [estado, setEstado] = useState('FUNCIONANDO');
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (open && item) setEstado(item.estado || 'FUNCIONANDO');
+  }, [open, item]);
+
+  if (!open || !item) return null;
+
+  const guardar = async (event) => {
+    event.preventDefault();
+    const asignado = Boolean(item.asignado);
+
+    if (asignado && (estado === 'FUNCIONANDO' || estado === 'EN MANTENIMIENTO')) {
+      setError('Un equipo asignado no puede cambiarse a FUNCIONANDO ni EN MANTENIMIENTO.');
+      return;
+    }
+
+    if ((estado === 'AVERIADO' || estado === 'ASIGNADO')
+      && !window.confirm(`¿Está seguro de que desea cambiar el estado a ${estado === 'AVERIADO' ? 'Averiado' : 'Asignado'}?`)) {
+      return;
+    }
+
+    const idCrudo = item.equipoId ?? item.insumoId;
+    const idNumerico = typeof idCrudo === 'number'
+      ? idCrudo
+      : (typeof idCrudo === 'string' && /^\d+$/.test(idCrudo.trim())
+        ? Number(idCrudo.trim())
+        : NaN);
+
+    if (!Number.isInteger(idNumerico) || idNumerico <= 0) {
+      setError('No se pudo identificar el equipo seleccionado.');
+      return;
+    }
+
+    setGuardando(true);
+    setError('');
+    try {
+      await equipoMedicoService.modificarEstado(idNumerico, estado);
+      onUpdated(item, estado);
+      onClose();
+    } catch (exception) {
+      setError(exception.response?.data?.message || 'No se pudo modificar el estado.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <div style={S.modalOverlay} onMouseDown={event => event.target === event.currentTarget && onClose()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="editar-estado-titulo" style={{ ...S.modal, width: 'min(420px, 100%)' }}>
+        <div style={S.modalHeader}>
+          <h2 id="editar-estado-titulo" style={{ margin: 0 }}>Editar estado</h2>
+          <button type="button" onClick={onClose} style={S.closeButton} aria-label="Cerrar">×</button>
+        </div>
+        {error && <div className="assignment-error-bar" role="alert">{error}</div>}
+        <form style={S.form} onSubmit={guardar}>
+          <label style={S.field}>Estado
+            <select style={S.input} value={estado} onChange={event => setEstado(event.target.value)}>
+              <option value="FUNCIONANDO" disabled={Boolean(item.asignado)}>FUNCIONANDO</option>
+              <option value="ASIGNADO">ASIGNADO</option>
+              <option value="AVERIADO">AVERIADO</option>
+              <option value="EN MANTENIMIENTO" disabled={Boolean(item.asignado)}>EN MANTENIMIENTO</option>
+            </select>
+          </label>
+          <div style={S.modalActions}>
+            <Button type="button" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={guardando}>{guardando ? 'Guardando...' : 'Guardar estado'}</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export function ModalNuevaAsignacion({ open, onClose, onAssigned }) {
   const [equipos, setEquipos] = useState([]);
   const [moviles, setMoviles] = useState([]);
@@ -58,7 +249,11 @@ export function ModalNuevaAsignacion({ open, onClose, onAssigned }) {
           <label style={S.field}>Equipo médico disponible
             <select style={S.input} value={equipoId} onChange={event => setEquipoId(event.target.value)}>
               <option value="">Seleccionar equipo</option>
-              {equipos.map(equipo => <option key={equipo.id} value={equipo.id}>{equipo.nombre} · Serie: {equipo.numeroSerie}</option>)}
+              {equipos.map(equipo => (
+                <option key={equipo.id} value={equipo.id}>
+                  {equipo.nombre} - Serie: {equipo.numeroSerie || `INS-${equipo.id}`}
+                </option>
+              ))}
             </select>
           </label>
           <label style={S.field}>Móvil destino
@@ -79,7 +274,11 @@ export function ModalNuevaAsignacion({ open, onClose, onAssigned }) {
 
 export default function RegistroAsignacionEquipos() {
   const [asignados, setAsignados] = useState([]);
+  const [equiposStock, setEquiposStock] = useState([]);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [asignacionEditando, setAsignacionEditando] = useState(null);
+  const [itemEstadoEditando, setItemEstadoEditando] = useState(null);
+  const [estadosStock, setEstadosStock] = useState({});
   const [desasignando, setDesasignando] = useState(null);
   const [mensaje, setMensaje] = useState('');
   const [error, setError] = useState('');
@@ -95,6 +294,17 @@ export default function RegistroAsignacionEquipos() {
   };
 
   useEffect(() => { cargarAsignados(); }, []);
+
+  useEffect(() => {
+    equipoMedicoService.disponibles()
+      .then(response => {
+        const stockEquipos = response.data || [];
+        setEquiposStock(stockEquipos);
+      })
+      .catch(exception => {
+        setError(exception.response?.data?.message || 'No se pudo cargar el stock de equipos médicos.');
+      });
+  }, []);
 
   useEffect(() => {
     if (!mensaje) return undefined;
@@ -121,6 +331,76 @@ export default function RegistroAsignacionEquipos() {
     setMensaje(texto);
     await cargarAsignados();
   };
+
+  const asignacionActualizada = async texto => {
+    setMensaje(texto);
+    await Promise.all([cargarAsignados(), equipoMedicoService.disponibles()]);
+  };
+
+  const estadoActualizado = (item, estado) => {
+    setEstadosStock(estadosPrevios => ({
+      ...estadosPrevios,
+      [item.insumoId || item.id.replace('stock-', '')]: estado,
+    }));
+
+    if (item.asignado || estado === 'ASIGNADO' || estado === 'AVERIADO') {
+      const estadoEquipo = estado === 'AVERIADO'
+        ? 'FUERA_DE_SERVICIO'
+        : estado === 'EN MANTENIMIENTO'
+          ? 'MANTENIMIENTO'
+          : estado === 'FUNCIONANDO'
+            ? 'DISPONIBLE'
+            : 'EN_USO';
+
+      setAsignados(asignacionesActuales =>
+        asignacionesActuales.map(asignacion =>
+          asignacion.equipoId === item.equipoId
+            ? { ...asignacion, estadoEquipo }
+            : asignacion
+        )
+      );
+    }
+
+    setMensaje(`Estado actualizado a ${estado}.`);
+  };
+
+  const equiposStockCombinados = (() => {
+    const porNombre = new Map();
+
+    equiposStock.forEach(item => {
+      porNombre.set(item.nombre.trim().toLocaleLowerCase('es'), {
+        id: `stock-${item.id}`,
+        insumoId: item.id,
+        nombre: item.nombre,
+        numeroSerie: item.numeroSerie || `INS-${item.id}`,
+        cantidad: 1,
+        estado: estadosStock[item.id] || 'FUNCIONANDO',
+      });
+    });
+
+    asignados.forEach(asignacion => {
+      const clave = asignacion.equipoNombre.trim().toLocaleLowerCase('es');
+      const estadoAsignado = asignacion.estadoEquipo === 'FUERA_DE_SERVICIO'
+        ? 'AVERIADO'
+        : asignacion.estadoEquipo === 'MANTENIMIENTO'
+          ? 'EN MANTENIMIENTO'
+          : asignacion.estadoEquipo === 'DISPONIBLE'
+            ? 'FUNCIONANDO'
+            : 'ASIGNADO';
+      porNombre.set(clave, {
+        id: `asignado-${asignacion.asignacionId}`,
+        insumoId: asignacion.equipoId,
+        equipoId: asignacion.equipoId,
+        asignado: true,
+        nombre: asignacion.equipoNombre,
+        numeroSerie: asignacion.equipoNumeroSerie || `INS-${asignacion.equipoId}`,
+        cantidad: 1,
+        estado: estadoAsignado,
+      });
+    });
+
+    return Array.from(porNombre.values());
+  })();
 
   return (
     <div style={S.page}>
@@ -149,16 +429,75 @@ export default function RegistroAsignacionEquipos() {
                 <td><strong>{asignacion.equipoNombre}</strong></td>
                 <td>{asignacion.equipoNumeroSerie}</td>
                 <td><span className="assignment-movil">{asignacion.movilNumeroInterno}</span></td>
-                <td><span className="assignment-status-badge"><span className="assignment-status-dot" />{asignacion.estadoEquipo?.replace('_', ' ')}</span></td>
-                <td><button type="button" className="assignment-unassign-button" disabled={desasignando === asignacion.equipoId} onClick={() => desasignar(asignacion)}>
-                  {desasignando === asignacion.equipoId ? 'Desasignando...' : 'Desasignar'}
-                </button></td>
+                <td><StockStatusBadge estado={asignacion.estadoEquipo} /></td>
+                <td>
+                  <div className="assignment-actions">
+                    <button type="button" className="assignment-edit-button" onClick={() => setAsignacionEditando(asignacion)}>Editar</button>
+                    <button type="button" className="assignment-unassign-button" disabled={desasignando === asignacion.equipoId} onClick={() => desasignar(asignacion)}>
+                      {desasignando === asignacion.equipoId ? 'Desasignando...' : 'Desasignar'}
+                    </button>
+                  </div>
+                </td>
               </tr>)}</tbody>
             </table></div>
           )}
         </section>
+
+        <h2 className="assignment-section-title" style={S.sectionTitle}>Equipos en stock</h2>
+        <section className="assignment-card" style={S.card}>
+          {equiposStockCombinados.length === 0 ? (
+            <p style={S.empty}>No hay equipos médicos disponibles en stock.</p>
+          ) : (
+            <div style={S.tableWrap} className="assignment-table-wrap">
+              <table className="assignment-table stock-equipment-table">
+                <thead>
+                  <tr>
+                    <th>Equipo</th>
+                    <th>Número de serie</th>
+                    <th>Estado</th>
+                    <th>Cantidad</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {equiposStockCombinados.map(item => (
+                    <tr key={item.id}>
+                      <td><strong>{item.nombre}</strong></td>
+                      <td>{item.numeroSerie}</td>
+                      <td>
+                        <StockStatusBadge estado={item.estado} />
+                      </td>
+                      <td>{item.cantidad}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="assignment-edit-button"
+                          onClick={() => setItemEstadoEditando(item)}
+                        >
+                          Editar estado
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       </main>
       <ModalNuevaAsignacion open={modalAbierto} onClose={() => setModalAbierto(false)} onAssigned={asignacionCreada} />
+      <ModalEditarAsignacion
+        open={Boolean(asignacionEditando)}
+        asignacion={asignacionEditando}
+        onClose={() => setAsignacionEditando(null)}
+        onUpdated={asignacionActualizada}
+      />
+      <ModalEditarEstado
+        open={Boolean(itemEstadoEditando)}
+        item={itemEstadoEditando}
+        onClose={() => setItemEstadoEditando(null)}
+        onUpdated={estadoActualizado}
+      />
     </div>
   );
 }

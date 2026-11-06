@@ -2,7 +2,9 @@ package com.sigem.backend.controller;
 
 import com.sigem.backend.dto.AsignacionEquipoDTO;
 import com.sigem.backend.dto.AsignacionEquipoResponseDTO;
-import com.sigem.backend.model.EquipoMedico;
+import com.sigem.backend.dto.ModificarAsignacionDTO;
+import com.sigem.backend.dto.ModificarEstadoEquipoDTO;
+import com.sigem.backend.model.Insumo;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.service.AsignacionEquipoService;
 import jakarta.validation.Valid;
@@ -25,7 +27,7 @@ public class EquipoMedicoController {
 
     @GetMapping("/disponibles")
     @PreAuthorize("hasAnyRole('JEF', 'COORD_ENF', 'ADM')")
-    public ResponseEntity<List<EquipoMedico>> listarDisponibles() {
+    public ResponseEntity<List<Insumo>> listarDisponibles() {
         return ResponseEntity.ok(asignacionService.listarDisponibles());
     }
 
@@ -42,6 +44,24 @@ public class EquipoMedicoController {
             @AuthenticationPrincipal Usuario coordinador) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(asignacionService.asignar(dto, coordinador));
+    }
+
+    @PutMapping("/asignacion/{id}")
+    @PreAuthorize("hasAnyRole('JEF', 'COORD_ENF', 'ADM')")
+    public ResponseEntity<AsignacionEquipoResponseDTO> modificarAsignacion(
+            @PathVariable Long id,
+            @Valid @RequestBody ModificarAsignacionDTO dto,
+            @AuthenticationPrincipal Usuario coordinador) {
+        return ResponseEntity.ok(asignacionService.modificarAsignacion(id, dto, coordinador));
+    }
+
+    @PutMapping("/{id}/estado")
+    @PreAuthorize("hasAnyRole('JEF', 'COORD_ENF', 'ADM')")
+    public ResponseEntity<Void> modificarEstado(
+            @PathVariable Long id,
+            @Valid @RequestBody ModificarEstadoEquipoDTO dto) {
+        asignacionService.modificarEstado(id, dto.getEstado());
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}/desasignar")
