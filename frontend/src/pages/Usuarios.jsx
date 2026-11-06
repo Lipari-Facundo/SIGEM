@@ -526,13 +526,14 @@ export default function Usuarios() {
           )}
         </div>
 
-        {/* ── Tabla ── */}
+        {/* ── Tabla con scroll horizontal en pantallas pequeñas ── */}
         <div style={S.tableCard}>
-          <table style={S.table}>
+          <div style={S.tableScrollWrapper} className="overflow-x-auto w-full block">
+            <table style={S.table} className="min-w-max">
             <thead>
               <tr style={S.tableHead}>
                 {['Usuario','Nombre','DNI','Correo electrónico','Rol','Estado','Acciones'].map(h => (
-                  <th key={h} style={S.th}>{h}</th>
+                  <th key={h} style={{ ...S.th, ...(h === 'DNI' || h === 'Rol' || h === 'Estado' || h === 'Acciones' ? S.thNoWrap : {}) }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -629,6 +630,7 @@ export default function Usuarios() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </main>
 
@@ -755,7 +757,7 @@ const S = {
 
   // Tabs + PDF row
   tabsRow:        { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', gap: '12px', flexWrap: 'wrap' },
-  tabsBar:        { display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1 },
+  tabsBar:        { display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1, marginBottom: '20px' },
   tab:            { padding: '8px 14px', borderRadius: '20px', border: '1.5px solid #E5E7EB', background: '#fff', color: '#4B5563', cursor: 'pointer', fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.15s' },
   tabActivo:      { background: '#1B6B6B', borderColor: '#1B6B6B', color: '#fff' },
 
@@ -769,12 +771,14 @@ const S = {
   errorBar:    { background: '#FFEBEE', border: '1px solid #EF9A9A', color: '#C62828', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px' },
 
   // Tabla
-  tableCard:   { background: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'auto' },
-  table:       { width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' },
+  tableCard:   { background: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)', overflow: 'hidden' },
+  tableScrollWrapper: { width: '100%', display: 'block', overflowX: 'auto', WebkitOverflowScrolling: 'touch' },
+  table:       { width: '100%', minWidth: '1100px', borderCollapse: 'collapse', tableLayout: 'auto' },
   tableHead:   { background: '#1B6B6B' },
-  th:          { color: '#fff', padding: '13px 14px', textAlign: 'left', fontSize: '13px', fontWeight: '600', whiteSpace: 'normal' },
+  th:          { color: '#fff', padding: '13px 14px', textAlign: 'left', fontSize: '13px', fontWeight: '600', whiteSpace: 'nowrap' },
+  thNoWrap:    { whiteSpace: 'nowrap' },
   tr:          { borderBottom: '1px solid #F0F7F7' },
-  td:          { padding: '12px 14px', fontSize: '13px', color: '#333', verticalAlign: 'middle', whiteSpace: 'normal', wordBreak: 'break-word' },
+  td:          { padding: '12px 14px', fontSize: '13px', color: '#333', verticalAlign: 'middle', whiteSpace: 'nowrap', wordBreak: 'normal' },
   empty:       { textAlign: 'center', padding: '48px', color: '#999', fontSize: '14px' },
 
   // Separadores de grupo de rol
@@ -791,7 +795,7 @@ const S = {
   toggleThumb: { position: 'absolute', top: '3px', width: '16px', height: '16px', borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)', transition: 'transform 0.2s' },
 
   // Botones de acciones en tabla
-  actions:     { display: 'flex', gap: '6px' },
+  actions:     { display: 'flex', gap: '6px', flexWrap: 'nowrap', whiteSpace: 'nowrap' },
   btnEdit:     { background: '#E3F2FD', color: '#1565C0', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '12px' },
   btnDanger:   { background: '#FFEBEE', color: '#C62828', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '12px' },
 

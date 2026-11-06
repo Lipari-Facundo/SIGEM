@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
 import { guardiaService } from '../services/api';
 import { useEffect, useState } from 'react';
+import './Sidebar.css';
 
 const items = [
   { path: '/dashboard',          label: 'Panel de control',   icon: '🏠', roles: ['ADM','ENF','JEF','DES','DIR'] },
@@ -56,8 +57,57 @@ export default function Sidebar() {
     };
   }, [user?.rol]);
 
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, []);
+
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
+  const closeMobileSidebar = () => setIsOpen(false);
+
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen]);
+
   return (
-    <aside style={S.sidebar}>
+    <>
+      <button
+        type="button"
+        className="sigem-menu-button"
+        onClick={() => setIsOpen(true)}
+        aria-label="Abrir menú de navegación"
+        aria-expanded={isOpen}
+      >
+        ☰
+      </button>
+
+      {isOpen && (
+        <button
+          type="button"
+          className="sigem-sidebar-overlay"
+          onClick={closeMobileSidebar}
+          aria-label="Cerrar menú de navegación"
+        />
+      )}
+
+      <aside className={`sigem-sidebar ${isOpen ? 'is-open' : ''}`} style={S.sidebar}>
+        <button
+          type="button"
+          className="sigem-sidebar-close"
+          onClick={closeMobileSidebar}
+          aria-label="Cerrar menú"
+        >
+          ×
+        </button>
       <div style={S.logo}>
         <div style={S.logoIcon}>🛡</div>
         <div>
@@ -75,7 +125,7 @@ export default function Sidebar() {
           .map(item => (
             <button
               key={item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => { navigate(item.path); closeMobileSidebar(); }}
               style={{
                 ...S.navItem,
                 ...(location.pathname === item.path ? S.navActive : {})
@@ -106,7 +156,8 @@ export default function Sidebar() {
           Salir
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
