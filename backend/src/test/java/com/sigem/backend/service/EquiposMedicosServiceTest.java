@@ -13,18 +13,21 @@ import com.sigem.backend.model.EquipoMedico;
 import com.sigem.backend.model.EstadoEquipoMedico;
 import com.sigem.backend.model.EstadoMovil;
 import com.sigem.backend.model.Guardia;
+import com.sigem.backend.model.GuardiaEstado;
 import com.sigem.backend.model.Insumo;
 import com.sigem.backend.model.MantenimientoEquipo;
 import com.sigem.backend.model.Movil;
 import com.sigem.backend.model.MovimientoEquipoDetalle;
 import com.sigem.backend.model.Rol;
 import com.sigem.backend.model.TipoEquipoMedico;
+import com.sigem.backend.model.TipoGuardia;
 import com.sigem.backend.model.TipoMantenimientoEquipo;
 import com.sigem.backend.model.TipoInsumo;
 import com.sigem.backend.model.TipoMovil;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.AsignacionEquipoRepository;
 import com.sigem.backend.repository.EquipoMedicoRepository;
+import com.sigem.backend.repository.GuardiaRepository;
 import com.sigem.backend.repository.MantenimientoEquipoRepository;
 import com.sigem.backend.repository.MovilRepository;
 import com.sigem.backend.repository.MovimientoEquipoDetalleRepository;
@@ -67,6 +70,8 @@ class EquiposMedicosServiceTest {
 
     @Autowired private EquiposMedicosService service;
     @Autowired private TipoEquipoMedicoRepository tipoRepository;
+    @Autowired private InventarioMovilService inventarioMovilService;
+    @Autowired private GuardiaRepository guardiaRepository;
     @Autowired private EquipoMedicoRepository equipoRepository;
     @Autowired private AsignacionEquipoRepository asignacionRepository;
     @Autowired private MovimientoEquipoRepository movimientoRepository;
@@ -81,6 +86,7 @@ class EquiposMedicosServiceTest {
 
     @BeforeEach
     void setUp() {
+        guardiaRepository.deleteAll();
         detalleRepository.deleteAll();
         mantenimientoRepository.deleteAll();
         movimientoRepository.deleteAll();
@@ -96,6 +102,35 @@ class EquiposMedicosServiceTest {
         tipoRepository.saveAndFlush(new TipoEquipoMedico("ELECTROCARDIOGRAFO", "Electrocardiógrafo"));
         tipoRepository.saveAndFlush(new TipoEquipoMedico("CARDIODESFIBRILADOR", "Cardiodesfibrilador"));
         tipoRepository.saveAndFlush(new TipoEquipoMedico("RESPIRADOR", "Respirador"));
+    }
+
+    @Test
+    void inventarioEnfermeroCoincideConEquipoYSerieVigentesDelMovilDeGuardia() {
+        Movil movil = guardarMovil();
+        EquipoMedico equipo = registrar("ECG-GUARDIA-001");
+        service.asignarInicialmente(actor, movimiento(equipo, movil, "Asignación de prueba"));
+
+        Guardia guardia = new Guardia();
+        guardia.setEnfermero(enfermero);
+        guardia.setMovil(movil);
+        guardia.setTipoGuardia(TipoGuardia.MOVIL);
+        guardia.setTurno("NOCHE");
+        guardia.setFechaInicio(LocalDateTime.now());
+        guardia.setEstado(GuardiaEstado.ACTIVA);
+        guardiaRepository.saveAndFlush(guardia);
+
+        var inventarioEnfermero = inventarioMovilService.obtenerEquiposMedicosDeMiMovil(enfermero);
+        var inventarioCoordinador = service.listarOperativosPorMovil(actor).stream()
+                .filter(item -> item.movilId().equals(movil.getId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(inventarioCoordinador, inventarioEnfermero);
+        assertEquals("ECG-GUARDIA-001", inventarioEnfermero.equipos().stream()
+                .filter(item -> item.tipo().equals("ELECTROCARDIOGRAFO"))
+                .findFirst()
+                .orElseThrow()
+                .numeroSerie());
     }
 
     @Test

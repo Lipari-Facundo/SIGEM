@@ -2,6 +2,7 @@ package com.sigem.backend.controller;
 
 import com.sigem.backend.dto.ConsumoBatchDTO;
 import com.sigem.backend.dto.ConsumoInsumoDTO;
+import com.sigem.backend.dto.EquipoOperativoMovilDTO;
 import com.sigem.backend.dto.InsumoStockDTO;
 import com.sigem.backend.dto.ReposicionCreateDTO;
 import com.sigem.backend.dto.ReposicionEntregaDTO;
@@ -37,6 +38,13 @@ public class InventarioMovilController {
     public ResponseEntity<List<InsumoStockDTO>> inventarioDeMiMovil(
             @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(inventarioMovilService.obtenerInventarioDeMiMovil(usuario));
+    }
+
+    @GetMapping("/mi-movil/equipos-medicos")
+    @PreAuthorize("hasRole('ENF')")
+    public ResponseEntity<EquipoOperativoMovilDTO> equiposMedicosDeMiMovil(
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.obtenerEquiposMedicosDeMiMovil(usuario));
     }
 
     @GetMapping("/movil/{movilId}")

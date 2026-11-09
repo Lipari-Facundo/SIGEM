@@ -75,6 +75,7 @@ export const movilService = {
 
 export const inventarioService = {
   miInventario:       ()       => api.get('/inventario/mi-movil'),
+  misEquiposMedicos:  ()       => api.get('/inventario/mi-movil/equipos-medicos'),
   inventarioDeMovil:  (movilId) => api.get(`/inventario/movil/${movilId}`),
   inicializar:        (movilId) => api.post(`/inventario/movil/${movilId}/inicializar`),
   registrarConsumo:   (dto)    => api.post('/inventario/consumo', dto),

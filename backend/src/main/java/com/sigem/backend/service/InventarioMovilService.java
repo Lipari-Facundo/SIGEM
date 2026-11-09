@@ -10,6 +10,7 @@ import com.sigem.backend.dto.ReposicionEntregaDTO;
 import com.sigem.backend.dto.ReposicionItemDTO;
 import com.sigem.backend.dto.SolicitudReposicionDTO;
 import com.sigem.backend.dto.SugerenciaReposicionDTO;
+import com.sigem.backend.dto.EquipoOperativoMovilDTO;
 import com.sigem.backend.model.ConsumoInsumo;
 import com.sigem.backend.model.EstadoReposicion;
 import com.sigem.backend.model.Incidente;
@@ -59,6 +60,7 @@ public class InventarioMovilService {
     private final SolicitudReposicionItemRepository solicitudReposicionItemRepository;
     private final StockDepositoCentralRepository stockDepositoCentralRepository;
     private final MovimientoDepositoCentralRepository movimientoDepositoCentralRepository;
+    private final EquiposOperativosMovilService equiposOperativosMovilService;
 
     public InventarioMovilService(StockEstandarMovilRepository stockEstandarMovilRepository,
                                   MovilInsumoRepository movilInsumoRepository,
@@ -69,7 +71,8 @@ public class InventarioMovilService {
                                   SolicitudReposicionRepository solicitudReposicionRepository,
                                   SolicitudReposicionItemRepository solicitudReposicionItemRepository,
                                   StockDepositoCentralRepository stockDepositoCentralRepository,
-                                  MovimientoDepositoCentralRepository movimientoDepositoCentralRepository) {
+                                  MovimientoDepositoCentralRepository movimientoDepositoCentralRepository,
+                                  EquiposOperativosMovilService equiposOperativosMovilService) {
         this.stockEstandarMovilRepository = stockEstandarMovilRepository;
         this.movilInsumoRepository = movilInsumoRepository;
         this.guardiaRepository = guardiaRepository;
@@ -80,6 +83,7 @@ public class InventarioMovilService {
         this.solicitudReposicionItemRepository = solicitudReposicionItemRepository;
         this.stockDepositoCentralRepository = stockDepositoCentralRepository;
         this.movimientoDepositoCentralRepository = movimientoDepositoCentralRepository;
+        this.equiposOperativosMovilService = equiposOperativosMovilService;
     }
 
     @Transactional
@@ -131,6 +135,12 @@ public class InventarioMovilService {
                 .orElseThrow(() -> new RuntimeException(
                         "No tenés una guardia activa, no hay móvil asignado"));
         return obtenerInventarioDeMovil(guardia.getMovil().getId());
+    }
+
+    @Transactional(readOnly = true)
+    public EquipoOperativoMovilDTO obtenerEquiposMedicosDeMiMovil(Usuario enfermero) {
+        Movil movil = buscarGuardiaActiva(enfermero).getMovil();
+        return equiposOperativosMovilService.obtenerParaMovil(movil);
     }
 
     @Transactional

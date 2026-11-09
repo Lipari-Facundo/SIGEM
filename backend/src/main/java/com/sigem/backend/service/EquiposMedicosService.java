@@ -75,6 +75,7 @@ public class EquiposMedicosService {
     private final MantenimientoEquipoRepository mantenimientoRepository;
     private final UsuarioRepository usuarioRepository;
     private final InsumoRepository insumoRepository;
+    private final EquiposOperativosMovilService equiposOperativosMovilService;
 
     public EquiposMedicosService(
             EquipoMedicoRepository equipoRepository,
@@ -85,7 +86,8 @@ public class EquiposMedicosService {
             MovimientoEquipoDetalleRepository detalleRepository,
             MantenimientoEquipoRepository mantenimientoRepository,
             UsuarioRepository usuarioRepository,
-            InsumoRepository insumoRepository) {
+            InsumoRepository insumoRepository,
+            EquiposOperativosMovilService equiposOperativosMovilService) {
         this.equipoRepository = equipoRepository;
         this.tipoRepository = tipoRepository;
         this.asignacionRepository = asignacionRepository;
@@ -95,6 +97,7 @@ public class EquiposMedicosService {
         this.mantenimientoRepository = mantenimientoRepository;
         this.usuarioRepository = usuarioRepository;
         this.insumoRepository = insumoRepository;
+        this.equiposOperativosMovilService = equiposOperativosMovilService;
     }
 
     @Transactional(readOnly = true)
@@ -543,46 +546,10 @@ public class EquiposMedicosService {
     @Transactional(readOnly = true)
     public List<EquipoOperativoMovilDTO> listarOperativosPorMovil(Usuario actor) {
         validarAcceso(actor);
-        List<TipoEquipoMedico> tipos = tipoRepository.findAllByOrderByNombreAsc().stream()
-                .filter(tipo -> TIPOS.containsKey(tipo.getCodigo()))
-                .toList();
         return movilRepository.findByEstadoMovil(EstadoMovil.OPERATIVO).stream()
                 .sorted(Comparator.comparing(Movil::getNumeroInterno))
-                .map(movil -> {
-                    List<AsignacionEquipo> asignacionesActivas =
-                            asignacionRepository.findByMovilIdAndActivoTrue(movil.getId());
-                    if (asignacionesActivas.stream().anyMatch(a ->
-                            a.getTipoEquipo() == null && codigoTipo(a.getEquipo()) == null)) {
-                        throw new ResourceConflictException(
-                                "El móvil " + movil.getNumeroInterno()
-                                        + " tiene una asignación activa sin tipo; requiere clasificación verificada");
-                    }
-                    Map<String, List<AsignacionEquipo>> porTipo = asignacionesActivas.stream()
-                            .collect(Collectors.groupingBy(a -> a.getTipoEquipo() == null
-                                    ? codigoTipo(a.getEquipo()) : a.getTipoEquipo().getCodigo()));
-                    List<EquipoOperativoMovilDTO.EquipoOperativoItemDTO> equipos = tipos.stream()
-                            .map(tipo -> {
-                                List<AsignacionEquipo> asignaciones = porTipo.getOrDefault(tipo.getCodigo(), List.of());
-                                if (asignaciones.size() > 1) {
-                                    throw new ResourceConflictException(
-                                            "El móvil " + movil.getNumeroInterno()
-                                                    + " tiene varias asignaciones activas de tipo " + tipo.getCodigo());
-                                }
-                                AsignacionEquipo asignacion = asignaciones.isEmpty() ? null : asignaciones.get(0);
-                                EquipoMedico equipo = asignacion == null ? null : asignacion.getEquipo();
-                                boolean disponible = equipo != null
-                                        && (equipo.getEstado() == EstadoEquipoMedico.OPERATIVO
-                                            || equipo.getEstado() == EstadoEquipoMedico.EN_USO);
-                                return new EquipoOperativoMovilDTO.EquipoOperativoItemDTO(
-                                        tipo.getCodigo(), tipo.getNombre(),
-                                        disponible ? equipo.getId() : null,
-                                        disponible ? equipo.getNumeroSerie() : null,
-                                        disponible ? equipo.getEstado().name() : null,
-                                        !disponible);
-                            }).toList();
-                    return new EquipoOperativoMovilDTO(movil.getId(),
-                            movil.getNumeroInterno() + " · " + movil.getPatente(), equipos);
-                }).toList();
+                .map(equiposOperativosMovilService::obtenerParaMovil)
+                .toList();
     }
 
     private List<MovimientoEquipoDetalle> cargarDetallesMovimiento() {
