@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import { controlService, guardiaService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import './ControlMovil.css';
 
 const CATEGORIAS = [
   { key: 'MEDICACION', label: 'Medicación', icon: '💊' },
@@ -50,10 +51,10 @@ export default function ControlMovil() {
   const [loadingMis, setLoadingMis] = useState(false);
   const [detalleSeleccionado, setDetalleSeleccionado] = useState(null);
   const [movilId, setMovilId] = useState(null);
+  const [guardiaActual, setGuardiaActual] = useState(null);
   const [borradorListo, setBorradorListo] = useState(false);
   const [seccionAbierta, setSeccionAbierta] = useState(null);
   const referenciasSecciones = useRef({});
-  const aperturaManual = useRef(false);
   const claveBorrador = user?.username && movilId
     ? `sigem:control-movil:${user.username}:${movilId}`
     : null;
@@ -72,6 +73,7 @@ export default function ControlMovil() {
       const items = plantillaResponse.data || [];
       const guardia = (guardiasResponse.data || []).find((item) => item.estado === 'ACTIVA');
       const idMovil = guardia?.movil?.id;
+      setGuardiaActual(guardia || null);
       const draftKey = user?.username && idMovil
         ? `sigem:control-movil:${user.username}:${idMovil}`
         : null;
@@ -185,12 +187,8 @@ export default function ControlMovil() {
 
   useEffect(() => {
     if (!seccionesConEstado.length) return;
-    if (aperturaManual.current) {
-      aperturaManual.current = false;
-      return;
-    }
-    if (seccionAbierta && !seccionesConEstado.find((item) => item.key === seccionAbierta)?.completa) return;
-    setSeccionAbierta(seccionesConEstado.find((item) => !item.completa)?.key || null);
+    if (seccionAbierta && seccionesConEstado.some((item) => item.key === seccionAbierta)) return;
+    setSeccionAbierta(seccionesConEstado.find((item) => !item.completa)?.key || seccionesConEstado[0].key);
   }, [seccionesConEstado, seccionAbierta]);
 
   useEffect(() => {
@@ -211,7 +209,6 @@ export default function ControlMovil() {
     numeroSeriePorInsumo, testPorInsumo, observaciones]);
 
   const abrirSeccion = (key) => {
-    aperturaManual.current = true;
     setSeccionAbierta(key);
     window.requestAnimationFrame(() => referenciasSecciones.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
@@ -318,6 +315,14 @@ export default function ControlMovil() {
     ...(resultadoControl === 'CONFORME' ? S.badgeOk : S.badgeWarn),
   });
 
+  const itemsDetalle = detalleSeleccionado?.items || [];
+  const categoriasDetalle = agruparItemsPorCategoria(itemsDetalle);
+
+  const estadoSeccionLabel = (seccion) => {
+    if (!seccion.completa) return seccion.completados > 0 ? 'En curso' : 'Pendiente';
+    return seccion.conNovedades ? 'Con novedades' : 'Completa';
+  };
+
   const renderItem = (item, tarjetaGrande = false) => {
     const id = item.insumoId;
     const recomendada = Number(item.cantidadRecomendada) || 0;
@@ -325,25 +330,49 @@ export default function ControlMovil() {
     const estado = item.requiereTest && testPorInsumo[id] === false
       ? 'DEFECTUOSO'
       : estadoPorInsumo[id] || 'OPERATIVO';
+    const itemConNovedad = item.tipo === 'CONSUMIBLE'
+      ? cantidad !== '' && Number(cantidad) < recomendada
+      : estado !== 'OPERATIVO' || testPorInsumo[id] === false;
+    const itemNoDisponible = item.tipo === 'REUTILIZABLE' && estado === 'FALTANTE';
+    const etiquetaEstado = !itemCompleto(item)
+      ? 'Pendiente'
+      : itemNoDisponible
+        ? 'No disponible'
+        : item.tipo === 'CONSUMIBLE' && Number(cantidad) === 0 && recomendada > 0
+          ? 'Faltante'
+          : itemConNovedad ? 'Con novedad' : 'Completo';
     const requiereMotivo = item.tipo === 'CONSUMIBLE'
       ? cantidad !== '' && Number(cantidad) < recomendada
       : estado !== 'OPERATIVO';
 
     return (
-      <article key={id} style={tarjetaGrande ? S.equipmentCard : S.itemRow}>
-        <div style={S.itemHeading}>
+      <article key={id} className={`control-item-row${tarjetaGrande ? ' control-equipment-row' : ''}`} style={tarjetaGrande ? S.equipmentCard : S.itemRow}>
+        <div className="control-item-heading" style={S.itemHeading}>
           <strong style={S.itemName}>{item.nombre}</strong>
-          <span style={S.itemMeta}>{item.tipo === 'CONSUMIBLE' ? 'Rec: ' : 'Stock estándar: '}{recomendada} {item.unidadMedida || ''}</span>
+          <span style={S.itemMeta}>
+            {item.tipo === 'CONSUMIBLE'
+              ? `Requerido: ${recomendada} · Registrado: ${cantidad === '' ? '—' : cantidad} ${item.unidadMedida || ''}`
+              : `Stock estándar: ${recomendada} ${item.unidadMedida || ''}`}
+          </span>
+          <span className={`control-item-status ${
+            !itemCompleto(item) ? 'is-pending'
+              : itemNoDisponible ? 'is-unavailable'
+                : item.tipo === 'CONSUMIBLE' && Number(cantidad) === 0 && recomendada > 0 ? 'is-shortage'
+                  : itemConNovedad ? 'is-warning' : 'is-complete'
+          }`}>
+            {etiquetaEstado}
+          </span>
         </div>
 
         {item.tipo === 'CONSUMIBLE' ? (
-          <div style={S.countControls}>
+          <div className="control-count-controls" style={S.countControls}>
             {recomendada <= 12 ? (
               <div style={S.choiceWrap} aria-label={`Cantidad contada de ${item.nombre}`}>
                 {Array.from({ length: recomendada + 1 }, (_, valor) => (
                   <button
                     key={valor}
                     type="button"
+                    className="control-choice"
                     style={{ ...S.choice, ...(Number(cantidad) === valor && cantidad !== '' ? S.choiceActive : {}) }}
                     aria-pressed={cantidad !== '' && Number(cantidad) === valor}
                     onClick={() => actualizarCantidad(id, valor)}
@@ -352,6 +381,7 @@ export default function ControlMovil() {
               </div>
             ) : (
               <select
+                className="control-select"
                 aria-label={`Cantidad contada de ${item.nombre}`}
                 value={cantidad ?? ''}
                 onChange={(event) => actualizarCantidad(id, event.target.value)}
@@ -361,9 +391,10 @@ export default function ControlMovil() {
                 {Array.from({ length: recomendada + 1 }, (_, valor) => <option key={valor} value={valor}>{valor}</option>)}
               </select>
             )}
-            <button type="button" style={S.actionChip} onClick={() => actualizarCantidad(id, recomendada)}>Completo</button>
+            <button type="button" className="control-action" style={S.actionChip} onClick={() => actualizarCantidad(id, recomendada)}>Completo</button>
             <button
               type="button"
+              className="control-action"
               style={S.actionChip}
               onClick={() => {
                 setMasAbiertoPorInsumo((previo) => ({ ...previo, [id]: !previo[id] }));
@@ -372,19 +403,20 @@ export default function ControlMovil() {
             >+ más</button>
             {masAbiertoPorInsumo[id] && (
               <div style={S.stepper} aria-label={`Ajuste por encima del recomendado para ${item.nombre}`}>
-                <button type="button" style={S.stepButton} onClick={() => actualizarCantidad(id, Math.max(0, Number(cantidad || 0) - 1))} aria-label="Restar una unidad">−</button>
+                <button type="button" className="control-step-button" style={S.stepButton} onClick={() => actualizarCantidad(id, Math.max(0, Number(cantidad || 0) - 1))} aria-label="Restar una unidad">−</button>
                 <strong>{cantidad === '' ? recomendada : cantidad}</strong>
-                <button type="button" style={S.stepButton} onClick={() => actualizarCantidad(id, Number(cantidad || 0) + 1)} aria-label="Sumar una unidad">＋</button>
+                <button type="button" className="control-step-button" style={S.stepButton} onClick={() => actualizarCantidad(id, Number(cantidad || 0) + 1)} aria-label="Sumar una unidad">＋</button>
               </div>
             )}
           </div>
         ) : (
-          <div style={S.equipmentControls}>
+          <div className="control-equipment-controls" style={S.equipmentControls}>
             <div style={S.segmentGroup} aria-label={`Estado de ${item.nombre}`}>
               {ESTADOS_EQUIPO.map((opcion) => (
                 <button
                   type="button"
                   key={opcion.value}
+                  className="control-segment"
                   aria-pressed={estado === opcion.value}
                   style={{ ...S.segment, ...(estado === opcion.value ? S.segmentActive : {}) }}
                   onClick={() => setEstadoPorInsumo((previo) => ({ ...previo, [id]: opcion.value }))}
@@ -394,12 +426,13 @@ export default function ControlMovil() {
 
             {item.requiereTest && estado !== 'FALTANTE' && (
               <div style={S.controlField}>
-                <span style={S.label}>Test de prueba</span>
+                <span className="controlFieldLabel" style={S.label}>Test de prueba</span>
                 <div style={S.segmentGroup}>
                   {[{ value: true, label: 'Aprobó' }, { value: false, label: 'No aprobó' }].map((opcion) => (
                     <button
                       type="button"
                       key={String(opcion.value)}
+                      className="control-segment"
                       aria-pressed={testPorInsumo[id] === opcion.value}
                       style={{ ...S.segment, ...(testPorInsumo[id] === opcion.value ? S.segmentActive : {}) }}
                       onClick={() => {
@@ -414,9 +447,10 @@ export default function ControlMovil() {
 
             {item.requiereSerie && estado !== 'FALTANTE' && (
               <label style={S.controlField}>
-                <span style={S.label}>N° de serie</span>
+                <span className="controlFieldLabel" style={S.label}>N° de serie</span>
                 <input
                   type="text"
+                  className="control-serial"
                   maxLength={100}
                   autoCapitalize="characters"
                   value={numeroSeriePorInsumo[id] ?? ''}
@@ -437,16 +471,18 @@ export default function ControlMovil() {
                 <button
                   type="button"
                   key={motivo}
+                  className="control-reason"
                   style={{ ...S.reasonChip, ...(motivoPorInsumo[id] === motivo ? S.reasonActive : {}) }}
                   aria-pressed={motivoPorInsumo[id] === motivo}
                   onClick={() => setMotivoPorInsumo((previo) => ({ ...previo, [id]: previo[id] === motivo ? '' : motivo }))}
                 >{motivo}</button>
               ))}
-              <button type="button" style={S.noteToggle} onClick={() => setNotaAbiertaPorInsumo((previo) => ({ ...previo, [id]: !previo[id] }))}>+ nota</button>
+              <button type="button" className="control-note-toggle" style={S.noteToggle} onClick={() => setNotaAbiertaPorInsumo((previo) => ({ ...previo, [id]: !previo[id] }))}>+ nota</button>
             </div>
             {notaAbiertaPorInsumo[id] && (
               <input
                 type="text"
+                className="control-note-input"
                 value={observacionPorInsumo[id] || ''}
                 onChange={(event) => actualizarObservacion(id, event.target.value)}
                 style={S.noteInput}
@@ -471,18 +507,18 @@ export default function ControlMovil() {
 
   if (loading) {
     return (
-      <div style={S.page}>
+      <div className="controlPage" style={S.page}>
         <Sidebar />
-        <main style={S.main}>Cargando plantilla...</main>
+        <main className="controlMain" style={S.main}>Cargando plantilla...</main>
       </div>
     );
   }
 
   if (!guardiaActiva) {
     return (
-      <div style={S.page}>
+      <div className="controlPage" style={S.page}>
         <Sidebar />
-        <main style={S.main}>
+        <main className="controlMain" style={S.main}>
           <EmptyState
             icon="🩺"
             title="No tenés una guardia activa"
@@ -500,9 +536,9 @@ export default function ControlMovil() {
     const testFallidos = (resultado.items || []).filter((item) => item.testOk === false);
 
     return (
-      <div style={S.page}>
+      <div className="controlPage" style={S.page}>
         <Sidebar />
-        <main style={S.main}>
+        <main className="controlMain" style={S.main}>
           <div style={S.resultCard}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               <div>
@@ -553,15 +589,29 @@ export default function ControlMovil() {
   }
 
   return (
-    <div style={S.page}>
+    <div className="controlPage" style={S.page}>
       <Sidebar />
-      <main style={S.main}>
+      <main className="controlMain" style={S.main}>
         <header style={S.header}>
-          <div>
+          <div className="control-heading">
             <p style={S.overline}>Control de móvil</p>
             <h1 style={S.h1}>Control del móvil asignado</h1>
+            <div className="control-assignment">
+              {guardiaActual?.movil && (
+                <span><strong>Móvil</strong> {guardiaActual.movil.numeroInterno || guardiaActual.movil.patente}</span>
+              )}
+              {user && <span><strong>Responsable</strong> {user.nombre} {user.apellido}</span>}
+              {guardiaActual?.fechaInicio && (
+                <span><strong>Guardia desde</strong> {new Date(guardiaActual.fechaInicio).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+              )}
+            </div>
           </div>
-          <div style={S.progressPill}>{completados} de {plantilla.length} ítems completados</div>
+          <div className="control-progress" style={S.progressPill}>
+            <span>{completados} de {plantilla.length} ítems completados</span>
+            <div className="control-progress-track" role="progressbar" aria-valuenow={completados} aria-valuemin={0} aria-valuemax={plantilla.length}>
+              <span style={{ width: `${plantilla.length ? (completados / plantilla.length) * 100 : 0}%` }} />
+            </div>
+          </div>
         </header>
 
         {mensaje && <div style={S.success}>{mensaje}</div>}
@@ -573,61 +623,58 @@ export default function ControlMovil() {
         </div>
 
         {tab === 'nuevo' ? (
-          <section style={S.controlFlow}>
-            <div style={S.stickyProgress}>
-              <div style={S.stickyTopLine}>
-                <strong>{completados} de {plantilla.length}</strong>
-                <button type="button" style={S.actionChip} onClick={irAlProximoPendiente} disabled={completados === plantilla.length}>Ir al próximo pendiente</button>
-                <button type="button" style={S.clearButton} onClick={limpiarBorrador}>Limpiar</button>
+          <section className="controlWorkspace" style={S.controlFlow}>
+            <aside className="controlCategoryPanel" aria-label="Categorías del control">
+              <div className="controlCategoryHeading">
+                <strong>Categorías</strong>
+                <span>{seccionesConEstado.length}</span>
               </div>
-              <nav style={S.sectionChips} aria-label="Secciones del control">
+              <nav className="controlCategoryList">
                 {seccionesConEstado.map((seccion) => (
                   <button
                     type="button"
                     key={seccion.key}
-                    style={{ ...S.sectionChip, ...(seccion.completa ? S.sectionChipDone : {}) }}
+                    className={`controlCategoryButton${seccionAbierta === seccion.key ? ' is-active' : ''}`}
+                    aria-current={seccionAbierta === seccion.key ? 'page' : undefined}
                     onClick={() => abrirSeccion(seccion.key)}
                   >
-                    {seccion.completa ? '✓ ' : ''}{seccion.label} {seccion.completados}/{seccion.insumos.length}
+                    <span className="controlCategoryIcon" aria-hidden="true">{seccion.icon}</span>
+                    <span className="controlCategoryLabel">{seccion.label}</span>
+                    <span className="controlCategoryCount">{seccion.completados}/{seccion.insumos.length}</span>
+                    <span className={`controlCategoryStatus ${seccion.completa ? seccion.conNovedades ? 'is-warning' : 'is-complete' : seccion.completados ? 'is-progress' : 'is-pending'}`}>
+                      {estadoSeccionLabel(seccion)}
+                    </span>
                   </button>
                 ))}
               </nav>
-            </div>
+              <div className="controlCategoryActions">
+                <button type="button" style={S.actionChip} onClick={irAlProximoPendiente} disabled={completados === plantilla.length}>Ir al próximo pendiente</button>
+                <button type="button" style={S.clearButton} onClick={limpiarBorrador}>Limpiar borrador</button>
+              </div>
+            </aside>
 
-            {seccionesConEstado.map((seccion) => (
-              <section
-                key={seccion.key}
-                ref={(node) => { referenciasSecciones.current[seccion.key] = node; }}
-                style={S.sectionAccordion}
-              >
-                <button
-                  type="button"
-                  style={S.sectionHeader}
-                  aria-expanded={seccionAbierta === seccion.key}
-                  onClick={() => seccionAbierta === seccion.key
-                    ? (aperturaManual.current = true, setSeccionAbierta(null))
-                    : abrirSeccion(seccion.key)}
+            <div className="controlContent">
+              {seccionesConEstado.filter((seccion) => seccion.key === seccionAbierta).map((seccion) => (
+                <section
+                  key={seccion.key}
+                  ref={(node) => { referenciasSecciones.current[seccion.key] = node; }}
+                  className="controlSelectedCategory"
+                  aria-label={seccion.label}
                 >
-                  <span style={S.sectionIcon}>{seccion.icon}</span>
-                  <span style={S.sectionHeaderName}>{seccion.label}</span>
-                  <span style={S.sectionCount}>{seccion.completados}/{seccion.insumos.length}</span>
-                  <span style={{ ...S.sectionStatus, ...(seccion.completa ? (seccion.conNovedades ? S.sectionStatusWarn : S.sectionStatusDone) : {}) }}>
-                    {seccion.completa ? (seccion.conNovedades ? 'Con novedades' : 'Completa') : 'Pendiente'}
-                  </span>
-                  <span aria-hidden="true">{seccionAbierta === seccion.key ? '−' : '+'}</span>
-                </button>
-
-                {seccionAbierta === seccion.key && (
-                  <div style={S.sectionBody}>
-                    <div style={S.sectionActions}>
-                      <span style={S.itemMeta}>Completados: {seccion.completados} de {seccion.insumos.length}</span>
-                      <button
-                        type="button"
-                        style={S.actionChip}
-                        disabled={!seccion.insumos.some((item) => item.tipo === 'CONSUMIBLE' && !itemCompleto(item))}
-                        onClick={() => marcarSeccionCompleta(seccion)}
-                      >Marcar sección completa</button>
+                  <div className="controlSelectedHeader">
+                    <div>
+                      <p style={S.overline}>Categoría</p>
+                      <h2><span aria-hidden="true">{seccion.icon}</span> {seccion.label}</h2>
                     </div>
+                    <span className="controlSelectedCount">{seccion.completados} de {seccion.insumos.length} revisados</span>
+                    <button
+                      type="button"
+                      style={S.actionChip}
+                      disabled={!seccion.insumos.some((item) => item.tipo === 'CONSUMIBLE' && !itemCompleto(item))}
+                      onClick={() => marcarSeccionCompleta(seccion)}
+                    >Marcar sección completa</button>
+                  </div>
+                  <div className="controlItemList">
                     {agruparVariantes(seccion.insumos).map((grupo) => (
                       <div key={grupo.key} style={grupo.esVariantes ? S.variantGroup : S.singleItem}>
                         {grupo.esVariantes && <h4 style={S.variantTitle}>{grupo.titulo}</h4>}
@@ -637,35 +684,35 @@ export default function ControlMovil() {
                       </div>
                     ))}
                   </div>
-                )}
-              </section>
-            ))}
+                </section>
+              ))}
 
-            {pendientesPorSeccion.length > 0 && (
-              <div style={S.pendingList}>
-                <strong>Pendientes para completar el control</strong>
-                {pendientesPorSeccion.map((seccion) => (
-                  <div key={seccion.key} style={S.pendingRow}>
-                    <strong>{seccion.label}</strong>
-                    <span>{seccion.items.join(' · ')}</span>
-                  </div>
-                ))}
+              {pendientesPorSeccion.length > 0 && (
+                <details className="controlPendingSummary" style={S.pendingList}>
+                  <summary><strong>Pendientes para completar el control ({pendientesPorSeccion.reduce((total, seccion) => total + seccion.items.length, 0)})</strong></summary>
+                  {pendientesPorSeccion.map((seccion) => (
+                    <div key={seccion.key} style={S.pendingRow}>
+                      <strong>{seccion.label}</strong>
+                      <span>{seccion.items.join(' · ')}</span>
+                    </div>
+                  ))}
+                </details>
+              )}
+
+              <div className="controlFooter" style={S.footerBar}>
+                <textarea
+                  value={observaciones}
+                  onChange={(event) => setObservaciones(event.target.value)}
+                  placeholder="Observaciones generales del control"
+                  style={S.textarea}
+                />
+                <Button
+                  onClick={enviarControl}
+                  disabled={guardando || completados !== plantilla.length}
+                >
+                  {guardando ? 'Guardando...' : 'Enviar control'}
+                </Button>
               </div>
-            )}
-
-            <div style={S.footerBar}>
-              <textarea
-                value={observaciones}
-                onChange={(event) => setObservaciones(event.target.value)}
-                placeholder="Observaciones generales del control"
-                style={S.textarea}
-              />
-              <Button
-                onClick={enviarControl}
-                disabled={guardando || completados !== plantilla.length}
-              >
-                {guardando ? 'Guardando...' : 'Enviar control'}
-              </Button>
             </div>
           </section>
         ) : (
@@ -701,50 +748,133 @@ export default function ControlMovil() {
         )}
 
         {detalleSeleccionado && (
-          <div style={S.modalOverlay} onClick={() => setDetalleSeleccionado(null)}>
-            <div style={S.modal} onClick={(event) => event.stopPropagation()}>
-              <div style={S.modalHeader}>
-                <div>
-                  <div style={S.overline}>Detalle del control</div>
-                  <h3 style={S.h3}>{detalleSeleccionado.movilNumeroInterno} · {detalleSeleccionado.movilPatente}</h3>
+          <div className="controlHistoryOverlay" style={S.modalOverlay} onClick={() => setDetalleSeleccionado(null)}>
+            <section className="controlHistoryModal" style={S.modal} aria-labelledby="control-history-title" onClick={(event) => event.stopPropagation()}>
+              <header className="controlHistoryHeader">
+                <div className="controlHistoryTitleBlock">
+                  <p className="controlHistoryEyebrow">Constancia histórica · Solo lectura</p>
+                  <h2 id="control-history-title">INFORME DE CONTROL</h2>
+                  <div className="controlHistoryIdentity">
+                    <strong>Móvil {detalleSeleccionado.movilNumeroInterno}</strong>
+                    <span>Dominio {detalleSeleccionado.movilPatente}</span>
+                  </div>
                 </div>
-                <button style={S.closeBtn} onClick={() => setDetalleSeleccionado(null)}>×</button>
+                <button className="controlHistoryClose" type="button" aria-label="Cerrar informe" onClick={() => setDetalleSeleccionado(null)}>×</button>
+                <div className="controlHistoryMeta">
+                  <span><strong>Fecha y hora</strong>{new Date(detalleSeleccionado.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                  {detalleSeleccionado.enfermeroNombre && (
+                    <span><strong>Enfermero responsable</strong>{detalleSeleccionado.enfermeroNombre}</span>
+                  )}
+                  <span className="controlHistoryStatus is-complete"><strong>Realización</strong>Completado</span>
+                  <span className={`controlHistoryStatus ${detalleSeleccionado.resultado === 'CONFORME' ? 'is-conforming' : 'is-nonconforming'}`}>
+                    <strong>Resultado de inspección</strong>
+                    {detalleSeleccionado.resultado === 'CONFORME'
+                      ? 'Conforme'
+                      : detalleSeleccionado.resultado === 'CON_NOVEDADES'
+                        ? 'No conforme'
+                        : detalleSeleccionado.resultado}
+                  </span>
+                </div>
+              </header>
+
+              <div className="controlHistoryBody" style={S.modalBody}>
+                <div className="controlHistoryMetrics" aria-label="Resumen de inspección">
+                  <div><strong>{itemsDetalle.length}</strong><span>Elementos revisados</span></div>
+                  <div><strong>{detalleSeleccionado.totalFaltantes}</strong><span>Faltantes</span></div>
+                  <div><strong>{detalleSeleccionado.totalEquiposConNovedad}</strong><span>Equipos con novedades</span></div>
+                  <div><strong>{detalleSeleccionado.totalDiscrepanciasSistema}</strong><span>Discrepancias</span></div>
+                </div>
+
+                {detalleSeleccionado.observaciones && (
+                  <p className="controlHistoryGeneralNote"><strong>Observaciones generales</strong>{detalleSeleccionado.observaciones}</p>
+                )}
+
+                <div className="controlHistoryCategories">
+                  {categoriasDetalle.map(({ key, label, items }) => {
+                    const discrepancias = items.filter(tieneDiscrepanciaHistorica).length;
+                    const novedades = items.filter(tieneNovedadHistorica).length;
+                    const incidencias = items.filter((item) => tieneDiscrepanciaHistorica(item) || tieneNovedadHistorica(item)).length;
+
+                    return (
+                      <details className={`controlHistoryCategory${incidencias ? ' has-issues' : ''}`} key={key}>
+                        <summary>
+                          <span className="controlHistoryCategoryName">{label}</span>
+                          <span className="controlHistoryCategoryCount">{items.length} elementos · {items.length} revisados</span>
+                          <span className={`controlHistoryCategoryState${incidencias ? ' is-warning' : ' is-ok'}`}>
+                            {incidencias ? 'Con novedades' : 'Revisión correcta'}
+                          </span>
+                          <span className="controlHistoryCategoryIssues">
+                            {discrepancias > 0 && <span>{discrepancias} discrepancias</span>}
+                            {novedades > 0 && <span>{novedades} novedades</span>}
+                          </span>
+                          <span className="controlHistoryChevron" aria-hidden="true" />
+                        </summary>
+                        <div className="controlHistoryTableWrap">
+                          <table className="controlHistoryTable">
+                            <thead>
+                              <tr>
+                                <th>Elemento</th>
+                                <th>Cantidad recomendada / estándar</th>
+                                <th>Cantidad contada / registrada</th>
+                                <th>Diferencia</th>
+                                <th>Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((item, index) => {
+                                const tieneCantidades = item.cantidadContada !== null && item.cantidadContada !== undefined
+                                  && item.cantidadRecomendada !== null && item.cantidadRecomendada !== undefined;
+                                const diferencia = tieneCantidades ? item.cantidadContada - item.cantidadRecomendada : null;
+                                const discrepancia = tieneDiscrepanciaHistorica(item);
+                                const estadoPresentado = item.estadoEquipo
+                                  || (item.testOk === false ? 'No aprobó el test'
+                                    : item.testOk === true ? 'Test aprobado'
+                                      : item.cantidadContada !== null && item.cantidadContada !== undefined
+                                        ? discrepancia ? 'Con discrepancia' : 'Revisado'
+                                          : '—');
+
+                                return (
+                                  <tr className={discrepancia || tieneNovedadHistorica(item) ? 'has-issues' : ''} key={`${item.insumoNombre}-${index}`}>
+                                    <td data-label="Elemento">
+                                      <strong>{item.insumoNombre}</strong>
+                                      <span className="controlHistoryItemMeta">{item.tipo}</span>
+                                      {item.numeroSerie && <span className="controlHistoryItemMeta">N° de serie: {item.numeroSerie}</span>}
+                                      {item.testOk !== null && item.testOk !== undefined && (
+                                        <span className="controlHistoryItemMeta">Test: {item.testOk ? 'Aprobó' : 'No aprobó'}</span>
+                                      )}
+                                      {item.observacion && <span className="controlHistoryItemNote"><strong>Novedad / observación:</strong> {item.observacion}</span>}
+                                    </td>
+                                    <td data-label="Cantidad recomendada / estándar">
+                                      {item.cantidadRecomendada ?? '—'} {item.unidadMedida || ''}
+                                    </td>
+                                    <td data-label="Cantidad contada / registrada">
+                                      {item.cantidadContada ?? '—'} {item.unidadMedida || ''}
+                                      {item.cantidadSistema !== null && item.cantidadSistema !== undefined && (
+                                        <span className="controlHistoryItemMeta">Sistema: {item.cantidadSistema} {item.unidadMedida || ''}</span>
+                                      )}
+                                    </td>
+                                    <td data-label="Diferencia">
+                                      {diferencia === null ? '—' : (
+                                        <span className={diferencia < 0 ? 'controlHistoryDifference is-negative' : diferencia > 0 ? 'controlHistoryDifference is-positive' : 'controlHistoryDifference'}>
+                                          {diferencia > 0 ? '+' : ''}{diferencia}
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td data-label="Estado">
+                                      <span className={`controlHistoryItemState${discrepancia || tieneNovedadHistorica(item) ? ' is-warning' : ''}`}>{estadoPresentado}</span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </details>
+                    );
+                  })}
+                </div>
               </div>
-
-              <div style={S.modalBody}>
-                <p style={S.muted}>Fecha: {new Date(detalleSeleccionado.fecha).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' })}</p>
-                <p style={S.muted}>Resultado: <span style={resultBadge(detalleSeleccionado.resultado)}>{detalleSeleccionado.resultado}</span></p>
-                <div style={S.statsGrid}>
-                  <div style={S.statBox}><strong>{detalleSeleccionado.totalFaltantes}</strong><span>Faltantes</span></div>
-                  <div style={S.statBox}><strong>{detalleSeleccionado.totalEquiposConNovedad}</strong><span>Equipos con novedad</span></div>
-                  <div style={S.statBox}><strong>{detalleSeleccionado.totalDiscrepanciasSistema}</strong><span>Discrepancias</span></div>
-                </div>
-
-                {detalleSeleccionado.observaciones && <p style={S.muted}>Observaciones: {detalleSeleccionado.observaciones}</p>}
-
-                <div style={{ display: 'grid', gap: '0.5rem' }}>
-                  {detalleSeleccionado.items.map((item, index) => (
-                    <div key={index} style={{
-                      ...S.itemDetail,
-                      ...(item.cantidadContada < item.cantidadRecomendada || item.cantidadContada !== item.cantidadSistema ? { borderColor: 'var(--color-warning)', background: 'var(--color-warning-soft)' } : {}),
-                    }}>
-                      <div>
-                        <strong>{item.insumoNombre}</strong>
-                        <div style={S.meta}>{item.categoria} · {item.tipo}</div>
-                      </div>
-                      <div style={S.detailValues}>
-                        <span>Recomendado: {item.cantidadRecomendada}</span>
-                        <span>Sistema: {item.cantidadSistema}</span>
-                        <span>Contado: {item.cantidadContada}</span>
-                        <span>Estado: {item.estadoEquipo || '—'}</span>
-                        {item.numeroSerie && <span>N° serie: {item.numeroSerie}</span>}
-                        {item.testOk !== null && item.testOk !== undefined && <span>Test: {item.testOk ? 'Aprobó' : 'No aprobó'}</span>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            </section>
           </div>
         )}
       </main>
@@ -773,6 +903,61 @@ function agruparVariantes(items) {
     ...grupo,
     items: grupo.items.sort((a, b) => COLLATOR_NATURAL.compare(a.nombre, b.nombre)),
   }));
+}
+
+const ORDEN_CATEGORIAS_HISTORICAS = [
+  'MEDICACION', 'DESCARTABLE', 'TRAUMA', 'VIA_AEREA', 'EQUIPO_MEDICO',
+  'OXIGENO', 'ANTISEPTICO', 'KIT', 'MONITOREO', 'CURACION', 'SOLUCION',
+];
+
+const ETIQUETAS_CATEGORIAS_HISTORICAS = {
+  MEDICACION: 'Medicación',
+  DESCARTABLE: 'Descartables',
+  TRAUMA: 'Trauma',
+  VIA_AEREA: 'Vía aérea',
+  EQUIPO_MEDICO: 'Equipos médicos',
+  OXIGENO: 'Oxígeno',
+  ANTISEPTICO: 'Antisépticos',
+  KIT: 'Kits',
+  MONITOREO: 'Monitoreo',
+  CURACION: 'Curación',
+  SOLUCION: 'Soluciones',
+  SIN_CATEGORIA: 'Sin categoría',
+};
+
+function agruparItemsPorCategoria(items) {
+  const grupos = new Map();
+  items.forEach((item) => {
+    const key = item.categoria || 'SIN_CATEGORIA';
+    if (!grupos.has(key)) grupos.set(key, []);
+    grupos.get(key).push(item);
+  });
+
+  return [...grupos.entries()]
+    .sort(([categoriaA], [categoriaB]) => {
+      const ordenA = ORDEN_CATEGORIAS_HISTORICAS.indexOf(categoriaA);
+      const ordenB = ORDEN_CATEGORIAS_HISTORICAS.indexOf(categoriaB);
+      if (ordenA < 0 && ordenB < 0) return COLLATOR_NATURAL.compare(categoriaA, categoriaB);
+      if (ordenA < 0) return 1;
+      if (ordenB < 0) return -1;
+      return ordenA - ordenB;
+    })
+    .map(([key, categoriaItems]) => ({
+      key,
+      label: ETIQUETAS_CATEGORIAS_HISTORICAS[key] || key.replaceAll('_', ' ').toLowerCase(),
+      items: categoriaItems,
+    }));
+}
+
+function tieneDiscrepanciaHistorica(item) {
+  return item.cantidadContada < item.cantidadRecomendada
+    || item.cantidadContada !== item.cantidadSistema;
+}
+
+function tieneNovedadHistorica(item) {
+  return (item.estadoEquipo && item.estadoEquipo !== 'OPERATIVO')
+    || item.testOk === false
+    || Boolean(item.observacion);
 }
 
 const S = {
