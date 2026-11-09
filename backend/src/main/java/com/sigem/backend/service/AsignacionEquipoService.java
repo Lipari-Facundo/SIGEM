@@ -84,23 +84,9 @@ public class AsignacionEquipoService {
             throw new IllegalArgumentException("Equipo y móvil son obligatorios");
         }
 
-        EquipoMedico equipo = equipoRepository.findByIdForUpdate(dto.getEquipoId()).orElse(null);
-        if (equipo == null) {
-            Insumo insumo = insumoRepository.findById(dto.getEquipoId())
-                    .filter(item -> item.isActivo()
-                            && item.getCategoria() == CategoriaInsumo.EQUIPO_MEDICO
-                            && item.getTipo() == TipoInsumo.REUTILIZABLE)
-                    .orElseThrow(() -> new IllegalArgumentException("Equipo médico reutilizable disponible no encontrado"));
-
-            equipo = equipoRepository.findFirstByNombreIgnoreCaseOrderByIdAsc(insumo.getNombre())
-                    .orElseGet(() -> {
-                        EquipoMedico nuevo = new EquipoMedico();
-                        nuevo.setNombre(insumo.getNombre());
-                        nuevo.setNumeroSerie("INS-" + insumo.getId());
-                        nuevo.setEstado(EstadoEquipoMedico.DISPONIBLE);
-                        return equipoRepository.save(nuevo);
-                    });
-        }
+        EquipoMedico equipo = equipoRepository.findByIdForUpdate(dto.getEquipoId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Equipo médico registrado no encontrado; el catálogo de insumos no identifica equipos físicos"));
         if (equipo.getEstado() != EstadoEquipoMedico.DISPONIBLE) {
             throw new IllegalArgumentException("El equipo ya no está disponible para asignación");
         }
@@ -149,23 +135,9 @@ public class AsignacionEquipoService {
         EquipoMedico equipoNuevo = equipoAnterior;
 
         if (!dto.getEquipoId().equals(equipoAnterior.getId())) {
-            EquipoMedico equipoSeleccionado = equipoRepository.findById(dto.getEquipoId()).orElse(null);
-            if (equipoSeleccionado == null) {
-                equipoSeleccionado = insumoRepository.findById(dto.getEquipoId())
-                        .filter(item -> item.isActivo()
-                                && item.getCategoria() == CategoriaInsumo.EQUIPO_MEDICO
-                                && item.getTipo() == TipoInsumo.REUTILIZABLE)
-                        .flatMap(item -> equipoRepository.findFirstByNombreIgnoreCaseOrderByIdAsc(item.getNombre()))
-                        .orElseGet(() -> {
-                            Insumo item = insumoRepository.findById(dto.getEquipoId())
-                                    .orElseThrow(() -> new IllegalArgumentException("Equipo médico reutilizable disponible no encontrado"));
-                            EquipoMedico nuevo = new EquipoMedico();
-                            nuevo.setNombre(item.getNombre());
-                            nuevo.setNumeroSerie("INS-" + item.getId());
-                            nuevo.setEstado(EstadoEquipoMedico.DISPONIBLE);
-                            return equipoRepository.save(nuevo);
-                        });
-            }
+            EquipoMedico equipoSeleccionado = equipoRepository.findByIdForUpdate(dto.getEquipoId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "Equipo médico registrado no encontrado; el catálogo de insumos no identifica equipos físicos"));
 
             if (equipoSeleccionado.getId().equals(equipoAnterior.getId())) {
                 equipoNuevo = equipoAnterior;
@@ -198,23 +170,9 @@ public class AsignacionEquipoService {
     }
 
     private EquipoMedico resolverEquipoDisponible(Long equipoId) {
-        EquipoMedico equipo = equipoRepository.findByIdForUpdate(equipoId).orElse(null);
-        if (equipo == null) {
-            Insumo insumo = insumoRepository.findById(equipoId)
-                    .filter(item -> item.isActivo()
-                            && item.getCategoria() == CategoriaInsumo.EQUIPO_MEDICO
-                            && item.getTipo() == TipoInsumo.REUTILIZABLE)
-                    .orElseThrow(() -> new IllegalArgumentException("Equipo médico reutilizable disponible no encontrado"));
-
-            equipo = equipoRepository.findFirstByNombreIgnoreCaseOrderByIdAsc(insumo.getNombre())
-                    .orElseGet(() -> {
-                        EquipoMedico nuevo = new EquipoMedico();
-                        nuevo.setNombre(insumo.getNombre());
-                        nuevo.setNumeroSerie("INS-" + insumo.getId());
-                        nuevo.setEstado(EstadoEquipoMedico.DISPONIBLE);
-                        return equipoRepository.save(nuevo);
-                    });
-        }
+        EquipoMedico equipo = equipoRepository.findByIdForUpdate(equipoId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Equipo médico registrado no encontrado; el catálogo de insumos no identifica equipos físicos"));
 
         if (equipo.getEstado() != EstadoEquipoMedico.DISPONIBLE) {
             throw new IllegalArgumentException("El equipo seleccionado ya no está disponible");
@@ -224,25 +182,8 @@ public class AsignacionEquipoService {
 
     @Transactional
     public void modificarEstado(Long equipoId, String estado) {
-        EquipoMedico equipo;
-
-        equipo = equipoRepository.findByIdForUpdate(equipoId).orElse(null);
-        if (equipo == null) {
-            Insumo insumo = insumoRepository.findById(equipoId)
-                    .filter(item -> item.isActivo()
-                            && item.getCategoria() == CategoriaInsumo.EQUIPO_MEDICO
-                            && item.getTipo() == TipoInsumo.REUTILIZABLE)
-                    .orElseThrow(() -> new IllegalArgumentException("Equipo médico no encontrado"));
-
-            equipo = equipoRepository.findFirstByNombreIgnoreCaseOrderByIdAsc(insumo.getNombre())
-                    .orElseGet(() -> {
-                        EquipoMedico nuevo = new EquipoMedico();
-                        nuevo.setNombre(insumo.getNombre());
-                        nuevo.setNumeroSerie("INS-" + insumo.getId());
-                        nuevo.setEstado(EstadoEquipoMedico.DISPONIBLE);
-                        return equipoRepository.save(nuevo);
-                    });
-        }
+        EquipoMedico equipo = equipoRepository.findByIdForUpdate(equipoId)
+                .orElseThrow(() -> new IllegalArgumentException("Equipo médico no encontrado"));
 
         EstadoEquipoMedico estadoPersistido = switch (estado.trim().toUpperCase()) {
             case "FUNCIONANDO" -> EstadoEquipoMedico.DISPONIBLE;

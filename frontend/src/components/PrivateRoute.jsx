@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 export default function PrivateRoute({ children, roles }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (roles && !roles.includes(user.rol)) return <Navigate to="/dashboard" replace />;
+  if (roles && !roles.includes(user.rol)) {
+    return <Navigate to={user.rol === 'COORD_ENF' ? '/equipos-medicos' : '/dashboard'} replace />;
+  }
   return children;
 }

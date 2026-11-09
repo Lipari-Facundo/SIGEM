@@ -18,6 +18,13 @@ public class ControlMovilItem {
     @JoinColumn(name = "insumo_id", nullable = false)
     private Insumo insumo;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "equipo_medico_id")
+    private EquipoMedico equipoMedico;
+
+    @Column(name = "tipo_equipo_snapshot", length = 50)
+    private String tipoEquipoSnapshot;
+
     @Column(name = "cantidad_recomendada", nullable = false)
     private Integer cantidadRecomendada;
 
@@ -36,6 +43,9 @@ public class ControlMovilItem {
 
     @Column(name = "numero_serie", length = 100)
     private String numeroSerie;
+
+    @Column(name = "numero_serie_snapshot", length = 100, updatable = false)
+    private String numeroSerieSnapshot;
 
     @Column(name = "test_ok")
     private Boolean testOk;
@@ -62,6 +72,22 @@ public class ControlMovilItem {
 
     public void setInsumo(Insumo insumo) {
         this.insumo = insumo;
+    }
+
+    public EquipoMedico getEquipoMedico() {
+        return equipoMedico;
+    }
+
+    public void setEquipoMedico(EquipoMedico equipoMedico) {
+        this.equipoMedico = equipoMedico;
+    }
+
+    public String getTipoEquipoSnapshot() {
+        return tipoEquipoSnapshot;
+    }
+
+    public void setTipoEquipoSnapshot(String tipoEquipoSnapshot) {
+        this.tipoEquipoSnapshot = tipoEquipoSnapshot;
     }
 
     public Integer getCantidadRecomendada() {
@@ -110,6 +136,14 @@ public class ControlMovilItem {
 
     public void setNumeroSerie(String numeroSerie) {
         this.numeroSerie = numeroSerie;
+    }
+
+    public String getNumeroSerieSnapshot() {
+        return numeroSerieSnapshot;
+    }
+
+    public void setNumeroSerieSnapshot(String numeroSerieSnapshot) {
+        this.numeroSerieSnapshot = numeroSerieSnapshot;
     }
 
     public Boolean getTestOk() {

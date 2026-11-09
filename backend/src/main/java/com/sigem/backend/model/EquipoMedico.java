@@ -12,6 +12,10 @@ public class EquipoMedico {
     @Column(nullable = false)
     private String nombre;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tipo_equipo_id")
+    private TipoEquipoMedico tipoEquipo;
+
     @Column(name = "numero_serie", nullable = false, unique = true)
     private String numeroSerie;
 
@@ -26,6 +30,8 @@ public class EquipoMedico {
     public void setId(Long id) { this.id = id; }
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
+    public TipoEquipoMedico getTipoEquipo() { return tipoEquipo; }
+    public void setTipoEquipo(TipoEquipoMedico tipoEquipo) { this.tipoEquipo = tipoEquipo; }
     public String getNumeroSerie() { return numeroSerie; }
     public void setNumeroSerie(String numeroSerie) { this.numeroSerie = numeroSerie; }
     public String getMarca() { return marca; }

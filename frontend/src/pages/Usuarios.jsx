@@ -21,9 +21,10 @@ import { usuarioService } from '../services/api';
 // Orden visual de los roles (de mayor a menor jerarquía operativa)
 const ROL_ORDEN = {
   JEF: 1,
-  DES: 2,
-  ENF: 3,
-  DIR: 4,
+  COORD_ENF: 2,
+  DES: 3,
+  ENF: 4,
+  DIR: 5,
   ADM: 99, // el ADM siempre va último (y se excluye del PDF)
 };
 
@@ -32,6 +33,7 @@ const ROL_LABELS = {
   DES: 'Despachador',
   ENF: 'Enfermero',
   JEF: 'Coordinador de Enfermería',
+  COORD_ENF: 'Coordinador de Enfermería (Equipos Médicos)',
   DIR: 'Directivo',
 };
 
@@ -40,6 +42,7 @@ const ROL_COLORS = {
   DES: { bg: '#E0F2FE', color: '#0369A1' },
   ENF: { bg: '#DCFCE7', color: '#166534' },
   JEF: { bg: '#FEF3C7', color: '#92400E' },
+  COORD_ENF: { bg: '#CCFBF1', color: '#0F766E' },
   DIR: { bg: '#FFE4E6', color: '#9F1239' },
 };
 
@@ -47,13 +50,14 @@ const ROL_COLORS = {
 const TABS = [
   { key: 'TODOS', label: 'Todos' },
   { key: 'JEF',   label: 'Coordinador de Enfermería' },
+  { key: 'COORD_ENF', label: 'Coord. Equipos Médicos' },
   { key: 'DES',   label: 'Despachador' },
   { key: 'ENF',   label: 'Enfermero' },
   { key: 'DIR',   label: 'Directivo' },
   { key: 'ADM',   label: 'Administrador' },
 ];
 
-const ROLES_FORMULARIO = ['ADM', 'DES', 'ENF', 'JEF', 'DIR'];
+const ROLES_FORMULARIO = ['ADM', 'DES', 'ENF', 'JEF', 'COORD_ENF', 'DIR'];
 
 const EMPTY_FORM = {
   username:  '',
@@ -346,7 +350,8 @@ export default function Usuarios() {
           // Color de fila según rol (muy suave)
           const bgPorRol = {
             JEF: [255, 250, 235],
-            DES: [235, 248, 255],
+          COORD_ENF: [235, 250, 247],
+          DES: [235, 248, 255],
             ENF: [235, 250, 240],
             DIR: [255, 235, 238],
           };
@@ -439,6 +444,7 @@ export default function Usuarios() {
   const LABEL_EXPORT_POR_ROL = {
     TODOS: { PDF: 'Exportar PDF', CSV: 'Exportar CSV' },
     JEF:   { PDF: 'Exportar PDF — Coordinadores de Enfermería', CSV: 'Exportar CSV — Coordinadores de Enfermería' },
+    COORD_ENF: { PDF: 'Exportar PDF — Coordinadores de Enfermería (Equipos Médicos)', CSV: 'Exportar CSV — Coordinadores de Enfermería (Equipos Médicos)' },
     DES:   { PDF: 'Exportar PDF — Despachadores', CSV: 'Exportar CSV — Despachadores' },
     ENF:   { PDF: 'Exportar PDF — Enfermeros', CSV: 'Exportar CSV — Enfermeros' },
     DIR:   { PDF: 'Exportar PDF — Directivos', CSV: 'Exportar CSV — Directivos' },

@@ -100,6 +100,8 @@ public class SecurityConfig {
                     .hasAnyRole("ADM", "JEF")
 
                 // ── Equipos médicos ───────────────────────────────────────
+                .requestMatchers("/api/equipos-medicos/**")
+                    .hasAnyRole("ADM", "JEF", "COORD_ENF")
                 .requestMatchers(HttpMethod.GET, "/api/equipos/disponibles")
                     .hasAnyRole("ADM", "JEF", "COORD_ENF")
                 .requestMatchers(HttpMethod.GET, "/api/equipos/asignados")

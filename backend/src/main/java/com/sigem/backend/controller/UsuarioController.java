@@ -116,9 +116,10 @@ public class UsuarioController {
         if (rol == null) return 99;
         return switch (rol) {
             case JEF -> 1;
-            case DES -> 2;
-            case ENF -> 3;
-            case DIR -> 4;
+            case COORD_ENF -> 2;
+            case DES -> 3;
+            case ENF -> 4;
+            case DIR -> 5;
             case ADM -> 99;
         };
     }
@@ -147,6 +148,7 @@ public class UsuarioController {
         if (rol == null) return "Sin rol";
         return switch (rol) {
             case JEF -> "Coordinador de Enfermería";
+            case COORD_ENF -> "Coordinador de Enfermería (Equipos Médicos)";
             case DES -> "Despachador";
             case ENF -> "Enfermero";
             case DIR -> "Directivo";

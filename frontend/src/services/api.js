@@ -101,17 +101,59 @@ export const depositoCentralService = {
 };
 
 export const equipoMedicoService = {
+  tipos: () => api.get('/equipos-medicos/tipos'),
+  insumosReutilizables: () => api.get('/equipos-medicos/insumos-reutilizables'),
+  asociarInsumo: (codigo, insumoId) => api.put(`/equipos-medicos/tipos/${codigo}/insumo`, { insumoId }),
+  desvincularInsumo: (codigo) => api.delete(`/equipos-medicos/tipos/${codigo}/insumo`),
+  inventario: (params) => api.get('/equipos-medicos/inventario', { params }),
+  detalle: (id) => api.get(`/equipos-medicos/${id}`),
+  registrar: (data) => api.post('/equipos-medicos', data),
+  clasificarTipo: (id, data) => api.put(`/equipos-medicos/${id}/tipo`, data),
+  darDeBaja: (id, data) => api.post(`/equipos-medicos/${id}/baja`, data),
+  operativos: () => api.get('/equipos-medicos/operativos'),
+  historial: (params) => api.get('/equipos-medicos/historial', { params }),
+  movimientos: () => api.get('/equipos-medicos/movimientos'),
+  asignar: (data) => api.post('/equipos-medicos/movimientos/asignacion', data),
+  reemplazar: (data) => api.post('/equipos-medicos/movimientos/reemplazo', data),
+  retirar: (data) => api.post('/equipos-medicos/movimientos/retiro', data),
+  enviarMantenimiento: (data) => api.post('/equipos-medicos/movimientos/envio-mantenimiento', data),
+  corregirMovimiento: (id, data) => api.post(`/equipos-medicos/movimientos/${id}/correcciones`, data),
+  mantenimientos: (params) => api.get('/equipos-medicos/mantenimientos', { params }),
+  registrarPreventivo: (data) => api.post('/equipos-medicos/mantenimientos', data),
+  recibirCorrectivo: (data) => api.post('/equipos-medicos/mantenimientos/recepcion-correctiva', data),
+  moviles: () => api.get('/equipos-medicos/moviles'),
+  responsables: () => api.get('/equipos-medicos/responsables'),
   disponibles: () => api.get('/equipos/disponibles'),
   asignados: () => api.get('/equipos/asignados'),
-  asignar: (data) => api.post('/equipos/asignar', data),
   modificarAsignacion: (id, data) => api.put(`/equipos/asignacion/${id}`, data),
   modificarEstado: (id, estado) => api.put(`/equipos/${id}/estado`, { estado }),
   desasignar: (id) => api.put(`/equipos/${id}/desasignar`),
 };
 
+let controlAssignmentSnapshot = new Map();
+
 export const controlService = {
-  plantilla: () => api.get('/controles/mi-movil/plantilla'),
-  crear:     (dto) => api.post('/controles', dto),
+  plantilla: async () => {
+    const response = await api.get('/controles/mi-movil/plantilla');
+    controlAssignmentSnapshot = new Map(
+      (response.data || [])
+        .filter((item) => item.tipoEquipoSnapshot)
+        .map((item) => [item.insumoId, item.asignacionEquipoId ?? null]),
+    );
+    return response;
+  },
+  crear: (dto) => api.post('/controles', {
+    ...dto,
+    items: (dto.items || []).map((item) => (
+      controlAssignmentSnapshot.has(item.insumoId)
+        ? {
+          ...item,
+          asignacionEquipoId: controlAssignmentSnapshot.get(item.insumoId),
+          asignacionEquipoEnviada: true,
+        }
+        : item
+    )),
+  }),
   mis:       () => api.get('/controles/mis'),
   listar:    () => api.get('/controles'),
   detalle:   (id) => api.get(`/controles/${id}`),
