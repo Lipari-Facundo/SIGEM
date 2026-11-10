@@ -31,8 +31,10 @@ import com.sigem.backend.repository.GuardiaRepository;
 import com.sigem.backend.repository.IncidenteRepository;
 import com.sigem.backend.repository.InsumoRepository;
 import com.sigem.backend.repository.ConsumoInsumoRepository;
+import com.sigem.backend.repository.ControlMovilRepository;
 import com.sigem.backend.repository.MovilInsumoRepository;
 import com.sigem.backend.repository.MovimientoDepositoCentralRepository;
+import com.sigem.backend.repository.MovilRepository;
 import com.sigem.backend.repository.StockDepositoCentralRepository;
 import com.sigem.backend.repository.StockEstandarMovilRepository;
 import com.sigem.backend.repository.SolicitudReposicionItemRepository;
@@ -61,6 +63,8 @@ public class InventarioMovilService {
     private final StockDepositoCentralRepository stockDepositoCentralRepository;
     private final MovimientoDepositoCentralRepository movimientoDepositoCentralRepository;
     private final EquiposOperativosMovilService equiposOperativosMovilService;
+    private final ControlMovilRepository controlMovilRepository;
+    private final MovilRepository movilRepository;
 
     public InventarioMovilService(StockEstandarMovilRepository stockEstandarMovilRepository,
                                   MovilInsumoRepository movilInsumoRepository,
@@ -72,7 +76,9 @@ public class InventarioMovilService {
                                   SolicitudReposicionItemRepository solicitudReposicionItemRepository,
                                   StockDepositoCentralRepository stockDepositoCentralRepository,
                                   MovimientoDepositoCentralRepository movimientoDepositoCentralRepository,
-                                  EquiposOperativosMovilService equiposOperativosMovilService) {
+                                  EquiposOperativosMovilService equiposOperativosMovilService,
+                                  ControlMovilRepository controlMovilRepository,
+                                  MovilRepository movilRepository) {
         this.stockEstandarMovilRepository = stockEstandarMovilRepository;
         this.movilInsumoRepository = movilInsumoRepository;
         this.guardiaRepository = guardiaRepository;
@@ -84,6 +90,8 @@ public class InventarioMovilService {
         this.stockDepositoCentralRepository = stockDepositoCentralRepository;
         this.movimientoDepositoCentralRepository = movimientoDepositoCentralRepository;
         this.equiposOperativosMovilService = equiposOperativosMovilService;
+        this.controlMovilRepository = controlMovilRepository;
+        this.movilRepository = movilRepository;
     }
 
     @Transactional
@@ -150,7 +158,9 @@ public class InventarioMovilService {
         }
 
         Guardia guardia = buscarGuardiaActiva(enfermero);
-        Movil movil = guardia.getMovil();
+        Movil movil = movilRepository.findByIdForUpdate(guardia.getMovil().getId())
+                .orElseThrow(() -> new RuntimeException("No existe el móvil de la guardia activa"));
+        exigirControlInicial(guardia);
 
         // Se agrupan duplicados para validar el total real solicitado por insumo.
         Map<Long, Integer> cantidadesPorInsumo = new LinkedHashMap<>();
@@ -243,7 +253,9 @@ public class InventarioMovilService {
 
     @Transactional(readOnly = true)
     public List<SugerenciaReposicionDTO> sugerirReposicionParaMiMovil(Usuario enfermero) {
-        Movil movil = buscarGuardiaActiva(enfermero).getMovil();
+        Guardia guardia = buscarGuardiaActiva(enfermero);
+        exigirControlInicial(guardia);
+        Movil movil = guardia.getMovil();
         Map<Long, MovilInsumo> stockActual = movilInsumoRepository
                 .findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(movil.getId())
                 .stream()
@@ -264,7 +276,10 @@ public class InventarioMovilService {
             throw new RuntimeException("Debe seleccionar al menos un insumo para solicitar reposición");
         }
 
-        Movil movil = buscarGuardiaActiva(enfermero).getMovil();
+        Guardia guardia = buscarGuardiaActiva(enfermero);
+        Movil movil = movilRepository.findByIdForUpdate(guardia.getMovil().getId())
+                .orElseThrow(() -> new RuntimeException("No existe el móvil de la guardia activa"));
+        exigirControlInicial(guardia);
         Map<Long, Integer> cantidades = new LinkedHashMap<>();
         Map<Long, String> motivosCambio = new LinkedHashMap<>();
         Map<Long, String> detallesCambio = new LinkedHashMap<>();
@@ -570,6 +585,13 @@ public class InventarioMovilService {
                         enfermero.getUsername(), GuardiaEstado.ACTIVA)
                 .orElseThrow(() -> new RuntimeException(
                         "No tenés una guardia activa, no hay móvil asignado"));
+    }
+
+    private void exigirControlInicial(Guardia guardia) {
+        if (!controlMovilRepository.existsByGuardiaId(guardia.getId())) {
+            throw new RuntimeException(
+                    "Completá el control inicial del móvil antes de registrar consumos o solicitar reposición.");
+        }
     }
 
     private ConsumoInsumoDTO mapearConsumo(ConsumoInsumo consumo) {

@@ -34,6 +34,13 @@ public class ControlMovilController {
         return ResponseEntity.ok(controlMovilService.obtenerPlantilla(usuario));
     }
 
+    @GetMapping("/mi-movil/estado")
+    @PreAuthorize("hasRole('ENF')")
+    public ResponseEntity<Boolean> tieneControlInicial(
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(controlMovilService.tieneControlInicial(usuario));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('ENF')")
     public ResponseEntity<ControlMovilDetalleDTO> crearControl(

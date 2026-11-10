@@ -34,6 +34,7 @@ export default function ControlMovil() {
   const [plantilla, setPlantilla] = useState([]);
   const [loading, setLoading] = useState(true);
   const [guardiaActiva, setGuardiaActiva] = useState(true);
+  const [controlInicialCompleto, setControlInicialCompleto] = useState(false);
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [observaciones, setObservaciones] = useState('');
@@ -70,7 +71,18 @@ export default function ControlMovil() {
         controlService.plantilla(),
         guardiaService.listar(),
       ]);
+      try {
+        const estadoResponse = await controlService.estadoInicial();
+        setControlInicialCompleto(Boolean(estadoResponse.data));
+      } catch (exception) {
+        setControlInicialCompleto(false);
+        setError(exception.response?.data?.message
+          || 'No se pudo verificar si completaste el control inicial.');
+      }
       const items = plantillaResponse.data || [];
+      if (items.length === 0) {
+        setError('No hay una plantilla de control activa para este móvil. Contactá a Administración.');
+      }
       const guardia = (guardiasResponse.data || []).find((item) => item.estado === 'ACTIVA');
       const idMovil = guardia?.movil?.id;
       setGuardiaActual(guardia || null);
@@ -285,6 +297,7 @@ export default function ControlMovil() {
         items,
       });
       setResultado(response.data);
+      setControlInicialCompleto(true);
       setMensaje('Control registrado correctamente.');
       setObservaciones('');
       setCantidadPorInsumo({});
@@ -622,8 +635,19 @@ export default function ControlMovil() {
           <button style={{ ...S.tab, ...(tab === 'mis' ? S.tabActive : {}) }} onClick={() => setTab('mis')}>Mis controles</button>
         </div>
 
-        {tab === 'nuevo' ? (
+        {tab === 'nuevo' ? plantilla.length === 0 ? (
+          <EmptyState
+            icon="📋"
+            title="No hay una plantilla de control"
+            description="Contactá a Administración para configurar los insumos estándar de este tipo de móvil."
+          />
+        ) : (
           <section className="controlWorkspace" style={S.controlFlow}>
+            {!controlInicialCompleto && (
+              <div role="status" style={S.controlInitialNotice}>
+                Este control inicial es obligatorio antes de registrar consumos o solicitar reposición.
+              </div>
+            )}
             <aside className="controlCategoryPanel" aria-label="Categorías del control">
               <div className="controlCategoryHeading">
                 <strong>Categorías</strong>
@@ -708,9 +732,9 @@ export default function ControlMovil() {
                 />
                 <Button
                   onClick={enviarControl}
-                  disabled={guardando || completados !== plantilla.length}
+                  disabled={guardando || plantilla.length === 0 || completados !== plantilla.length}
                 >
-                  {guardando ? 'Guardando...' : 'Enviar control'}
+                  {guardando ? 'Guardando...' : controlInicialCompleto ? 'Enviar control' : 'Completar control inicial'}
                 </Button>
               </div>
             </div>
@@ -1190,6 +1214,14 @@ const S = {
     border: '1px solid var(--color-success)',
     borderRadius: 'var(--radius-md)',
     padding: '0.8rem 1rem',
+  },
+  controlInitialNotice: {
+    background: '#FFF8E1',
+    color: '#795548',
+    border: '1px solid #F9A825',
+    borderRadius: 'var(--radius-md)',
+    padding: '0.8rem 1rem',
+    marginBottom: '1rem',
   },
   error: {
     background: 'var(--color-danger-soft)',

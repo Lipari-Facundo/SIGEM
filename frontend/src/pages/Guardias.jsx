@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { movilService, guardiaService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -13,6 +14,7 @@ const TURNOS = [
 const estadoLabel = { ACTIVA: 'Activa', FINALIZADA: 'Finalizada' };
 
 export default function Guardias() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [moviles, setMoviles]   = useState([]);
   const [guardias, setGuardias] = useState([]);
@@ -49,6 +51,7 @@ export default function Guardias() {
       setMovilId('');
       setTurno(TURNOS[0].value);
       await cargarDatos();
+      if (!esCoordinador) navigate('/control-movil');
     } catch (e) {
       mostrarError(e.response?.data?.message || 'Error al iniciar la guardia');
     } finally { setLoading(false); }

@@ -138,6 +138,7 @@ export const equipoMedicoService = {
 let controlAssignmentSnapshot = new Map();
 
 export const controlService = {
+  estadoInicial: () => api.get('/controles/mi-movil/estado'),
   plantilla: async () => {
     const response = await api.get('/controles/mi-movil/plantilla');
     controlAssignmentSnapshot = new Map(

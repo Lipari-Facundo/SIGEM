@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import EmptyState from '../components/ui/EmptyState';
 import Button from '../components/ui/Button';
-import { incidenteService, inventarioService } from '../services/api';
+import { controlService, incidenteService, inventarioService } from '../services/api';
 import './InventarioMovil.css';
 
 const CATEGORIAS = [
@@ -39,6 +39,7 @@ export default function InventarioMovil() {
   const [loading, setLoading] = useState(true);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
   const [guardiaActiva, setGuardiaActiva] = useState(true);
+  const [controlInicialCompleto, setControlInicialCompleto] = useState(false);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [cantidades, setCantidades] = useState({});
   const [seccionConsumoAbierta, setSeccionConsumoAbierta] = useState(null);
@@ -71,10 +72,18 @@ export default function InventarioMovil() {
   }, [location.state]);
 
   const cargarInventario = async () => {
+    setControlInicialCompleto(false);
     try {
       const response = await inventarioService.miInventario();
       setInventario(response.data);
       setGuardiaActiva(true);
+      try {
+        const estadoResponse = await controlService.estadoInicial();
+        setControlInicialCompleto(Boolean(estadoResponse.data));
+      } catch (exception) {
+        setError(exception.response?.data?.message
+          || 'No se pudo verificar si completaste el control inicial.');
+      }
       try {
         const equiposResponse = await inventarioService.misEquiposMedicos();
         setEquiposMedicosMovil(equiposResponse.data);
@@ -344,14 +353,22 @@ export default function InventarioMovil() {
             <p style={S.sub}>Consultá y registrá el uso de los insumos de tu guardia.</p>
           </div>
           <div style={S.headerActions}>
-            {guardiaActiva && <button style={S.btnHeader} onClick={abrirModal}>📦 Registrar uso</button>}
-            {guardiaActiva && <button style={S.btnHeader} onClick={abrirModalReposicion}>📋 Solicitar reposición</button>}
+            {guardiaActiva && !controlInicialCompleto && (
+              <button style={S.btnHeader} onClick={() => navigate('/control-movil')}>✅ Completar control inicial</button>
+            )}
+            {guardiaActiva && controlInicialCompleto && <button style={S.btnHeader} onClick={abrirModal}>📦 Registrar uso</button>}
+            {guardiaActiva && controlInicialCompleto && <button style={S.btnHeader} onClick={abrirModalReposicion}>📋 Solicitar reposición</button>}
             <div style={S.headerIcon}>🎒</div>
           </div>
         </header>
 
         {mensaje && <div style={S.success}>{mensaje}</div>}
         {error && !modalAbierto && <div style={S.error}>{error}</div>}
+        {guardiaActiva && !controlInicialCompleto && (
+          <div style={S.error}>
+            Completá el control inicial del móvil para habilitar consumos y solicitudes de reposición.
+          </div>
+        )}
 
         {!loading && !guardiaActiva && (
           <EmptyState
@@ -412,7 +429,12 @@ export default function InventarioMovil() {
                 </section>
 
                 {inventario.length === 0
-                  ? <EmptyState icon="📦" title="Inventario sin cargar" description="El móvil todavía no tiene insumos inicializados." />
+                  ? <EmptyState
+                    icon="📦"
+                    title="Inventario sin cargar"
+                    description="El control inicial registra las cantidades reales y crea las existencias que falten."
+                    action={<Button onClick={() => navigate('/control-movil')}>Completar control inicial</Button>}
+                  />
                   : <div style={S.categoryGrid}>
                     {grupos.map(categoria => (
                       <section key={categoria.key} style={S.category}>

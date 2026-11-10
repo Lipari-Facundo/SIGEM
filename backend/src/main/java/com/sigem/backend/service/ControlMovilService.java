@@ -103,6 +103,12 @@ public class ControlMovilService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public boolean tieneControlInicial(Usuario enfermero) {
+        Guardia guardia = buscarGuardiaActiva(enfermero);
+        return controlMovilRepository.existsByGuardiaId(guardia.getId());
+    }
+
     @Transactional
     public ControlMovilDetalleDTO crearControl(Usuario enfermero, ControlCreateDTO dto) {
         if (dto == null) {
