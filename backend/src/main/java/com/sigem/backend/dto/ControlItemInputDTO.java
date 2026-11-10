@@ -9,6 +9,8 @@ public class ControlItemInputDTO {
     private EstadoEquipo estadoEquipo;
     private String observacion;
     private String numeroSerie;
+    private Long asignacionEquipoId;
+    private Boolean asignacionEquipoEnviada;
     private Boolean testOk;
 
     public Long getInsumoId() {
@@ -49,6 +51,22 @@ public class ControlItemInputDTO {
 
     public void setNumeroSerie(String numeroSerie) {
         this.numeroSerie = numeroSerie;
+    }
+
+    public Long getAsignacionEquipoId() {
+        return asignacionEquipoId;
+    }
+
+    public void setAsignacionEquipoId(Long asignacionEquipoId) {
+        this.asignacionEquipoId = asignacionEquipoId;
+    }
+
+    public Boolean getAsignacionEquipoEnviada() {
+        return asignacionEquipoEnviada;
+    }
+
+    public void setAsignacionEquipoEnviada(Boolean asignacionEquipoEnviada) {
+        this.asignacionEquipoEnviada = asignacionEquipoEnviada;
     }
 
     public Boolean getTestOk() {

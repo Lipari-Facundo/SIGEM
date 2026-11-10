@@ -4,6 +4,7 @@ import com.sigem.backend.dto.AsignacionEquipoDTO;
 import com.sigem.backend.dto.AsignacionEquipoResponseDTO;
 import com.sigem.backend.dto.ModificarAsignacionDTO;
 import com.sigem.backend.dto.ModificarEstadoEquipoDTO;
+import com.sigem.backend.exception.ResourceConflictException;
 import com.sigem.backend.model.Insumo;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.service.AsignacionEquipoService;
@@ -42,8 +43,7 @@ public class EquipoMedicoController {
     public ResponseEntity<AsignacionEquipoResponseDTO> asignar(
             @Valid @RequestBody AsignacionEquipoDTO dto,
             @AuthenticationPrincipal Usuario coordinador) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(asignacionService.asignar(dto, coordinador));
+        throw new ResourceConflictException("La asignación clásica fue sustituida por /api/equipos-medicos/movimientos/asignacion");
     }
 
     @PutMapping("/asignacion/{id}")
@@ -52,7 +52,7 @@ public class EquipoMedicoController {
             @PathVariable Long id,
             @Valid @RequestBody ModificarAsignacionDTO dto,
             @AuthenticationPrincipal Usuario coordinador) {
-        return ResponseEntity.ok(asignacionService.modificarAsignacion(id, dto, coordinador));
+        throw new ResourceConflictException("Use el movimiento de reemplazo de /api/equipos-medicos");
     }
 
     @PutMapping("/{id}/estado")
@@ -60,14 +60,12 @@ public class EquipoMedicoController {
     public ResponseEntity<Void> modificarEstado(
             @PathVariable Long id,
             @Valid @RequestBody ModificarEstadoEquipoDTO dto) {
-        asignacionService.modificarEstado(id, dto.getEstado());
-        return ResponseEntity.noContent().build();
+        throw new ResourceConflictException("Los cambios de estado deben registrarse desde /api/equipos-medicos");
     }
 
     @PutMapping("/{id}/desasignar")
     @PreAuthorize("hasAnyRole('JEF', 'COORD_ENF', 'ADM')")
     public ResponseEntity<Void> desasignar(@PathVariable Long id) {
-        asignacionService.desasignar(id);
-        return ResponseEntity.noContent().build();
+        throw new ResourceConflictException("Use el movimiento de retiro de /api/equipos-medicos/movimientos/retiro");
     }
 }

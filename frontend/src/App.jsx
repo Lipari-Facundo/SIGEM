@@ -15,7 +15,7 @@ import ControlMovil from './pages/ControlMovil';
 import InformesControl from './pages/InformesControl';
 import SolicitudesReposicion from './pages/SolicitudesReposicion';
 import DepositoCentral from './pages/DepositoCentral';
-import RegistroAsignacionEquipos from './pages/RegistroAsignacionEquipos';
+import EquiposMedicos from './pages/EquiposMedicos';
 
 export default function App() {
   return (
@@ -23,8 +23,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login"      element={<Login />} />
-          <Route path="/dashboard"  element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-          <Route path="/usuarios"   element={<PrivateRoute><Usuarios /></PrivateRoute>} />
+          <Route path="/dashboard"  element={<PrivateRoute roles={['ADM', 'ENF', 'JEF', 'DES', 'DIR']}><Dashboard /></PrivateRoute>} />
+          <Route path="/usuarios"   element={<PrivateRoute roles={['ADM']}><Usuarios /></PrivateRoute>} />
           <Route path="/moviles"    element={<PrivateRoute roles={['ADM']}><Moviles /></PrivateRoute>} />
           <Route path="/guardias"   element={<PrivateRoute roles={['ENF', 'JEF']}><Guardias /></PrivateRoute>} />
           <Route path="/inventario" element={<PrivateRoute roles={['ENF']}><InventarioMovil /></PrivateRoute>} />
@@ -32,11 +32,12 @@ export default function App() {
           <Route path="/informes-control" element={<PrivateRoute roles={['JEF', 'ADM', 'DIR']}><InformesControl /></PrivateRoute>} />
           <Route path="/solicitudes-reposicion" element={<PrivateRoute roles={['JEF', 'ADM', 'DES']}><SolicitudesReposicion /></PrivateRoute>} />
           <Route path="/deposito-central" element={<PrivateRoute roles={['JEF', 'ADM']}><DepositoCentral /></PrivateRoute>} />
-          <Route path="/asignacion-equipos" element={<PrivateRoute roles={['JEF','ADM']}><RegistroAsignacionEquipos /></PrivateRoute>} />
+          <Route path="/equipos-medicos" element={<PrivateRoute roles={['ADM', 'JEF', 'COORD_ENF']}><EquiposMedicos /></PrivateRoute>} />
+          <Route path="/asignacion-equipos" element={<PrivateRoute roles={['JEF','ADM']}><Navigate to="/equipos-medicos" replace /></PrivateRoute>} />
           <Route path="/incidentes" element={<PrivateRoute roles={['ENF', 'DES']}><Incidentes /></PrivateRoute>} />
           <Route path="/perfil"     element={<PrivateRoute><Perfil /></PrivateRoute>} />
-          <Route path="/director-dashboard" element={<PrivateRoute><DirectorDashboard /></PrivateRoute>} />
-          <Route path="/metricas-ugl" element={<PrivateRoute><MetricasUGL /></PrivateRoute>} />
+          <Route path="/director-dashboard" element={<PrivateRoute roles={['DIR', 'ADM']}><DirectorDashboard /></PrivateRoute>} />
+          <Route path="/metricas-ugl" element={<PrivateRoute roles={['DIR', 'ADM']}><MetricasUGL /></PrivateRoute>} />
           <Route path="*"           element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

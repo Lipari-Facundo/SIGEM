@@ -12,6 +12,8 @@ import com.sigem.backend.model.ControlMovilItem;
 import com.sigem.backend.model.EstadoEquipo;
 import com.sigem.backend.model.Guardia;
 import com.sigem.backend.model.GuardiaEstado;
+import com.sigem.backend.model.AsignacionEquipo;
+import com.sigem.backend.model.EquipoMedico;
 import com.sigem.backend.model.Insumo;
 import com.sigem.backend.model.Movil;
 import com.sigem.backend.model.MovilInsumo;
@@ -22,10 +24,15 @@ import com.sigem.backend.model.TipoInsumo;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.ControlMovilItemRepository;
 import com.sigem.backend.repository.ControlMovilRepository;
+import com.sigem.backend.repository.AsignacionEquipoRepository;
+import com.sigem.backend.repository.EquipoMedicoRepository;
 import com.sigem.backend.repository.GuardiaRepository;
 import com.sigem.backend.repository.InsumoRepository;
 import com.sigem.backend.repository.MovilInsumoRepository;
 import com.sigem.backend.repository.StockEstandarMovilRepository;
+import com.sigem.backend.repository.TipoEquipoMedicoRepository;
+import com.sigem.backend.repository.MovilRepository;
+import com.sigem.backend.exception.ResourceConflictException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,19 +62,31 @@ public class ControlMovilService {
     private final InsumoRepository insumoRepository;
     private final ControlMovilRepository controlMovilRepository;
     private final ControlMovilItemRepository controlMovilItemRepository;
+    private final TipoEquipoMedicoRepository tipoEquipoRepository;
+    private final AsignacionEquipoRepository asignacionEquipoRepository;
+    private final EquipoMedicoRepository equipoMedicoRepository;
+    private final MovilRepository movilRepository;
 
     public ControlMovilService(GuardiaRepository guardiaRepository,
                               StockEstandarMovilRepository stockEstandarMovilRepository,
                               MovilInsumoRepository movilInsumoRepository,
                               InsumoRepository insumoRepository,
                               ControlMovilRepository controlMovilRepository,
-                              ControlMovilItemRepository controlMovilItemRepository) {
+                              ControlMovilItemRepository controlMovilItemRepository,
+                              TipoEquipoMedicoRepository tipoEquipoRepository,
+                              AsignacionEquipoRepository asignacionEquipoRepository,
+                              EquipoMedicoRepository equipoMedicoRepository,
+                              MovilRepository movilRepository) {
         this.guardiaRepository = guardiaRepository;
         this.stockEstandarMovilRepository = stockEstandarMovilRepository;
         this.movilInsumoRepository = movilInsumoRepository;
         this.insumoRepository = insumoRepository;
         this.controlMovilRepository = controlMovilRepository;
         this.controlMovilItemRepository = controlMovilItemRepository;
+        this.tipoEquipoRepository = tipoEquipoRepository;
+        this.asignacionEquipoRepository = asignacionEquipoRepository;
+        this.equipoMedicoRepository = equipoMedicoRepository;
+        this.movilRepository = movilRepository;
     }
 
     @Transactional(readOnly = true)
@@ -94,7 +113,8 @@ public class ControlMovilService {
         }
 
         Guardia guardia = buscarGuardiaActiva(enfermero);
-        Movil movil = guardia.getMovil();
+        Movil movil = movilRepository.findByIdForUpdate(guardia.getMovil().getId())
+                .orElseThrow(() -> new RuntimeException("No existe el móvil de la guardia activa"));
 
         List<ControlPlantillaItemDTO> plantilla = obtenerPlantilla(enfermero);
         Map<Long, ControlPlantillaItemDTO> plantillaPorId = plantilla.stream()
@@ -149,6 +169,7 @@ public class ControlMovilService {
             if (plantillaItem == null) {
                 throw new RuntimeException("El insumo indicado no está en la plantilla del móvil: " + item.getInsumoId());
             }
+            validarAsignacionEquipoEnviada(plantillaItem, item, movil.getId());
 
             if (plantillaItem.getTipo() == TipoInsumo.CONSUMIBLE) {
                 if (item.getCantidadContada() == null) {
@@ -256,6 +277,13 @@ public class ControlMovilService {
             itemControl.setEstadoEquipo(estadoEquipo);
             itemControl.setObservacion(item.getObservacion());
             itemControl.setNumeroSerie(item.getNumeroSerie());
+            itemControl.setEquipoMedico(plantillaItem.getEquipoMedicoId() == null
+                    ? null
+                    : equipoMedicoRepository.findById(plantillaItem.getEquipoMedicoId())
+                            .orElseThrow(() -> new ResourceConflictException(
+                                    "El equipo asignado cambió; actualice la plantilla del control")));
+            itemControl.setTipoEquipoSnapshot(plantillaItem.getTipoEquipoSnapshot());
+            itemControl.setNumeroSerieSnapshot(plantillaItem.getUltimoNumeroSerie());
             itemControl.setTestOk(item.getTestOk());
             controlMovilItemRepository.save(itemControl);
 
@@ -279,7 +307,11 @@ public class ControlMovilService {
             itemDTO.setCantidadContada(cantidadContada);
             itemDTO.setEstadoEquipo(estadoEquipo);
             itemDTO.setObservacion(item.getObservacion());
-            itemDTO.setNumeroSerie(item.getNumeroSerie());
+            itemDTO.setNumeroSerie(plantillaItem.getUltimoNumeroSerie() != null
+                    ? plantillaItem.getUltimoNumeroSerie() : item.getNumeroSerie());
+            itemDTO.setEquipoMedicoId(plantillaItem.getEquipoMedicoId());
+            itemDTO.setTipoEquipoSnapshot(plantillaItem.getTipoEquipoSnapshot());
+            itemDTO.setNumeroSerieSnapshot(plantillaItem.getUltimoNumeroSerie());
             itemDTO.setTestOk(item.getTestOk());
             itemsDetalle.add(itemDTO);
         }
@@ -359,7 +391,20 @@ public class ControlMovilService {
             String nombreNormalizado = normalizarNombre(insumo.getNombre());
             dto.setRequiereSerie(NOMBRES_REQUIEREN_SERIE.stream().anyMatch(nombreNormalizado::contains));
             dto.setRequiereTest(NOMBRES_REQUIEREN_TEST.stream().anyMatch(nombreNormalizado::contains));
-            if (dto.isRequiereSerie()) {
+            var tipoEquipo = tipoEquipoRepository.findByInsumoId(insumo.getId()).orElse(null);
+            if (tipoEquipo != null) {
+                dto.setTipoEquipoSnapshot(tipoEquipo.getCodigo());
+                dto.setRequiereSerie(true);
+                AsignacionEquipo asignacion = obtenerAsignacionActivaPorTipo(movilId, tipoEquipo.getCodigo());
+                if (asignacion != null) {
+                            dto.setEquipoMedicoId(asignacion.getEquipo().getId());
+                            dto.setAsignacionEquipoId(asignacion.getId());
+                            dto.setUltimoNumeroSerie(asignacion.getEquipo().getNumeroSerie());
+                }
+            }
+            if (dto.getTipoEquipoSnapshot() != null && dto.getEquipoMedicoId() == null) {
+                dto.setUltimoNumeroSerie(null);
+            } else if (dto.isRequiereSerie() && dto.getTipoEquipoSnapshot() == null) {
                 dto.setUltimoNumeroSerie(controlMovilItemRepository
                         .findFirstByControlMovilIdAndInsumoIdAndNumeroSerieIsNotNullOrderByControlFechaDesc(
                                 movilId, insumo.getId())
@@ -370,10 +415,57 @@ public class ControlMovilService {
         return dto;
     }
 
+    private void validarAsignacionEquipoEnviada(
+            ControlPlantillaItemDTO plantillaItem, ControlItemInputDTO item, Long movilId) {
+        if (plantillaItem.getTipoEquipoSnapshot() == null) return;
+
+        Long asignacionActualId = plantillaItem.getAsignacionEquipoId();
+        if (!Boolean.TRUE.equals(item.getAsignacionEquipoEnviada())
+                || !Objects.equals(item.getAsignacionEquipoId(), asignacionActualId)) {
+            throw new ResourceConflictException(
+                    "La identificación de la asignación vigente es obligatoria y debe coincidir; actualice la plantilla");
+        }
+
+        AsignacionEquipo asignacionPersistida =
+                obtenerAsignacionActivaPorTipo(movilId, plantillaItem.getTipoEquipoSnapshot());
+        Long asignacionPersistidaId = asignacionPersistida == null ? null : asignacionPersistida.getId();
+        if (!Objects.equals(asignacionPersistidaId, asignacionActualId)
+                || (asignacionPersistida != null
+                    && !Objects.equals(asignacionPersistida.getEquipo().getId(), plantillaItem.getEquipoMedicoId()))) {
+            throw new ResourceConflictException(
+                    "La asignación del equipo cambió; actualice la plantilla antes de guardar el control");
+        }
+
+        if (item.getEstadoEquipo() == EstadoEquipo.FALTANTE) return;
+        if (asignacionPersistida == null || plantillaItem.getUltimoNumeroSerie() == null) {
+            throw new ResourceConflictException(
+                    "No hay una asignación vigente para este equipo; actualice la plantilla del control");
+        }
+        String seriePersistida = asignacionPersistida.getEquipo().getNumeroSerie();
+        String serieEnviada = item.getNumeroSerie() == null ? "" : item.getNumeroSerie().trim();
+        if (seriePersistida == null
+                || !Objects.equals(plantillaItem.getUltimoNumeroSerie(), seriePersistida)
+                || !seriePersistida.equalsIgnoreCase(serieEnviada)) {
+            throw new ResourceConflictException(
+                    "La asignación o número de serie del equipo cambió; actualice la plantilla del control");
+        }
+    }
+
     private String normalizarNombre(String nombre) {
         return Normalizer.normalize(nombre == null ? "" : nombre, Normalizer.Form.NFD)
                 .replaceAll("\\p{M}", "")
                 .toLowerCase(Locale.ROOT);
+    }
+
+    private AsignacionEquipo obtenerAsignacionActivaPorTipo(Long movilId, String tipoEquipo) {
+        List<AsignacionEquipo> asignaciones = asignacionEquipoRepository
+                .findActivaPorMovilYTipo(movilId, tipoEquipo);
+        if (asignaciones.size() > 1) {
+            throw new ResourceConflictException(
+                    "El móvil tiene varias asignaciones activas del equipo " + tipoEquipo
+                            + "; requiere revisión antes de guardar el control");
+        }
+        return asignaciones.isEmpty() ? null : asignaciones.get(0);
     }
 
     private Integer calcularCantidadContada(ControlPlantillaItemDTO plantillaItem, ControlItemInputDTO item) {
@@ -428,7 +520,12 @@ public class ControlMovilService {
         dto.setCantidadContada(item.getCantidadContada());
         dto.setEstadoEquipo(item.getEstadoEquipo());
         dto.setObservacion(item.getObservacion());
-        dto.setNumeroSerie(item.getNumeroSerie());
+        dto.setNumeroSerie(item.getNumeroSerieSnapshot() == null
+                ? item.getNumeroSerie() : item.getNumeroSerieSnapshot());
+        dto.setEquipoMedicoId(item.getEquipoMedico() == null ? null : item.getEquipoMedico().getId());
+        dto.setTipoEquipoSnapshot(item.getTipoEquipoSnapshot());
+        dto.setNumeroSerieSnapshot(item.getNumeroSerieSnapshot() == null
+                ? item.getNumeroSerie() : item.getNumeroSerieSnapshot());
         dto.setTestOk(item.getTestOk());
         return dto;
     }

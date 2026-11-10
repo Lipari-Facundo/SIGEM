@@ -14,6 +14,10 @@ public class AsignacionEquipo {
     @JoinColumn(name = "equipo_id", nullable = false)
     private EquipoMedico equipo;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tipo_equipo_id")
+    private TipoEquipoMedico tipoEquipo;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "movil_id", nullable = false)
     private Movil movil;
@@ -34,6 +38,8 @@ public class AsignacionEquipo {
     public Long getId() { return id; }
     public EquipoMedico getEquipo() { return equipo; }
     public void setEquipo(EquipoMedico equipo) { this.equipo = equipo; }
+    public TipoEquipoMedico getTipoEquipo() { return tipoEquipo; }
+    public void setTipoEquipo(TipoEquipoMedico tipoEquipo) { this.tipoEquipo = tipoEquipo; }
     public Movil getMovil() { return movil; }
     public void setMovil(Movil movil) { this.movil = movil; }
     public Usuario getCoordinador() { return coordinador; }

@@ -1,6 +1,7 @@
 package com.sigem.backend.repository;
 
 import com.sigem.backend.model.Usuario;
+import com.sigem.backend.model.Rol;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -21,4 +22,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     boolean existsByDni(String dni);
 
     List<Usuario> findByNombreContainingIgnoreCaseOrApellidoContainingIgnoreCaseOrDniContaining(String nombre, String apellido, String dni);
+
+    List<Usuario> findByRolAndActivoTrueAndDisponibleTrueOrderByApellidoAscNombreAsc(Rol rol);
 }

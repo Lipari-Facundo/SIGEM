@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface EquipoMedicoRepository extends JpaRepository<EquipoMedico, Long> {
+    boolean existsByNumeroSerie(String numeroSerie);
+
     List<EquipoMedico> findByEstadoOrderByNombreAscNumeroSerieAsc(EstadoEquipoMedico estado);
 
     Optional<EquipoMedico> findFirstByNombreIgnoreCaseOrderByIdAsc(String nombre);

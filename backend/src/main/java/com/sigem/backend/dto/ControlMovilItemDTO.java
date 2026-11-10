@@ -16,6 +16,9 @@ public class ControlMovilItemDTO {
     private EstadoEquipo estadoEquipo;
     private String observacion;
     private String numeroSerie;
+    private String numeroSerieSnapshot;
+    private Long equipoMedicoId;
+    private String tipoEquipoSnapshot;
     private Boolean testOk;
 
     public String getInsumoNombre() {
@@ -96,6 +99,30 @@ public class ControlMovilItemDTO {
 
     public void setNumeroSerie(String numeroSerie) {
         this.numeroSerie = numeroSerie;
+    }
+
+    public String getNumeroSerieSnapshot() {
+        return numeroSerieSnapshot;
+    }
+
+    public void setNumeroSerieSnapshot(String numeroSerieSnapshot) {
+        this.numeroSerieSnapshot = numeroSerieSnapshot;
+    }
+
+    public Long getEquipoMedicoId() {
+        return equipoMedicoId;
+    }
+
+    public void setEquipoMedicoId(Long equipoMedicoId) {
+        this.equipoMedicoId = equipoMedicoId;
+    }
+
+    public String getTipoEquipoSnapshot() {
+        return tipoEquipoSnapshot;
+    }
+
+    public void setTipoEquipoSnapshot(String tipoEquipoSnapshot) {
+        this.tipoEquipoSnapshot = tipoEquipoSnapshot;
     }
 
     public Boolean getTestOk() {

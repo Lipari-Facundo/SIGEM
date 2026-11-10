@@ -14,6 +14,9 @@ public class ControlPlantillaItemDTO {
     private boolean requiereSerie;
     private boolean requiereTest;
     private String ultimoNumeroSerie;
+    private Long equipoMedicoId;
+    private Long asignacionEquipoId;
+    private String tipoEquipoSnapshot;
 
     public Long getInsumoId() {
         return insumoId;
@@ -85,5 +88,29 @@ public class ControlPlantillaItemDTO {
 
     public void setUltimoNumeroSerie(String ultimoNumeroSerie) {
         this.ultimoNumeroSerie = ultimoNumeroSerie;
+    }
+
+    public Long getEquipoMedicoId() {
+        return equipoMedicoId;
+    }
+
+    public void setEquipoMedicoId(Long equipoMedicoId) {
+        this.equipoMedicoId = equipoMedicoId;
+    }
+
+    public Long getAsignacionEquipoId() {
+        return asignacionEquipoId;
+    }
+
+    public void setAsignacionEquipoId(Long asignacionEquipoId) {
+        this.asignacionEquipoId = asignacionEquipoId;
+    }
+
+    public String getTipoEquipoSnapshot() {
+        return tipoEquipoSnapshot;
+    }
+
+    public void setTipoEquipoSnapshot(String tipoEquipoSnapshot) {
+        this.tipoEquipoSnapshot = tipoEquipoSnapshot;
     }
 }

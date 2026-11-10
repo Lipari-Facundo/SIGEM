@@ -3,6 +3,8 @@ package com.sigem.backend.service;
 import com.sigem.backend.dto.UsuarioDTO;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.UsuarioRepository;
+import com.sigem.backend.repository.MovimientoEquipoRepository;
+import com.sigem.backend.repository.MantenimientoEquipoRepository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.security.core.Authentication;
@@ -21,13 +23,19 @@ public class UsuarioService implements UserDetailsService {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final MovimientoEquipoRepository movimientoEquipoRepository;
+    private final MantenimientoEquipoRepository mantenimientoEquipoRepository;
 
     @PersistenceContext
     private EntityManager entityManager;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
+    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder,
+                          MovimientoEquipoRepository movimientoEquipoRepository,
+                          MantenimientoEquipoRepository mantenimientoEquipoRepository) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.movimientoEquipoRepository = movimientoEquipoRepository;
+        this.mantenimientoEquipoRepository = mantenimientoEquipoRepository;
     }
 
     // Requerido por Spring Security — carga el usuario por username
@@ -141,6 +149,12 @@ public class UsuarioService implements UserDetailsService {
         Usuario usuario = buscarPorId(id);
         if (usuario.getRol() == Rol.ADM) {
             throw new RuntimeException("No se puede eliminar un usuario administrador");
+        }
+        if (movimientoEquipoRepository.existsByActorIdOrResponsableId(id, id)
+                || mantenimientoEquipoRepository.existsByResponsableId(id)
+                || mantenimientoEquipoRepository.existsByActorId(id)) {
+            throw new IllegalStateException(
+                    "No se puede eliminar un usuario asociado al historial de equipos médicos; desactívelo");
         }
         usuarioRepository.delete(usuario);
         usuarioRepository.flush();

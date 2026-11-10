@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar';
 import EmptyState from '../components/ui/EmptyState';
 import Button from '../components/ui/Button';
 import { incidenteService, inventarioService } from '../services/api';
+import './InventarioMovil.css';
 
 const CATEGORIAS = [
   { key: 'MEDICACION', label: 'Medicación', icon: '💊' },
@@ -30,6 +31,8 @@ export default function InventarioMovil() {
   const navigate = useNavigate();
   const location = useLocation();
   const [inventario, setInventario] = useState([]);
+  const [equiposMedicosMovil, setEquiposMedicosMovil] = useState(null);
+  const [errorEquiposMedicos, setErrorEquiposMedicos] = useState('');
   const [historial, setHistorial] = useState([]);
   const [atenciones, setAtenciones] = useState([]);
   const [vista, setVista] = useState('inventario');
@@ -72,6 +75,14 @@ export default function InventarioMovil() {
       const response = await inventarioService.miInventario();
       setInventario(response.data);
       setGuardiaActiva(true);
+      try {
+        const equiposResponse = await inventarioService.misEquiposMedicos();
+        setEquiposMedicosMovil(equiposResponse.data);
+        setErrorEquiposMedicos('');
+      } catch {
+        setEquiposMedicosMovil(null);
+        setErrorEquiposMedicos('No se pudieron consultar los equipos médicos asignados al móvil.');
+      }
     } catch (exception) {
       const message = exception.response?.data?.message || '';
       if (message.includes('guardia activa')) setGuardiaActiva(false);
@@ -361,33 +372,73 @@ export default function InventarioMovil() {
             </div>
 
             {vista === 'inventario' && (
-              inventario.length === 0
-                ? <EmptyState icon="📦" title="Inventario sin cargar" description="El móvil todavía no tiene insumos inicializados." />
-                : <div style={S.categoryGrid}>
-                  {grupos.map(categoria => (
-                    <section key={categoria.key} style={S.category}>
-                      <div style={S.categoryHeader}>
-                        <span style={S.categoryIcon}>{categoria.icon}</span>
-                        <h2 style={S.categoryTitle}>{categoria.label}</h2>
-                        <span style={S.count}>{categoria.insumos.length}</span>
-                      </div>
-                      <div style={S.itemList}>
-                        {categoria.insumos.map(insumo => (
-                          <div key={insumo.insumoId} style={S.item}>
-                            <div style={S.itemInfo}>
-                              <span style={S.itemName}>{insumo.nombre}</span>
-                              {insumo.tipo === 'REUTILIZABLE' && <span style={S.reusable}>Reutilizable</span>}
-                            </div>
-                            <div style={S.quantity}>
-                              <strong>{insumo.cantidadActual}</strong>
-                              {insumo.unidadMedida && <span>{insumo.unidadMedida}</span>}
-                            </div>
+              <>
+                <section className="nurse-medical-equipment" aria-labelledby="nurse-medical-equipment-title">
+                  <div className="nurse-medical-equipment__header">
+                    <div>
+                      <p className="nurse-medical-equipment__eyebrow">Inventario de equipos</p>
+                      <h2 id="nurse-medical-equipment-title">Equipos médicos del móvil</h2>
+                      {equiposMedicosMovil && (
+                        <p className="nurse-medical-equipment__mobile">
+                          Móvil {equiposMedicosMovil.movil}
+                        </p>
+                      )}
+                    </div>
+                    <span className="nurse-medical-equipment__source">Asignación vigente</span>
+                  </div>
+                  {errorEquiposMedicos && (
+                    <p className="nurse-medical-equipment__error" role="alert">{errorEquiposMedicos}</p>
+                  )}
+                  {equiposMedicosMovil && (
+                    <div className="nurse-medical-equipment__grid">
+                      {equiposMedicosMovil.equipos.map(equipo => (
+                        <article
+                          key={equipo.tipo}
+                          className={`nurse-medical-equipment__item${equipo.faltante ? ' is-missing' : ''}`}
+                        >
+                          <div className="nurse-medical-equipment__item-heading">
+                            <h3>{equipo.tipoNombre}</h3>
+                            <span className="nurse-medical-equipment__status">
+                              {equipo.faltante ? 'Faltante / no disponible' : equipo.estado}
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                </div>
+                          <p className="nurse-medical-equipment__serial">
+                            {equipo.faltante ? 'Sin asignación operativa' : `N.º de serie: ${equipo.numeroSerie}`}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {inventario.length === 0
+                  ? <EmptyState icon="📦" title="Inventario sin cargar" description="El móvil todavía no tiene insumos inicializados." />
+                  : <div style={S.categoryGrid}>
+                    {grupos.map(categoria => (
+                      <section key={categoria.key} style={S.category}>
+                        <div style={S.categoryHeader}>
+                          <span style={S.categoryIcon}>{categoria.icon}</span>
+                          <h2 style={S.categoryTitle}>{categoria.label}</h2>
+                          <span style={S.count}>{categoria.insumos.length}</span>
+                        </div>
+                        <div style={S.itemList}>
+                          {categoria.insumos.map(insumo => (
+                            <div key={insumo.insumoId} style={S.item}>
+                              <div style={S.itemInfo}>
+                                <span style={S.itemName}>{insumo.nombre}</span>
+                                {insumo.tipo === 'REUTILIZABLE' && <span style={S.reusable}>Reutilizable</span>}
+                              </div>
+                              <div style={S.quantity}>
+                                <strong>{insumo.cantidadActual}</strong>
+                                {insumo.unidadMedida && <span>{insumo.unidadMedida}</span>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    ))}
+                  </div>}
+              </>
             )}
 
             {vista === 'historial' && (
