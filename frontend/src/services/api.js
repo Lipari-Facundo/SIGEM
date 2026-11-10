@@ -91,12 +91,17 @@ export const inventarioService = {
 
 export const depositoCentralService = {
   stock: (activo = true) => api.get('/deposito-central/stock', { params: { activo } }),
-  catalogo: () => api.get('/deposito-central/catalogo'),
   movimientos: () => api.get('/deposito-central/movimientos'),
+  
+  // Recibe { nombre, categoria, cantidadInicial, cantidadMinima }
   agregarInsumo: (data) => api.post('/deposito-central/stock', data),
+  
   actualizarMinimo: (id, cantidadMinima) => api.put(`/deposito-central/stock/${id}/minimo`, { cantidadMinima }),
-  archivarInsumo: (id) => api.put(`/insumos/${id}/archivar`),
-  desarchivarInsumo: (id) => api.put(`/insumos/${id}/desarchivar`),
+  
+  // Asegúrate de que las rutas de archivo coincidan con tu Controller en Spring Boot:
+  archivarInsumo: (insumoId) => api.put(`/deposito-central/stock/${insumoId}/archivar`),
+  desarchivarInsumo: (insumoId) => api.put(`/deposito-central/stock/${insumoId}/desarchivar`),
+  
   registrarMovimiento: (data) => api.post('/deposito-central/movimientos', data),
 };
 

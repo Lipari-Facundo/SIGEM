@@ -9,6 +9,7 @@ import com.sigem.backend.dto.StockDepositoDTO;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.service.DepositoCentralService;
 import com.sigem.backend.service.GuardiaService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -47,7 +48,7 @@ public class DepositoCentralController {
 
     @PostMapping("/stock")
     public ResponseEntity<StockDepositoDTO> agregarInsumo(
-            @RequestBody StockDepositoCreateDTO dto,
+            @Valid @RequestBody StockDepositoCreateDTO dto,
             @AuthenticationPrincipal Usuario usuario) {
         guardiaService.exigirGuardiaCentralActiva(usuario);
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -57,7 +58,7 @@ public class DepositoCentralController {
     @PutMapping("/stock/{stockId}/minimo")
     public ResponseEntity<StockDepositoDTO> actualizarMinimo(
             @PathVariable Long stockId,
-            @RequestBody CantidadMinimaDepositoDTO dto,
+            @Valid @RequestBody CantidadMinimaDepositoDTO dto,
             @AuthenticationPrincipal Usuario usuario) {
         guardiaService.exigirGuardiaCentralActiva(usuario);
         return ResponseEntity.ok(depositoCentralService.actualizarMinimo(stockId, dto, usuario));
@@ -65,7 +66,7 @@ public class DepositoCentralController {
 
     @PostMapping("/movimientos")
     public ResponseEntity<StockDepositoDTO> registrarMovimiento(
-            @RequestBody MovimientoDepositoCreateDTO dto,
+            @Valid @RequestBody MovimientoDepositoCreateDTO dto,
             @AuthenticationPrincipal Usuario usuario) {
         guardiaService.exigirGuardiaCentralActiva(usuario);
         return ResponseEntity.ok(depositoCentralService.registrarMovimiento(dto, usuario));

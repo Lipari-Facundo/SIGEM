@@ -11,26 +11,46 @@ const TIPOS_MOVIMIENTO = [
   { value: 'AJUSTE_NEGATIVO', label: 'Ajuste negativo' },
 ];
 
+const CATEGORIAS_FILTRO = [
+  { key: 'TODOS', label: 'Todos' },
+  { key: 'MEDICACION', label: 'Medicación' },
+  { key: 'DESCARTABLE', label: 'Descartables' },
+  { key: 'VIA_AEREA', label: 'Vía aérea' },
+  { key: 'ANTISEPTICO', label: 'Antisépticos' },
+  { key: 'KIT', label: 'Kits' },
+  { key: 'MONITOREO', label: 'Monitoreo' },
+  { key: 'CURACION', label: 'Curación' },
+  { key: 'SOLUCION', label: 'Soluciones' },
+];
+
 export default function DepositoCentral() {
   const { user } = useAuth();
   const [stock, setStock] = useState([]);
   const [archivados, setArchivados] = useState([]);
-  const [catalogo, setCatalogo] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [vista, setVista] = useState('stock');
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
+  
+  // Filtros
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('TODOS');
+  const [busqueda, setBusqueda] = useState('');
+
+  // Modales y formularios
   const [modalAlta, setModalAlta] = useState(false);
-  const [insumoId, setInsumoId] = useState('');
+  const [nombreInsumo, setNombreInsumo] = useState('');
+  const [categoriaInsumo, setCategoriaInsumo] = useState('MEDICACION');
   const [cantidadInicial, setCantidadInicial] = useState('0');
   const [cantidadMinima, setCantidadMinima] = useState('0');
+
   const [minimosEditados, setMinimosEditados] = useState({});
   const [movimiento, setMovimiento] = useState(null);
   const [tipoMovimiento, setTipoMovimiento] = useState('INGRESO');
   const [cantidadMovimiento, setCantidadMovimiento] = useState('');
   const [motivoMovimiento, setMotivoMovimiento] = useState('');
+
   const puedeGestionarArchivo = ['ADM', 'JEF'].includes(user?.rol);
 
   useEffect(() => {
@@ -40,15 +60,13 @@ export default function DepositoCentral() {
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      const [stockResponse, archivadosResponse, catalogoResponse, movimientosResponse] = await Promise.all([
+      const [stockResponse, archivadosResponse, movimientosResponse] = await Promise.all([
         depositoCentralService.stock(true),
         depositoCentralService.stock(false),
-        depositoCentralService.catalogo(),
         depositoCentralService.movimientos(),
       ]);
       setStock(stockResponse.data || []);
       setArchivados(archivadosResponse.data || []);
-      setCatalogo(catalogoResponse.data || []);
       setMovimientos(movimientosResponse.data || []);
       setError('');
     } catch (exception) {
@@ -59,21 +77,23 @@ export default function DepositoCentral() {
   };
 
   const agregarInsumo = async () => {
-    if (!insumoId) {
-      setError('Seleccioná un insumo del catálogo.');
+    if (!nombreInsumo.trim()) {
+      setError('Ingresá el nombre del insumo.');
       return;
     }
     setGuardando(true);
     setError('');
     try {
       await depositoCentralService.agregarInsumo({
-        insumoId: Number(insumoId),
+        nombre: nombreInsumo.trim(),
+        categoria: categoriaInsumo,
         cantidadInicial: Number(cantidadInicial) || 0,
         cantidadMinima: Number(cantidadMinima) || 0,
       });
-      setMensaje('Insumo agregado al depósito.');
+      setMensaje('Insumo agregado al depósito central.');
       setModalAlta(false);
-      setInsumoId('');
+      setNombreInsumo('');
+      setCategoriaInsumo('MEDICACION');
       setCantidadInicial('0');
       setCantidadMinima('0');
       await cargarDatos();
@@ -169,7 +189,13 @@ export default function DepositoCentral() {
     }
   };
 
-  const catalogoDisponible = catalogo.filter(item => !stock.some(row => row.insumoId === item.insumoId));
+  // Filtrado de insumos en stock
+  const stockFiltrado = stock.filter(item => {
+    const coincideCat = categoriaSeleccionada === 'TODOS' || item.categoria === categoriaSeleccionada;
+    const coincideBusqueda = item.nombre.toLowerCase().includes(busqueda.toLowerCase());
+    return coincideCat && coincideBusqueda;
+  });
+
   const bajoMinimo = stock.filter(item => item.cantidadActual <= item.cantidadMinima).length;
 
   return (
@@ -182,16 +208,28 @@ export default function DepositoCentral() {
             <h1 style={S.h1}>Depósito central</h1>
             <p style={S.sub}>Existencias generales, mínimos y movimientos de farmacia.</p>
           </div>
-          {vista === 'stock' && <Button onClick={() => { setError(''); setModalAlta(true); }}>＋ Agregar insumo</Button>}
+          {vista === 'stock' && (
+            <Button onClick={() => { setError(''); setModalAlta(true); }}>
+              ＋ Agregar insumo
+            </Button>
+          )}
         </header>
 
         {mensaje && <div style={S.success}>{mensaje}</div>}
         {error && !modalAlta && !movimiento && <div style={S.error}>{error}</div>}
 
         <nav style={S.tabs} aria-label="Secciones del depósito">
-          <button type="button" style={{ ...S.tab, ...(vista === 'stock' ? S.tabActive : {}) }} onClick={() => setVista('stock')}>Existencias</button>
-          {puedeGestionarArchivo && <button type="button" style={{ ...S.tab, ...(vista === 'archivados' ? S.tabActive : {}) }} onClick={() => setVista('archivados')}>Archivados ({archivados.length})</button>}
-          <button type="button" style={{ ...S.tab, ...(vista === 'movimientos' ? S.tabActive : {}) }} onClick={() => setVista('movimientos')}>Movimientos</button>
+          <button type="button" style={{ ...S.tab, ...(vista === 'stock' ? S.tabActive : {}) }} onClick={() => setVista('stock')}>
+            Existencias
+          </button>
+          {puedeGestionarArchivo && (
+            <button type="button" style={{ ...S.tab, ...(vista === 'archivados' ? S.tabActive : {}) }} onClick={() => setVista('archivados')}>
+              Archivados ({archivados.length})
+            </button>
+          )}
+          <button type="button" style={{ ...S.tab, ...(vista === 'movimientos' ? S.tabActive : {}) }} onClick={() => setVista('movimientos')}>
+            Movimientos
+          </button>
         </nav>
 
         {loading ? <div style={S.status}>Cargando depósito...</div> : vista === 'stock' ? (
@@ -200,11 +238,43 @@ export default function DepositoCentral() {
               <div><strong>{stock.length}</strong><span> insumos administrados</span></div>
               <div style={bajoMinimo ? S.lowStockSummary : undefined}><strong>{bajoMinimo}</strong><span> bajo mínimo</span></div>
             </div>
-            {stock.length === 0 ? (
-              <EmptyState icon="🏥" title="Depósito aún sin insumos" description="Agregá insumos desde el catálogo para comenzar a administrar existencias." action={<Button onClick={() => setModalAlta(true)}>Agregar insumo</Button>} />
+
+            {/* Buscador y Botonera de Categorías */}
+            <div style={S.filterBar}>
+              <input
+                type="text"
+                placeholder="Buscar insumos (ej: Adrenalina, Guantes...)"
+                value={busqueda}
+                onChange={e => setBusqueda(e.target.value)}
+                style={S.searchInput}
+              />
+              <div style={S.categoryList}>
+                {CATEGORIAS_FILTRO.map(cat => (
+                  <button
+                    key={cat.key}
+                    type="button"
+                    style={{
+                      ...S.categoryChip,
+                      ...(categoriaSeleccionada === cat.key ? S.categoryChipActive : {})
+                    }}
+                    onClick={() => setCategoriaSeleccionada(cat.key)}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {stockFiltrado.length === 0 ? (
+              <EmptyState
+                icon="🏥"
+                title={stock.length === 0 ? "Depósito aún sin insumos" : "No se encontraron insumos"}
+                description={stock.length === 0 ? "Agregá insumos para comenzar a administrar existencias." : "Probá ajustando la búsqueda o el filtro de categoría."}
+                action={stock.length === 0 ? <Button onClick={() => setModalAlta(true)}>Agregar insumo</Button> : undefined}
+              />
             ) : (
               <div style={S.stockList}>
-                {stock.map(item => {
+                {stockFiltrado.map(item => {
                   const alerta = item.cantidadActual <= item.cantidadMinima;
                   return (
                     <article key={item.id} style={{ ...S.stockItem, ...(alerta ? S.stockItemLow : {}) }}>
@@ -235,7 +305,17 @@ export default function DepositoCentral() {
                           <button type="button" style={S.smallAction} disabled={guardando} onClick={() => guardarMinimo(item)}>Guardar mínimo</button>
                         )}
                         <button type="button" style={S.smallAction} disabled={guardando} onClick={() => abrirMovimiento(item)}>Registrar movimiento</button>
-                        {puedeGestionarArchivo && <button type="button" style={S.archiveAction} disabled={guardando || item.cantidadActual !== 0} title={item.cantidadActual !== 0 ? 'Para archivar, la existencia debe ser cero.' : undefined} onClick={() => archivarInsumo(item)}>Archivar</button>}
+                        {puedeGestionarArchivo && (
+                          <button
+                            type="button"
+                            style={S.archiveAction}
+                            disabled={guardando || item.cantidadActual !== 0}
+                            title={item.cantidadActual !== 0 ? 'Para archivar, la existencia debe ser cero.' : undefined}
+                            onClick={() => archivarInsumo(item)}
+                          >
+                            Archivar
+                          </button>
+                        )}
                       </div>
                     </article>
                   );
@@ -289,18 +369,64 @@ export default function DepositoCentral() {
         )}
       </main>
 
+      {/* Modal de Alta de Insumo Directo (Categoría + Nombre) */}
       {modalAlta && (
         <div style={S.overlay} onMouseDown={() => !guardando && setModalAlta(false)}>
           <section style={S.modal} onMouseDown={event => event.stopPropagation()}>
-            <div style={S.modalHeader}><div><p style={S.overline}>Alta al depósito</p><h2 style={S.modalTitle}>Agregar insumo</h2></div><button type="button" style={S.close} onClick={() => setModalAlta(false)} aria-label="Cerrar">×</button></div>
-            {error && <div style={S.error}>{error}</div>}
-            <label style={S.field}>Insumo del catálogo<select style={S.input} value={insumoId} onChange={event => setInsumoId(event.target.value)}><option value="">Seleccionar insumo</option>{catalogoDisponible.map(item => <option key={item.insumoId} value={item.insumoId}>{item.nombre} · {item.categoria}</option>)}</select></label>
-            <div style={S.formGrid}>
-              <label style={S.field}>Existencia inicial<input style={S.input} type="number" min="0" value={cantidadInicial} onChange={event => setCantidadInicial(event.target.value)} /></label>
-              <label style={S.field}>Aviso de mínimo<input style={S.input} type="number" min="0" value={cantidadMinima} onChange={event => setCantidadMinima(event.target.value)} /></label>
+            <div style={S.modalHeader}>
+              <div>
+                <p style={S.overline}>Alta al depósito</p>
+                <h2 style={S.modalTitle}>Agregar insumo</h2>
+              </div>
+              <button type="button" style={S.close} onClick={() => setModalAlta(false)} aria-label="Cerrar">×</button>
             </div>
+
+            {error && <div style={S.error}>{error}</div>}
+
+            <label style={S.field}>
+              Categoría
+              <select style={S.input} value={categoriaInsumo} onChange={event => setCategoriaInsumo(event.target.value)}>
+                <option value="MEDICACION">Medicación</option>
+                <option value="DESCARTABLE">Descartables</option>
+                <option value="VIA_AEREA">Vía aérea</option>
+                <option value="ANTISEPTICO">Antisépticos</option>
+                <option value="KIT">Kits</option>
+                <option value="MONITOREO">Monitoreo</option>
+                <option value="CURACION">Curación</option>
+                <option value="SOLUCION">Soluciones</option>
+              </select>
+            </label>
+
+            <label style={S.field}>
+              Nombre del insumo
+              <input
+                style={S.input}
+                type="text"
+                placeholder="Ej: Adrenalina 1 mg, Ibupirac 400 mg..."
+                value={nombreInsumo}
+                onChange={event => setNombreInsumo(event.target.value)}
+              />
+            </label>
+
+            <div style={S.formGrid}>
+              <label style={S.field}>
+                Existencia inicial
+                <input style={S.input} type="number" min="0" value={cantidadInicial} onChange={event => setCantidadInicial(event.target.value)} />
+              </label>
+              <label style={S.field}>
+                Aviso de mínimo
+                <input style={S.input} type="number" min="0" value={cantidadMinima} onChange={event => setCantidadMinima(event.target.value)} />
+              </label>
+            </div>
+
             <p style={S.hint}>Una existencia inicial mayor a cero crea también un movimiento de ingreso auditable.</p>
-            <div style={S.modalActions}><Button variant="secondary" onClick={() => setModalAlta(false)}>Cancelar</Button><Button disabled={guardando || !insumoId} onClick={agregarInsumo}>{guardando ? 'Guardando...' : 'Agregar al depósito'}</Button></div>
+
+            <div style={S.modalActions}>
+              <Button variant="secondary" onClick={() => setModalAlta(false)}>Cancelar</Button>
+              <Button disabled={guardando || !nombreInsumo.trim()} onClick={agregarInsumo}>
+                {guardando ? 'Guardando...' : 'Agregar al depósito'}
+              </Button>
+            </div>
           </section>
         </div>
       )}
@@ -308,12 +434,34 @@ export default function DepositoCentral() {
       {movimiento && (
         <div style={S.overlay} onMouseDown={() => !guardando && setMovimiento(null)}>
           <section style={S.modal} onMouseDown={event => event.stopPropagation()}>
-            <div style={S.modalHeader}><div><p style={S.overline}>Existencia actual: {movimiento.cantidadActual}</p><h2 style={S.modalTitle}>{movimiento.nombre}</h2></div><button type="button" style={S.close} onClick={() => setMovimiento(null)} aria-label="Cerrar">×</button></div>
+            <div style={S.modalHeader}>
+              <div>
+                <p style={S.overline}>Existencia actual: {movimiento.cantidadActual}</p>
+                <h2 style={S.modalTitle}>{movimiento.nombre}</h2>
+              </div>
+              <button type="button" style={S.close} onClick={() => setMovimiento(null)} aria-label="Cerrar">×</button>
+            </div>
             {error && <div style={S.error}>{error}</div>}
-            <label style={S.field}>Tipo<select style={S.input} value={tipoMovimiento} onChange={event => setTipoMovimiento(event.target.value)}>{TIPOS_MOVIMIENTO.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-            <label style={S.field}>Cantidad<input style={S.input} type="number" min="1" value={cantidadMovimiento} onChange={event => setCantidadMovimiento(event.target.value)} /></label>
-            <label style={S.field}>Motivo<textarea style={S.input} maxLength={500} rows={3} value={motivoMovimiento} onChange={event => setMotivoMovimiento(event.target.value)} placeholder="Factura, recuento, vencimiento, rotura..." /></label>
-            <div style={S.modalActions}><Button variant="secondary" onClick={() => setMovimiento(null)}>Cancelar</Button><Button disabled={guardando} onClick={registrarMovimiento}>{guardando ? 'Registrando...' : 'Guardar movimiento'}</Button></div>
+            <label style={S.field}>
+              Tipo
+              <select style={S.input} value={tipoMovimiento} onChange={event => setTipoMovimiento(event.target.value)}>
+                {TIPOS_MOVIMIENTO.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}
+              </select>
+            </label>
+            <label style={S.field}>
+              Cantidad
+              <input style={S.input} type="number" min="1" value={cantidadMovimiento} onChange={event => setCantidadMovimiento(event.target.value)} />
+            </label>
+            <label style={S.field}>
+              Motivo
+              <textarea style={S.input} maxLength={500} rows={3} value={motivoMovimiento} onChange={event => setMotivoMovimiento(event.target.value)} placeholder="Factura, recuento, vencimiento, rotura..." />
+            </label>
+            <div style={S.modalActions}>
+              <Button variant="secondary" onClick={() => setMovimiento(null)}>Cancelar</Button>
+              <Button disabled={guardando} onClick={registrarMovimiento}>
+                {guardando ? 'Registrando...' : 'Guardar movimiento'}
+              </Button>
+            </div>
           </section>
         </div>
       )}
@@ -342,10 +490,17 @@ const S = {
   h1: { margin: 0, color: 'var(--color-on-primary)', fontSize: 'var(--font-size-2xl)' },
   sub: { margin: 'var(--spacing-1) 0 0', color: 'rgba(255,255,255,0.82)', fontSize: 'var(--font-size-sm)' },
   tabs: { display: 'flex', gap: 'var(--spacing-2)', overflowX: 'auto', borderBottom: '1px solid var(--color-border)' },
-  tab: { flex: '0 0 auto', minHeight: '44px', padding: '0.75rem 1rem', color: 'var(--color-text-secondary)', background: 'transparent', border: 'none', borderBottom: '3px solid transparent', fontWeight: 700, whiteSpace: 'nowrap' },
+  tab: { flex: '0 0 auto', minHeight: '44px', padding: '0.75rem 1rem', color: 'var(--color-text-secondary)', background: 'transparent', border: 'none', borderBottom: '3px solid transparent', fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer' },
   tabActive: { color: 'var(--color-primary-strong)', borderBottomColor: 'var(--color-primary)' },
   summary: { display: 'flex', gap: 'var(--spacing-3)', flexWrap: 'wrap', padding: 'var(--spacing-3)', color: 'var(--color-text-secondary)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' },
   lowStockSummary: { color: 'var(--color-warning-strong)' },
+  
+  filterBar: { display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3)' },
+  searchInput: { width: '100%', maxWidth: '24rem', minHeight: '42px', padding: '0.5rem 0.85rem', color: 'var(--color-text-primary)', background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius-sm)', fontSize: 'var(--font-size-sm)' },
+  categoryList: { display: 'flex', gap: 'var(--spacing-2)', flexWrap: 'wrap' },
+  categoryChip: { padding: '0.35rem 0.8rem', color: 'var(--color-text-secondary)', background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)', borderRadius: '9999px', fontSize: 'var(--font-size-xs)', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s ease' },
+  categoryChipActive: { color: 'var(--color-on-primary)', background: 'var(--color-primary)', borderColor: 'var(--color-primary)' },
+
   stockList: { display: 'grid', gap: 'var(--spacing-2)' },
   stockItem: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', alignItems: 'center', gap: 'var(--spacing-3)', padding: 'var(--spacing-4)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' },
   stockItemLow: { borderInlineStart: '4px solid var(--color-warning)' },
@@ -373,7 +528,7 @@ const S = {
   modal: { display: 'grid', gap: 'var(--spacing-4)', width: 'min(100%, 34rem)', maxHeight: '90vh', overflowY: 'auto', padding: 'var(--spacing-5)', background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)' },
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--spacing-3)' },
   modalTitle: { margin: 0, fontSize: 'var(--font-size-xl)' },
-  close: { minWidth: '40px', minHeight: '40px', color: 'var(--color-text-secondary)', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: '1.3rem' },
+  close: { minWidth: '40px', minHeight: '40px', color: 'var(--color-text-secondary)', background: 'transparent', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', fontSize: '1.3rem', cursor: 'pointer' },
   field: { display: 'grid', gap: 'var(--spacing-2)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', fontWeight: 700 },
   input: { width: '100%', minHeight: '44px', boxSizing: 'border-box', padding: '0.65rem 0.75rem', color: 'var(--color-text-primary)', background: 'var(--color-surface)', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius-sm)', fontWeight: 400 },
   formGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(9rem, 1fr))', gap: 'var(--spacing-3)' },

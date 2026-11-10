@@ -9,6 +9,7 @@ import com.sigem.backend.dto.StockDepositoDTO;
 import com.sigem.backend.model.Insumo;
 import com.sigem.backend.model.MovimientoDepositoCentral;
 import com.sigem.backend.model.StockDepositoCentral;
+import com.sigem.backend.model.TipoInsumo;
 import com.sigem.backend.model.TipoMovimientoDeposito;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.InsumoRepository;
@@ -39,8 +40,7 @@ public class DepositoCentralService {
         List<StockDepositoCentral> stock = activo
                 ? stockRepository.findByActivoTrueAndInsumoActivoTrueOrderByInsumoCategoriaAscInsumoNombreAsc()
                 : stockRepository.findByActivoFalseOrInsumoActivoFalseOrderByInsumoCategoriaAscInsumoNombreAsc();
-        return stock
-                .stream().map(this::mapearStock).toList();
+        return stock.stream().map(this::mapearStock).toList();
     }
 
     @Transactional(readOnly = true)
@@ -50,7 +50,7 @@ public class DepositoCentralService {
             dto.setInsumoId(insumo.getId());
             dto.setNombre(insumo.getNombre());
             dto.setCategoria(insumo.getCategoria());
-            dto.setTipo(insumo.getTipo());
+            dto.setTipo(insumo.getTipo() != null ? insumo.getTipo().name() : null);
             dto.setUnidadMedida(insumo.getUnidadMedida());
             return dto;
         }).toList();
@@ -58,22 +58,55 @@ public class DepositoCentralService {
 
     @Transactional
     public StockDepositoDTO agregarInsumo(StockDepositoCreateDTO dto, Usuario usuario) {
-        if (dto == null || dto.getInsumoId() == null) {
-            throw new RuntimeException("Seleccioná un insumo del catálogo");
+        if (dto == null || dto.getNombre() == null || dto.getNombre().isBlank()) {
+            throw new RuntimeException("El nombre del insumo es obligatorio");
         }
+        if (dto.getCategoria() == null) {
+            throw new RuntimeException("La categoría del insumo es obligatoria");
+        }
+
         int cantidadInicial = dto.getCantidadInicial() == null ? 0 : dto.getCantidadInicial();
         int cantidadMinima = dto.getCantidadMinima() == null ? 0 : dto.getCantidadMinima();
         if (cantidadInicial < 0 || cantidadMinima < 0) {
             throw new RuntimeException("Las cantidades del depósito no pueden ser negativas");
         }
 
-        Insumo insumo = insumoRepository.findById(dto.getInsumoId())
-                .filter(Insumo::isActivo)
-                .orElseThrow(() -> new RuntimeException("El insumo no existe o está inactivo"));
+        String nombreNormalizado = dto.getNombre().trim();
+
+        // 1. Obtener insumo existente en el catálogo global o crear uno nuevo con enum TipoInsumo
+        Insumo insumo = insumoRepository.findByNombreIgnoreCase(nombreNormalizado)
+                .orElseGet(() -> {
+                    Insumo nuevo = new Insumo();
+                    nuevo.setNombre(nombreNormalizado);
+                    nuevo.setCategoria(dto.getCategoria());
+                    
+                    // Parseo seguro del String dto.getTipo() hacia el Enum TipoInsumo
+                    if (dto.getTipo() != null && !dto.getTipo().isBlank()) {
+                        try {
+                            nuevo.setTipo(TipoInsumo.valueOf(dto.getTipo().toUpperCase()));
+                        } catch (IllegalArgumentException e) {
+                            nuevo.setTipo(TipoInsumo.CONSUMIBLE);
+                        }
+                    } else {
+                        nuevo.setTipo(TipoInsumo.CONSUMIBLE);
+                    }
+                    
+                    nuevo.setUnidadMedida(dto.getUnidadMedida());
+                    nuevo.setActivo(true);
+                    return insumoRepository.save(nuevo);
+                });
+
+        if (!insumo.isActivo()) {
+            insumo.setActivo(true);
+            insumoRepository.save(insumo);
+        }
+
+        // 2. Asociar al Depósito Central o recuperar el existente
         StockDepositoCentral stock = stockRepository.findByInsumoId(insumo.getId())
                 .orElseGet(StockDepositoCentral::new);
+
         if (stock.getId() != null && stock.isActivo()) {
-            throw new RuntimeException("El insumo ya forma parte del depósito central");
+            throw new RuntimeException("El insumo '" + insumo.getNombre() + "' ya forma parte del depósito central");
         }
 
         stock.setInsumo(insumo);
@@ -81,8 +114,11 @@ public class DepositoCentralService {
         stock.setCantidadActual(cantidadInicial);
         stock.setCantidadMinima(cantidadMinima);
         stockRepository.save(stock);
+
+        // 3. Guardar movimiento auditable de Alta
         guardarMovimiento(stock, usuario, TipoMovimientoDeposito.ALTA, cantidadInicial,
                 "Alta en depósito; mínimo inicial " + cantidadMinima, null, 0);
+
         return mapearStock(stock);
     }
 
@@ -98,8 +134,8 @@ public class DepositoCentralService {
         stock.setCantidadMinima(dto.getCantidadMinima());
         StockDepositoCentral actualizado = stockRepository.save(stock);
         guardarMovimiento(actualizado, usuario, TipoMovimientoDeposito.CAMBIO_MINIMO, 0,
-            "Mínimo cambiado de " + minimoAnterior + " a " + dto.getCantidadMinima(),
-            null, actualizado.getCantidadActual());
+                "Mínimo cambiado de " + minimoAnterior + " a " + dto.getCantidadMinima(),
+                null, actualizado.getCantidadActual());
         return mapearStock(actualizado);
     }
 
@@ -209,7 +245,7 @@ public class DepositoCentralService {
         dto.setInsumoId(stock.getInsumo().getId());
         dto.setNombre(stock.getInsumo().getNombre());
         dto.setCategoria(stock.getInsumo().getCategoria());
-        dto.setTipo(stock.getInsumo().getTipo());
+        dto.setTipo(stock.getInsumo().getTipo() != null ? stock.getInsumo().getTipo().name() : "CONSUMIBLE");
         dto.setUnidadMedida(stock.getInsumo().getUnidadMedida());
         dto.setCantidadActual(stock.getCantidadActual());
         dto.setCantidadMinima(stock.getCantidadMinima());
