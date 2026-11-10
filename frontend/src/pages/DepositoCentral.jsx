@@ -16,6 +16,7 @@ const CATEGORIAS_FILTRO = [
   { key: 'MEDICACION', label: 'Medicación' },
   { key: 'DESCARTABLE', label: 'Descartables' },
   { key: 'VIA_AEREA', label: 'Vía aérea' },
+  { key: 'EQUIPO_MEDICO', label: 'Equipo médico' },
   { key: 'ANTISEPTICO', label: 'Antisépticos' },
   { key: 'KIT', label: 'Kits' },
   { key: 'MONITOREO', label: 'Monitoreo' },
