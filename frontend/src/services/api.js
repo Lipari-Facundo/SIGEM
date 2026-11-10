@@ -98,9 +98,8 @@ export const depositoCentralService = {
   
   actualizarMinimo: (id, cantidadMinima) => api.put(`/deposito-central/stock/${id}/minimo`, { cantidadMinima }),
   
-  // Asegúrate de que las rutas de archivo coincidan con tu Controller en Spring Boot:
-  archivarInsumo: (insumoId) => api.put(`/deposito-central/stock/${insumoId}/archivar`),
-  desarchivarInsumo: (insumoId) => api.put(`/deposito-central/stock/${insumoId}/desarchivar`),
+  archivarInsumo: (insumoId) => api.put(`/insumos/${insumoId}/archivar`),
+  desarchivarInsumo: (insumoId) => api.put(`/insumos/${insumoId}/desarchivar`),
   
   registrarMovimiento: (data) => api.post('/deposito-central/movimientos', data),
 };
