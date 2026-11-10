@@ -50,7 +50,7 @@ public class DepositoCentralService {
             dto.setInsumoId(insumo.getId());
             dto.setNombre(insumo.getNombre());
             dto.setCategoria(insumo.getCategoria());
-            dto.setTipo(insumo.getTipo() != null ? insumo.getTipo().name() : null);
+            dto.setTipo(insumo.getTipo());
             dto.setUnidadMedida(insumo.getUnidadMedida());
             return dto;
         }).toList();
@@ -80,16 +80,7 @@ public class DepositoCentralService {
                     nuevo.setNombre(nombreNormalizado);
                     nuevo.setCategoria(dto.getCategoria());
                     
-                    // Parseo seguro del String dto.getTipo() hacia el Enum TipoInsumo
-                    if (dto.getTipo() != null && !dto.getTipo().isBlank()) {
-                        try {
-                            nuevo.setTipo(TipoInsumo.valueOf(dto.getTipo().toUpperCase()));
-                        } catch (IllegalArgumentException e) {
-                            nuevo.setTipo(TipoInsumo.CONSUMIBLE);
-                        }
-                    } else {
-                        nuevo.setTipo(TipoInsumo.CONSUMIBLE);
-                    }
+                    nuevo.setTipo(dto.getTipo() != null ? dto.getTipo() : TipoInsumo.CONSUMIBLE);
                     
                     nuevo.setUnidadMedida(dto.getUnidadMedida());
                     nuevo.setActivo(true);
@@ -245,7 +236,7 @@ public class DepositoCentralService {
         dto.setInsumoId(stock.getInsumo().getId());
         dto.setNombre(stock.getInsumo().getNombre());
         dto.setCategoria(stock.getInsumo().getCategoria());
-        dto.setTipo(stock.getInsumo().getTipo() != null ? stock.getInsumo().getTipo().name() : "CONSUMIBLE");
+        dto.setTipo(stock.getInsumo().getTipo() != null ? stock.getInsumo().getTipo() : TipoInsumo.CONSUMIBLE);
         dto.setUnidadMedida(stock.getInsumo().getUnidadMedida());
         dto.setCantidadActual(stock.getCantidadActual());
         dto.setCantidadMinima(stock.getCantidadMinima());
