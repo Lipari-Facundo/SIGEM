@@ -417,6 +417,7 @@ public class InventarioMovilService {
         }
 
         Map<Long, StockDepositoCentral> stockValidado = new LinkedHashMap<>();
+        Map<Long, MovilInsumo> stockMovilValidado = new LinkedHashMap<>();
         for (Long itemId : cantidades.keySet().stream().sorted().toList()) {
             SolicitudReposicionItem item = itemsSolicitud.get(itemId);
             StockDepositoCentral stock = stockDepositoCentralRepository
@@ -429,16 +430,33 @@ public class InventarioMovilService {
                         + ", solicitado " + cantidades.get(itemId));
             }
             stockValidado.put(itemId, stock);
+
+            MovilInsumo stockMovil = movilInsumoRepository
+                    .findByMovilIdAndInsumoIdForUpdate(
+                            solicitud.getMovil().getId(), item.getInsumo().getId())
+                    .orElseGet(() -> {
+                        MovilInsumo nuevo = new MovilInsumo();
+                        nuevo.setMovil(solicitud.getMovil());
+                        nuevo.setInsumo(item.getInsumo());
+                        nuevo.setCantidadActual(0);
+                        return nuevo;
+                    });
+            stockMovilValidado.put(itemId, stockMovil);
         }
 
         for (Map.Entry<Long, Integer> entrega : cantidades.entrySet()) {
             SolicitudReposicionItem item = itemsSolicitud.get(entrega.getKey());
             StockDepositoCentral stock = stockValidado.get(entrega.getKey());
+            MovilInsumo stockMovil = stockMovilValidado.get(entrega.getKey());
+            int cantidadEntregada = entrega.getValue();
+
             int anterior = stock.getCantidadActual();
-            int nuevo = anterior - entrega.getValue();
+            int nuevo = anterior - cantidadEntregada;
             stock.setCantidadActual(nuevo);
             stockDepositoCentralRepository.save(stock);
-            item.setCantidadEntregada(item.getCantidadEntregada() + entrega.getValue());
+            stockMovil.setCantidadActual(stockMovil.getCantidadActual() + cantidadEntregada);
+            movilInsumoRepository.save(stockMovil);
+            item.setCantidadEntregada(item.getCantidadEntregada() + cantidadEntregada);
             solicitudReposicionItemRepository.save(item);
 
             MovimientoDepositoCentral movimiento = new MovimientoDepositoCentral();
@@ -446,7 +464,7 @@ public class InventarioMovilService {
             movimiento.setUsuario(coordinador);
             movimiento.setSolicitud(solicitud);
             movimiento.setTipo(TipoMovimientoDeposito.ENTREGA_REPOSICION);
-            movimiento.setCantidad(entrega.getValue());
+            movimiento.setCantidad(cantidadEntregada);
             movimiento.setCantidadAnterior(anterior);
             movimiento.setCantidadNueva(nuevo);
                 String detalleCambio = item.getMotivoCambio() == null ? ""

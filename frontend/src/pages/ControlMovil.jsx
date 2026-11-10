@@ -53,7 +53,7 @@ export default function ControlMovil() {
   const [movilId, setMovilId] = useState(null);
   const [guardiaActual, setGuardiaActual] = useState(null);
   const [borradorListo, setBorradorListo] = useState(false);
-  const [seccionAbierta, setSeccionAbierta] = useState(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const referenciasSecciones = useRef({});
   const claveBorrador = user?.username && movilId
     ? `sigem:control-movil:${user.username}:${movilId}`
@@ -70,7 +70,7 @@ export default function ControlMovil() {
         controlService.plantilla(),
         guardiaService.listar(),
       ]);
-      const items = plantillaResponse.data || [];
+      const items = Array.isArray(plantillaResponse.data) ? plantillaResponse.data : [];
       const guardia = (guardiasResponse.data || []).find((item) => item.estado === 'ACTIVA');
       const idMovil = guardia?.movil?.id;
       setGuardiaActual(guardia || null);
@@ -88,9 +88,9 @@ export default function ControlMovil() {
 
       setPlantilla(items);
       setMovilId(idMovil || null);
-      const estadoInicial = borrador?.estadoPorInsumo || {};
-      const cantidadesIniciales = borrador?.cantidadPorInsumo || {};
-      const seriesIniciales = borrador?.numeroSeriePorInsumo || {};
+      const estadoInicial = { ...(borrador?.estadoPorInsumo || {}) };
+      const cantidadesIniciales = { ...(borrador?.cantidadPorInsumo || {}) };
+      const seriesIniciales = { ...(borrador?.numeroSeriePorInsumo || {}) };
       items.forEach((item) => {
         if (item.tipo === 'REUTILIZABLE') {
           estadoInicial[item.insumoId] ||= 'OPERATIVO';
@@ -175,6 +175,8 @@ export default function ControlMovil() {
     });
     return { ...grupo, completados: completadosSeccion, completa, conNovedades };
   }), [grupos, completitudPorId, cantidadPorInsumo, estadoPorInsumo, testPorInsumo]);
+  const currentCategory = seccionesConEstado[currentIndex] ?? null;
+  const seccionAbierta = currentCategory?.key ?? null;
 
   const completados = [...completitudPorId.values()].filter(Boolean).length;
   const pendientesPorSeccion = seccionesConEstado
@@ -186,10 +188,13 @@ export default function ControlMovil() {
     }));
 
   useEffect(() => {
-    if (!seccionesConEstado.length) return;
-    if (seccionAbierta && seccionesConEstado.some((item) => item.key === seccionAbierta)) return;
-    setSeccionAbierta(seccionesConEstado.find((item) => !item.completa)?.key || seccionesConEstado[0].key);
-  }, [seccionesConEstado, seccionAbierta]);
+    setCurrentIndex((previo) => Math.min(previo, Math.max(seccionesConEstado.length - 1, 0)));
+  }, [seccionesConEstado.length]);
+
+  useEffect(() => {
+    if (!seccionAbierta) return;
+    referenciasSecciones.current[seccionAbierta]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [currentIndex, seccionAbierta]);
 
   useEffect(() => {
     if (!claveBorrador || !borradorListo || resultado) return;
@@ -209,13 +214,13 @@ export default function ControlMovil() {
     numeroSeriePorInsumo, testPorInsumo, observaciones]);
 
   const abrirSeccion = (key) => {
-    setSeccionAbierta(key);
-    window.requestAnimationFrame(() => referenciasSecciones.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    const index = seccionesConEstado.findIndex((seccion) => seccion.key === key);
+    if (index >= 0) setCurrentIndex(index);
   };
 
   const irAlProximoPendiente = () => {
-    const siguiente = seccionesConEstado.find((seccion) => !seccion.completa);
-    if (siguiente) abrirSeccion(siguiente.key);
+    const index = seccionesConEstado.findIndex((seccion) => !seccion.completa);
+    if (index >= 0) setCurrentIndex(index);
   };
 
   const actualizarCantidad = (insumoId, valor) => {
@@ -252,6 +257,7 @@ export default function ControlMovil() {
     setNotaAbiertaPorInsumo({});
     setMasAbiertoPorInsumo({});
     setObservaciones('');
+    setCurrentIndex(0);
   };
 
   const enviarControl = async () => {
@@ -495,14 +501,149 @@ export default function ControlMovil() {
     );
   };
 
-  const marcarSeccionCompleta = (seccion) => {
-    if (!window.confirm(`¿Asignar la cantidad recomendada a los consumibles pendientes de “${seccion.label}”?`)) return;
-    setCantidadPorInsumo((previo) => {
-      const cantidades = { ...previo };
-      seccion.insumos.filter((item) => item.tipo === 'CONSUMIBLE' && !itemCompleto(item))
-        .forEach((item) => { cantidades[item.insumoId] = item.cantidadRecomendada; });
-      return cantidades;
-    });
+  const marcarSeccionCompleta = (event, currentCategory) => {
+    event.preventDefault();
+
+    const categoriasLength = seccionesConEstado.length;
+    const categoryIndex = currentCategory
+      ? seccionesConEstado.findIndex((category) => category.key === currentCategory.key)
+      : -1;
+
+    if (!currentCategory || categoryIndex < 0 || !Array.isArray(currentCategory.insumos)) {
+      console.error('[ControlMovil] Invalid current checklist category', {
+        currentIndex,
+        currentCategory,
+        categoriasLength,
+      });
+      setError('No se pudo identificar la sección actual. Seleccioná una categoría e intentá de nuevo.');
+      return;
+    }
+
+    if (currentIndex !== categoryIndex) {
+      console.error('[ControlMovil] Checklist category index mismatch', {
+        currentIndex,
+        currentCategory,
+        categoriasLength,
+        categoryIndex,
+      });
+      setError('La sección seleccionada cambió. Volvé a seleccionarla e intentá de nuevo.');
+      return;
+    }
+
+    try {
+      const pendientes = currentCategory.insumos.filter((item) => !itemCompleto(item));
+      const consumiblesPendientes = pendientes.filter((item) => item.tipo === 'CONSUMIBLE');
+      const equiposPendientes = pendientes.filter((item) => item.tipo === 'REUTILIZABLE');
+      const cantidadesFinales = consumiblesPendientes.map((item) => ({
+        insumoId: item.insumoId,
+        cantidad: item.cantidadRecomendada === null
+          || item.cantidadRecomendada === undefined
+          || item.cantidadRecomendada === ''
+          ? Number.NaN
+          : Number(item.cantidadRecomendada),
+      }));
+      const cantidadInvalida = cantidadesFinales.find(({ cantidad }) => (
+        !Number.isInteger(cantidad) || cantidad < 0
+      ));
+
+      if (cantidadInvalida) {
+        const insumo = consumiblesPendientes.find((item) => item.insumoId === cantidadInvalida.insumoId);
+        console.error('[ControlMovil] Invalid recommended quantity', {
+          currentIndex,
+          currentCategory,
+          categoriasLength,
+          insumo,
+          cantidad: cantidadInvalida.cantidad,
+        });
+        setError(`No se puede completar la sección: la cantidad recomendada de ${insumo?.nombre || 'un insumo'} no es válida.`);
+        return;
+      }
+
+      const testsResultado = new Map(equiposPendientes.map((item) => {
+        const testActual = testPorInsumo[item.insumoId];
+        const testFinal = typeof testActual === 'boolean'
+          ? testActual
+          : item.requiereTest && (estadoPorInsumo[item.insumoId] || 'OPERATIVO') === 'OPERATIVO'
+            ? true
+            : undefined;
+        return [item.insumoId, testFinal];
+      }));
+      const faltantesManuales = equiposPendientes.filter((item) => (
+        (item.requiereSerie
+          && !(numeroSeriePorInsumo[item.insumoId] || item.ultimoNumeroSerie || '').trim())
+        || (item.requiereTest && typeof testsResultado.get(item.insumoId) !== 'boolean')
+      ));
+
+      if (faltantesManuales.length > 0) {
+        setError(`Completá los datos requeridos de: ${faltantesManuales.map((item) => item.nombre).join(', ')}.`);
+        return;
+      }
+
+      if (pendientes.length > 0) {
+        const confirmacion = equiposPendientes.length > 0
+          ? `¿Completar “${currentCategory.label}” con las cantidades recomendadas y confirmar que los equipos reutilizables sin estado definido están operativos y aprobaron sus pruebas?`
+          : `¿Asignar la cantidad recomendada a los consumibles pendientes de “${currentCategory.label}”?`;
+        if (!window.confirm(confirmacion)) return;
+      }
+
+      console.log('[ControlMovil] Advancing checklist section', {
+        currentIndex,
+        currentCategory,
+        categoriasLength,
+        categoryIndex,
+      });
+
+      setCantidadPorInsumo((previo) => {
+        const cantidades = { ...previo };
+        cantidadesFinales.forEach(({ insumoId, cantidad }) => {
+          cantidades[insumoId] = cantidad;
+        });
+        return cantidades;
+      });
+
+      setEstadoPorInsumo((previo) => {
+        const estados = { ...previo };
+        equiposPendientes.forEach((item) => {
+          if (!estados[item.insumoId]) estados[item.insumoId] = 'OPERATIVO';
+        });
+        return estados;
+      });
+
+      setTestPorInsumo((previo) => {
+        const tests = { ...previo };
+        equiposPendientes.forEach((item) => {
+          if (item.requiereTest && typeof tests[item.insumoId] !== 'boolean'
+            && testsResultado.get(item.insumoId) === true) tests[item.insumoId] = true;
+        });
+        return tests;
+      });
+
+      setNumeroSeriePorInsumo((previo) => {
+        const series = { ...previo };
+        equiposPendientes.forEach((item) => {
+          if (item.requiereSerie && !series[item.insumoId]?.trim() && item.ultimoNumeroSerie) {
+            series[item.insumoId] = item.ultimoNumeroSerie;
+          }
+        });
+        return series;
+      });
+
+      setError('');
+      setCurrentIndex((previo) => {
+        const lastIndex = Math.max(categoriasLength - 1, 0);
+        const boundedIndex = Math.max(0, Math.min(previo, lastIndex));
+        const baseIndex = boundedIndex === categoryIndex ? boundedIndex : categoryIndex;
+        return Math.min(baseIndex + 1, lastIndex);
+      });
+    } catch (exception) {
+      console.error('[ControlMovil] Failed to complete checklist section', {
+        currentIndex,
+        currentCategory,
+        categoriasLength,
+        exception,
+      });
+      setError('No se pudo completar la sección. Revisá los datos e intentá de nuevo.');
+    }
   };
 
   if (loading) {
@@ -630,12 +771,12 @@ export default function ControlMovil() {
                 <span>{seccionesConEstado.length}</span>
               </div>
               <nav className="controlCategoryList">
-                {seccionesConEstado.map((seccion) => (
+                {seccionesConEstado.map((seccion, index) => (
                   <button
                     type="button"
                     key={seccion.key}
-                    className={`controlCategoryButton${seccionAbierta === seccion.key ? ' is-active' : ''}`}
-                    aria-current={seccionAbierta === seccion.key ? 'page' : undefined}
+                    className={`controlCategoryButton${currentIndex === index ? ' is-active' : ''}`}
+                    aria-current={currentIndex === index ? 'page' : undefined}
                     onClick={() => abrirSeccion(seccion.key)}
                   >
                     <span className="controlCategoryIcon" aria-hidden="true">{seccion.icon}</span>
@@ -654,38 +795,40 @@ export default function ControlMovil() {
             </aside>
 
             <div className="controlContent">
-              {seccionesConEstado.filter((seccion) => seccion.key === seccionAbierta).map((seccion) => (
+              {currentCategory && (
                 <section
-                  key={seccion.key}
-                  ref={(node) => { referenciasSecciones.current[seccion.key] = node; }}
+                  key={currentCategory.key}
+                  ref={(node) => { referenciasSecciones.current[currentCategory.key] = node; }}
                   className="controlSelectedCategory"
-                  aria-label={seccion.label}
+                  aria-label={currentCategory.label}
                 >
                   <div className="controlSelectedHeader">
                     <div>
                       <p style={S.overline}>Categoría</p>
-                      <h2><span aria-hidden="true">{seccion.icon}</span> {seccion.label}</h2>
+                      <h2><span aria-hidden="true">{currentCategory.icon}</span> {currentCategory.label}</h2>
                     </div>
-                    <span className="controlSelectedCount">{seccion.completados} de {seccion.insumos.length} revisados</span>
+                    <span className="controlSelectedCount">{currentCategory.completados} de {currentCategory.insumos.length} revisados</span>
                     <button
                       type="button"
                       style={S.actionChip}
-                      disabled={!seccion.insumos.some((item) => item.tipo === 'CONSUMIBLE' && !itemCompleto(item))}
-                      onClick={() => marcarSeccionCompleta(seccion)}
-                    >Marcar sección completa</button>
+                      disabled={currentCategory.completa && currentIndex >= seccionesConEstado.length - 1}
+                      onClick={(event) => marcarSeccionCompleta(event, currentCategory)}
+                    >{currentCategory.completa
+                      ? currentIndex < seccionesConEstado.length - 1 ? 'Siguiente sección' : 'Sección completa'
+                      : 'Marcar sección completa'}</button>
                   </div>
                   <div className="controlItemList">
-                    {agruparVariantes(seccion.insumos).map((grupo) => (
+                    {agruparVariantes(currentCategory.insumos).map((grupo) => (
                       <div key={grupo.key} style={grupo.esVariantes ? S.variantGroup : S.singleItem}>
                         {grupo.esVariantes && <h4 style={S.variantTitle}>{grupo.titulo}</h4>}
                         <div style={S.itemStack}>
-                          {grupo.items.map((item) => renderItem(item, seccion.key === 'EQUIPO_MEDICO'))}
+                          {grupo.items.map((item) => renderItem(item, currentCategory.key === 'EQUIPO_MEDICO'))}
                         </div>
                       </div>
                     ))}
                   </div>
                 </section>
-              ))}
+              )}
 
               {pendientesPorSeccion.length > 0 && (
                 <details className="controlPendingSummary" style={S.pendingList}>
