@@ -92,6 +92,8 @@ public class SecurityConfig {
                     .hasAnyRole("ADM", "JEF")
                 .requestMatchers(HttpMethod.PUT, "/api/inventario/reposicion/*/rechazar")
                     .hasAnyRole("ADM", "JEF")
+                .requestMatchers(HttpMethod.PATCH, "/api/inventario/reposicion-interna/*/toggle-archivo")
+                    .hasAnyRole("ADM", "JEF")
 
                 // ── Depósito central ──────────────────────────────────────
                 .requestMatchers("/api/deposito-central/**")
@@ -168,7 +170,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         return source -> {

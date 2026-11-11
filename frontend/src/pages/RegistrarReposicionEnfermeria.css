@@ -56,15 +56,19 @@
 
 .internal-requisition-actions {
   display: flex;
+  width: 100%;
+  min-width: 0;
   align-items: center;
   justify-content: flex-start;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  white-space: nowrap;
 }
 
 .internal-requisition-history-table {
+  display: table;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   table-layout: fixed;
 }
 
@@ -95,8 +99,10 @@
 
 .internal-requisition-history-table th,
 .internal-requisition-history-table td {
-  padding: 0.6rem 0.45rem;
+  min-width: 0;
+  padding: 0.55rem 0.4rem;
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .internal-requisition-history-table tbody td {
@@ -206,6 +212,12 @@
   overflow-wrap: anywhere;
 }
 
+.internal-requisition-history-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
 .internal-requisition-quantities .internal-requisition-history-item {
   font-weight: 700;
 }
@@ -217,13 +229,17 @@
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
   .internal-requisition-table-wrap {
     overflow-x: auto;
   }
 
   .internal-requisition-history-table {
-    min-width: 900px;
+    min-width: 820px;
+  }
+
+  .internal-requisition-history-wrap {
+    overflow-x: auto;
   }
 }
 
@@ -246,6 +262,19 @@
   background: #fff;
   border-radius: 14px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+}
+
+.internal-requisition-archived-modal {
+  width: min(900px, 100%);
+}
+
+.internal-requisition-archived-table-wrap {
+  max-height: min(60vh, 520px);
+  overflow: auto;
+}
+
+.internal-requisition-archived-table {
+  min-width: 620px;
 }
 
 .internal-requisition-modal-header {

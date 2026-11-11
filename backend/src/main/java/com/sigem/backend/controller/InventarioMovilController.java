@@ -124,6 +124,21 @@ public class InventarioMovilController {
         return ResponseEntity.ok(inventarioMovilService.listarSolicitudesInternas(usuario));
     }
 
+    @GetMapping("/reposicion-interna/archivadas")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<List<SolicitudReposicionDTO>> listarReposicionesInternasArchivadas(
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.listarSolicitudesInternasArchivadas(usuario));
+    }
+
+    @PatchMapping("/reposicion-interna/{id}/toggle-archivo")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<SolicitudReposicionDTO> alternarArchivoReposicionInterna(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.alternarArchivoSolicitudInterna(id, usuario));
+    }
+
     @PutMapping("/reposicion-interna/{id}")
     @PreAuthorize("hasAnyRole('JEF', 'ADM')")
     public ResponseEntity<SolicitudReposicionDTO> actualizarReposicionInterna(

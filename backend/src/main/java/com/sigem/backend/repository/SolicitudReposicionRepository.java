@@ -14,7 +14,8 @@ import java.util.Optional;
 public interface SolicitudReposicionRepository extends JpaRepository<SolicitudReposicion, Long> {
     List<SolicitudReposicion> findByEnfermeroUsernameOrderByFechaDesc(String username);
     List<SolicitudReposicion> findByEnfermeroUsernameAndEsInternaFalseOrderByFechaDesc(String username);
-    List<SolicitudReposicion> findByEsInternaTrueOrderByFechaDesc();
+    List<SolicitudReposicion> findByEsInternaTrueAndArchivadoFalseOrderByFechaDesc();
+    List<SolicitudReposicion> findByEsInternaTrueAndArchivadoTrueOrderByFechaDesc();
     List<SolicitudReposicion> findByEstadoOrderByFechaDesc(EstadoReposicion estado);
     List<SolicitudReposicion> findByEstadoInOrderByFechaDesc(List<EstadoReposicion> estados);
     List<SolicitudReposicion> findByEstadoInAndEsInternaFalseOrderByFechaDesc(List<EstadoReposicion> estados);

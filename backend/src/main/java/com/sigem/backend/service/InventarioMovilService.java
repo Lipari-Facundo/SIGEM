@@ -185,10 +185,31 @@ public class InventarioMovilService {
     public List<SolicitudReposicionDTO> listarSolicitudesInternas(Usuario solicitante) {
         exigirPermisoReposicionInterna(solicitante);
         exigirGuardiaCentralActivaSiCoordinador(solicitante);
-        return solicitudReposicionRepository.findByEsInternaTrueOrderByFechaDesc()
+        return solicitudReposicionRepository.findByEsInternaTrueAndArchivadoFalseOrderByFechaDesc()
                 .stream()
                 .map(this::mapearSolicitud)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SolicitudReposicionDTO> listarSolicitudesInternasArchivadas(Usuario solicitante) {
+        exigirPermisoReposicionInterna(solicitante);
+        exigirGuardiaCentralActivaSiCoordinador(solicitante);
+        return solicitudReposicionRepository.findByEsInternaTrueAndArchivadoTrueOrderByFechaDesc()
+                .stream()
+                .map(this::mapearSolicitud)
+                .toList();
+    }
+
+    @Transactional
+    public SolicitudReposicionDTO alternarArchivoSolicitudInterna(Long solicitudId, Usuario solicitante) {
+        exigirPermisoReposicionInterna(solicitante);
+        exigirGuardiaCentralActivaSiCoordinador(solicitante);
+        SolicitudReposicion solicitud = solicitudReposicionRepository.findByIdForUpdate(solicitudId)
+                .filter(SolicitudReposicion::isEsInterna)
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró la solicitud interna"));
+        solicitud.setArchivado(!solicitud.isArchivado());
+        return mapearSolicitud(solicitudReposicionRepository.save(solicitud));
     }
 
     @Transactional
@@ -809,6 +830,7 @@ public class InventarioMovilService {
         dto.setEstado(solicitud.getEstado());
         dto.setPrioridad(solicitud.getPrioridad());
         dto.setInterna(solicitud.isEsInterna());
+        dto.setArchivado(solicitud.isArchivado());
         dto.setObservaciones(solicitud.getObservaciones());
         dto.setMotivoResolucion(solicitud.getMotivoResolucion());
         if (solicitud.getUsuarioUltimaGestion() != null) {

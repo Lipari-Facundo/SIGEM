@@ -65,6 +65,11 @@ export default function RegistrarReposicionEnfermeria() {
   const [guardandoEdicion, setGuardandoEdicion] = useState(false);
   const [descargandoId, setDescargandoId] = useState(null);
   const [errorEdicion, setErrorEdicion] = useState('');
+  const [mostrarArchivadas, setMostrarArchivadas] = useState(false);
+  const [solicitudesArchivadas, setSolicitudesArchivadas] = useState([]);
+  const [cargandoArchivadas, setCargandoArchivadas] = useState(false);
+  const [errorArchivadas, setErrorArchivadas] = useState('');
+  const [actualizandoArchivoId, setActualizandoArchivoId] = useState(null);
 
   useEffect(() => {
     let vigente = true;
@@ -92,6 +97,19 @@ export default function RegistrarReposicionEnfermeria() {
       setError(exception.response?.data?.message || 'No se pudo cargar el historial.');
     } finally {
       setCargandoHistorial(false);
+    }
+  }, []);
+
+  const cargarArchivadas = useCallback(async () => {
+    setCargandoArchivadas(true);
+    setErrorArchivadas('');
+    try {
+      const { data } = await reposicionInternaService.archivadas();
+      setSolicitudesArchivadas(Array.isArray(data) ? data : []);
+    } catch (exception) {
+      setErrorArchivadas(exception.response?.data?.message || 'No se pudieron cargar las solicitudes archivadas.');
+    } finally {
+      setCargandoArchivadas(false);
     }
   }, []);
 
@@ -260,6 +278,42 @@ export default function RegistrarReposicionEnfermeria() {
       && request.estado === 'PENDIENTE';
   };
 
+  const alternarArchivo = async (request, archivedList = false) => {
+    setActualizandoArchivoId(request.id);
+    setErrorArchivadas('');
+    setError('');
+    try {
+      const { data } = await reposicionInternaService.alternarArchivo(request.id);
+      if (data.archivado) {
+        setHistorial((current) => current.filter((entry) => entry.id !== request.id));
+        setSolicitudesArchivadas((current) => [
+          data,
+          ...current.filter((entry) => entry.id !== request.id),
+        ].sort((a, b) => (getRequestTimestamp(b) || 0) - (getRequestTimestamp(a) || 0)));
+      } else {
+        setSolicitudesArchivadas((current) => current.filter((entry) => entry.id !== request.id));
+        await cargarHistorial();
+      }
+    } catch (exception) {
+      console.error('Error al alternar el archivo de la solicitud:', exception);
+      const responseData = exception.response?.data;
+      const message = responseData?.message
+        || responseData?.error
+        || (exception.response
+          ? `El servidor rechazó la operación (HTTP ${exception.response.status}).`
+          : 'No se pudo conectar con el servidor para actualizar el archivo.');
+      if (archivedList) setErrorArchivadas(message);
+      else setError(message);
+    } finally {
+      setActualizandoArchivoId(null);
+    }
+  };
+
+  const abrirArchivadas = async () => {
+    setMostrarArchivadas(true);
+    await cargarArchivadas();
+  };
+
   return (
     <div className="internal-requisition-page">
       <Sidebar />
@@ -416,6 +470,9 @@ export default function RegistrarReposicionEnfermeria() {
               <h2 id="internal-history-title">Historial de solicitudes internas</h2>
               <p>Las solicitudes pendientes pueden editarse durante los primeros 10 minutos.</p>
             </div>
+            <Button type="button" onClick={abrirArchivadas}>
+              Ver Archivados
+            </Button>
           </div>
 
           {cargandoHistorial ? (
@@ -423,17 +480,26 @@ export default function RegistrarReposicionEnfermeria() {
           ) : historial.length === 0 ? (
             <div className="internal-requisition-empty">Todavía no hay solicitudes internas registradas.</div>
           ) : (
-            <div className="internal-requisition-table-wrap">
+            <div className="internal-requisition-table-wrap internal-requisition-history-wrap">
               <table className="internal-requisition-table internal-requisition-history-table">
+                <colgroup>
+                  <col className="history-col-date" />
+                  <col className="history-col-status" />
+                  <col className="history-col-priority" />
+                  <col className="history-col-requester" />
+                  <col className="history-col-supplies" />
+                  <col className="history-col-quantity" />
+                  <col className="history-col-actions" />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th className="history-col-date">Fecha</th>
-                    <th className="history-col-status">Estado</th>
-                    <th className="history-col-priority">Prioridad</th>
-                    <th className="history-col-requester">Solicitante</th>
-                    <th className="history-col-supplies">Insumos</th>
-                    <th className="history-col-quantity">Cantidad</th>
-                    <th className="history-col-actions">Acciones</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Prioridad</th>
+                    <th>Solicitante</th>
+                    <th>Insumos</th>
+                    <th>Cantidad</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -489,7 +555,7 @@ export default function RegistrarReposicionEnfermeria() {
                         <div className="internal-requisition-actions">
                           <Button
                             size="sm"
-                            style={{ padding: '0.35rem 0.4rem', fontSize: '0.7rem' }}
+                            style={{ padding: '0.35rem 0.3rem', fontSize: '0.66rem', minWidth: 0, flexShrink: 0 }}
                             type="button"
                             disabled={descargando}
                             onClick={() => descargarPdf(request.id)}
@@ -499,13 +565,23 @@ export default function RegistrarReposicionEnfermeria() {
                           {estaEnVentanaDeEdicion(request) && (
                             <Button
                               size="sm"
-                              style={{ padding: '0.35rem 0.4rem', fontSize: '0.7rem' }}
+                              style={{ padding: '0.35rem 0.3rem', fontSize: '0.66rem', minWidth: 0, flexShrink: 0 }}
                               type="button"
                               onClick={() => abrirEdicion(request)}
                             >
                               Editar
                             </Button>
                           )}
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            style={{ padding: '0.35rem 0.3rem', fontSize: '0.66rem', minWidth: 0, flexShrink: 0 }}
+                            type="button"
+                            disabled={actualizandoArchivoId === request.id}
+                            onClick={() => alternarArchivo(request)}
+                          >
+                            {actualizandoArchivoId === request.id ? 'Archivando…' : 'Archivar'}
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -595,6 +671,100 @@ export default function RegistrarReposicionEnfermeria() {
                   </Button>
                 </footer>
               </form>
+            </section>
+          </div>
+        )}
+
+        {mostrarArchivadas && (
+          <div
+            className="internal-requisition-modal-backdrop"
+            role="presentation"
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget) setMostrarArchivadas(false);
+            }}
+          >
+            <section
+              className="internal-requisition-modal internal-requisition-archived-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="internal-archived-title"
+            >
+              <header className="internal-requisition-modal-header">
+                <div>
+                  <h2 id="internal-archived-title">Solicitudes archivadas</h2>
+                  <p>Desarchivá una solicitud para devolverla al historial principal.</p>
+                </div>
+                <button
+                  type="button"
+                  className="internal-requisition-modal-close"
+                  onClick={() => setMostrarArchivadas(false)}
+                  aria-label="Cerrar solicitudes archivadas"
+                >
+                  ×
+                </button>
+              </header>
+
+              {errorArchivadas && (
+                <div className="internal-requisition-alert is-error" role="alert">
+                  {errorArchivadas}
+                </div>
+              )}
+              {cargandoArchivadas ? (
+                <p className="internal-requisition-muted">Cargando solicitudes archivadas…</p>
+              ) : solicitudesArchivadas.length === 0 ? (
+                <div className="internal-requisition-empty">No hay solicitudes archivadas.</div>
+              ) : (
+                <div className="internal-requisition-table-wrap internal-requisition-archived-table-wrap">
+                  <table className="internal-requisition-table internal-requisition-archived-table">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Solicitante</th>
+                        <th>Insumos</th>
+                        <th>Acción</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {solicitudesArchivadas.map((request) => (
+                        <tr key={request.id}>
+                          <td className="history-cell-date">
+                            {getRequestTimestamp(request) !== null
+                              ? new Intl.DateTimeFormat('es-AR', {
+                                dateStyle: 'short',
+                                timeStyle: 'short',
+                                hourCycle: 'h23',
+                              }).format(new Date(getRequestTimestamp(request)))
+                              : '—'}
+                          </td>
+                          <td>{request.solicitanteNombre || request.enfermeroNombre || '—'}</td>
+                          <td>
+                            {Array.isArray(request.items) && request.items.length > 0
+                              ? request.items.map((item) => (
+                                <div key={item.id || item.insumoId}>
+                                  {item.insumoNombre || `Insumo #${item.insumoId}`}
+                                  {' — '}
+                                  {item.cantidadSolicitada ?? '—'}
+                                </div>
+                              ))
+                              : 'Sin insumos'}
+                          </td>
+                          <td>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              type="button"
+                              disabled={actualizandoArchivoId === request.id}
+                              onClick={() => alternarArchivo(request, true)}
+                            >
+                              {actualizandoArchivoId === request.id ? 'Restaurando…' : 'Desarchivar'}
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
           </div>
         )}

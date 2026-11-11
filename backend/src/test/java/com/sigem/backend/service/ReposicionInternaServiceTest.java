@@ -217,6 +217,25 @@ class ReposicionInternaServiceTest {
                 exception.getMessage());
     }
 
+    @Test
+    void alternarArchivoSolicitudInternaArchivaYDevuelveSolicitud() {
+        Usuario solicitante = usuarioCoordinador();
+        SolicitudReposicion solicitud = new SolicitudReposicion();
+        solicitud.setId(42L);
+        solicitud.setEnfermero(solicitante);
+        solicitud.setEsInterna(true);
+        solicitud.setFecha(LocalDateTime.now());
+        solicitud.setEstado(EstadoReposicion.PENDIENTE);
+        when(solicitudReposicionRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(solicitud));
+        when(solicitudReposicionRepository.save(solicitud)).thenReturn(solicitud);
+        when(solicitudReposicionItemRepository.findBySolicitudId(42L)).thenReturn(List.of());
+
+        SolicitudReposicionDTO response = service.alternarArchivoSolicitudInterna(42L, solicitante);
+
+        assertTrue(solicitud.isArchivado());
+        assertTrue(response.isArchivado());
+    }
+
     private Usuario usuarioCoordinador() {
         Usuario usuario = new Usuario();
         usuario.setId(12L);

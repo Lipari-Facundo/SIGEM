@@ -36,6 +36,9 @@ public class SolicitudReposicion {
     @Column(name = "es_interna", nullable = false)
     private boolean esInterna = true;
 
+    @Column(name = "archivado", nullable = false)
+    private boolean archivado = false;
+
     @Column(columnDefinition = "TEXT")
     private String observaciones;
 
@@ -70,6 +73,8 @@ public class SolicitudReposicion {
     public void setPrioridad(PrioridadReposicion prioridad) { this.prioridad = prioridad; }
     public boolean isEsInterna() { return esInterna; }
     public void setEsInterna(boolean esInterna) { this.esInterna = esInterna; }
+    public boolean isArchivado() { return archivado; }
+    public void setArchivado(boolean archivado) { this.archivado = archivado; }
     public String getObservaciones() { return observaciones; }
     public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
     public String getMotivoResolucion() { return motivoResolucion; }
