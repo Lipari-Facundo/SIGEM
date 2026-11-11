@@ -1,6 +1,7 @@
 package com.sigem.backend.dto;
 
 import com.sigem.backend.model.EstadoReposicion;
+import com.sigem.backend.model.PrioridadReposicion;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -10,7 +11,13 @@ public class SolicitudReposicionDTO {
     private String movilNumeroInterno;
     private String enfermeroNombre;
     private LocalDateTime fecha;
+    private LocalDateTime fechaEmision;
+    private Long fechaEmisionEpochMillis;
     private EstadoReposicion estado;
+    private PrioridadReposicion prioridad;
+    private boolean interna;
+    private Long solicitanteId;
+    private String solicitanteNombre;
     private String observaciones;
     private String motivoResolucion;
     private String usuarioUltimaGestion;
@@ -25,8 +32,22 @@ public class SolicitudReposicionDTO {
     public void setEnfermeroNombre(String enfermeroNombre) { this.enfermeroNombre = enfermeroNombre; }
     public LocalDateTime getFecha() { return fecha; }
     public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
+    public LocalDateTime getFechaEmision() { return fechaEmision; }
+    public void setFechaEmision(LocalDateTime fechaEmision) { this.fechaEmision = fechaEmision; }
+    public Long getFechaEmisionEpochMillis() { return fechaEmisionEpochMillis; }
+    public void setFechaEmisionEpochMillis(Long fechaEmisionEpochMillis) {
+        this.fechaEmisionEpochMillis = fechaEmisionEpochMillis;
+    }
     public EstadoReposicion getEstado() { return estado; }
     public void setEstado(EstadoReposicion estado) { this.estado = estado; }
+    public PrioridadReposicion getPrioridad() { return prioridad; }
+    public void setPrioridad(PrioridadReposicion prioridad) { this.prioridad = prioridad; }
+    public boolean isInterna() { return interna; }
+    public void setInterna(boolean interna) { this.interna = interna; }
+    public Long getSolicitanteId() { return solicitanteId; }
+    public void setSolicitanteId(Long solicitanteId) { this.solicitanteId = solicitanteId; }
+    public String getSolicitanteNombre() { return solicitanteNombre; }
+    public void setSolicitanteNombre(String solicitanteNombre) { this.solicitanteNombre = solicitanteNombre; }
     public String getObservaciones() { return observaciones; }
     public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
     public String getMotivoResolucion() { return motivoResolucion; }

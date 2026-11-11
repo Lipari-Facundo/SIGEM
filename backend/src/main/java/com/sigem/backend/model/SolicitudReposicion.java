@@ -13,8 +13,8 @@ public class SolicitudReposicion {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "movil_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "movil_id")
     private Movil movil;
 
     @JsonIgnoreProperties({"password", "authorities"})
@@ -28,6 +28,13 @@ public class SolicitudReposicion {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EstadoReposicion estado = EstadoReposicion.PENDIENTE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "prioridad", nullable = false, length = 20)
+    private PrioridadReposicion prioridad = PrioridadReposicion.NORMAL;
+
+    @Column(name = "es_interna", nullable = false)
+    private boolean esInterna = true;
 
     @Column(columnDefinition = "TEXT")
     private String observaciones;
@@ -46,6 +53,7 @@ public class SolicitudReposicion {
     protected void onCreate() {
         if (fecha == null) fecha = LocalDateTime.now();
         if (estado == null) estado = EstadoReposicion.PENDIENTE;
+        if (prioridad == null) prioridad = PrioridadReposicion.NORMAL;
     }
 
     public Long getId() { return id; }
@@ -58,6 +66,10 @@ public class SolicitudReposicion {
     public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
     public EstadoReposicion getEstado() { return estado; }
     public void setEstado(EstadoReposicion estado) { this.estado = estado; }
+    public PrioridadReposicion getPrioridad() { return prioridad; }
+    public void setPrioridad(PrioridadReposicion prioridad) { this.prioridad = prioridad; }
+    public boolean isEsInterna() { return esInterna; }
+    public void setEsInterna(boolean esInterna) { this.esInterna = esInterna; }
     public String getObservaciones() { return observaciones; }
     public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
     public String getMotivoResolucion() { return motivoResolucion; }

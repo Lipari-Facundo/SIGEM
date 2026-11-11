@@ -1,7 +1,13 @@
 package com.sigem.backend.dto;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+
 public class ReposicionItemDTO {
+    @NotNull(message = "Debe indicar el insumo")
     private Long insumoId;
+    @NotNull(message = "Debe indicar la cantidad")
+    @Positive(message = "La cantidad debe ser mayor a cero")
     private Integer cantidad;
     private String motivoCambio;
     private String detalleCambio;

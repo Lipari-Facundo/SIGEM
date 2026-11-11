@@ -14,6 +14,7 @@ const items = [
   { path: '/control-movil',       label: 'Control de Móvil', icon: '✅', roles: ['ENF'] },
   { path: '/informes-control',    label: 'Informes de Control', icon: '📑', roles: ['JEF','ADM','DIR'], requiresCentralShift: true },
   { path: '/solicitudes-reposicion', label: 'Reposiciones',    icon: '📋', roles: ['ADM','DES','JEF'], requiresCentralShift: true },
+  { path: '/reposicion-interna-enfermeria', label: 'Solicitud interna', icon: '🧾', roles: ['ADM','JEF'], requiresCentralShift: true },
   { path: '/deposito-central',    label: 'Depósito central', icon: '🏥', roles: ['JEF','ADM'], requiresCentralShift: true },
   { path: '/equipos-medicos',     label: 'Equipos médicos', icon: '🧰', roles: ['JEF','ADM','COORD_ENF'], requiresCentralShift: false },
   { path: '/incidentes',         label: 'Incidentes',        icon: '📋', roles: ['ENF','DES'] },

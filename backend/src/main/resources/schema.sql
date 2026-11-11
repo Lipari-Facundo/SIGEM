@@ -143,16 +143,22 @@ CREATE TABLE IF NOT EXISTS consumo_insumo (
 
 CREATE TABLE IF NOT EXISTS solicitud_reposicion (
     id serial PRIMARY KEY,
-    movil_id bigint NOT NULL REFERENCES moviles(id),
+    movil_id bigint REFERENCES moviles(id),
     enfermero_id bigint NOT NULL REFERENCES usuarios(id),
     fecha timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     estado varchar(50) NOT NULL DEFAULT 'PENDIENTE',
+    prioridad varchar(20) NOT NULL DEFAULT 'NORMAL',
+    es_interna boolean NOT NULL DEFAULT true,
     observaciones text,
     motivo_resolucion varchar(500),
     usuario_ultima_gestion_id bigint REFERENCES usuarios(id),
     fecha_ultima_gestion timestamp
 );
 
+ALTER TABLE solicitud_reposicion ALTER COLUMN movil_id DROP NOT NULL;
+ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS prioridad varchar(20) NOT NULL DEFAULT 'NORMAL';
+ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS es_interna boolean NOT NULL DEFAULT false;
+ALTER TABLE solicitud_reposicion ALTER COLUMN es_interna SET DEFAULT true;
 ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS motivo_resolucion varchar(500);
 ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS usuario_ultima_gestion_id bigint REFERENCES usuarios(id);
 ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS fecha_ultima_gestion timestamp;

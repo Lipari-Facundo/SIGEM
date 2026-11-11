@@ -32,6 +32,12 @@ No ejecutar el procedimiento sobre `sigem_dev`. Primero:
 
 La migración del módulo presupone que las tablas preexistentes de SIGEM (`usuarios`, `moviles`, `insumos`, `equipos_medicos`, `asignaciones_equipos` y `control_movil_item`) ya existen. No es un bootstrap de una base vacía. La primera corrida de Flyway habilitado en una base no vacía realiza baseline; por eso no deben combinarse el perfil `migration` y `SIGEM_ENABLE_FLYWAY_MIGRATION=true` sin restauración y verificación previa. No se debe ejecutar `mvn test` para aplicar migraciones.
 
+## Solicitudes internas de reposición
+
+El error `column "es_interna" ... does not exist` indica que la base de datos usada por la aplicación todavía no tiene aplicada la migración `backend/src/main/resources/db/migration/V20261110210000__solicitudes_internas_prioridad.sql`. La configuración normal deshabilita Flyway y `schema.sql`, así que reiniciar o reconstruir el frontend no agrega esas columnas.
+
+Aplicar las migraciones a la base de datos correcta antes de volver a registrar solicitudes. La migración `V20261110210000` agrega `prioridad`, permite que `movil_id` sea nulo para solicitudes internas y crea la restricción de prioridad; la migración posterior `V20261110214000` establece `DEFAULT true` para `es_interna`. Al crear la columna, el script conserva las solicitudes existentes como externas (`false`); las nuevas solicitudes internas se marcan explícitamente como `true` en el servicio. Si se usa Flyway, seguir el procedimiento de respaldo, revisión y autorización de arriba; el perfil `migration` puede baselinar un esquema heredado y ejecutar también migraciones anteriores. No se debe habilitar sobre producción sin validar previamente el destino y el respaldo. Si se aplican manualmente, ejecutar ambos archivos completos, en orden. Luego verificar que `es_interna` y `prioridad` existan en `solicitud_reposicion` antes de reiniciar la aplicación.
+
 El inventario heredado puede contener equipos sin clasificar que no forman parte del alcance de este módulo. Las vistas de Equipos Médicos incluyen solo equipos con un tipo validado (`CARDIODESFIBRILADOR`, `ELECTROCARDIOGRAFO` o `RESPIRADOR`); los registros fuera del alcance se conservan en la base y no se reclasifican ni eliminan automáticamente.
 
 Las relaciones de tipos a insumos permanecen sin asociar hasta que una correspondencia sea verificada con evidencia independiente; no se asignan por nombre.

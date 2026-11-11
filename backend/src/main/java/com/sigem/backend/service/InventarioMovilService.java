@@ -7,10 +7,12 @@ import com.sigem.backend.dto.InsumoStockDTO;
 import com.sigem.backend.dto.ItemReposicionDTO;
 import com.sigem.backend.dto.ReposicionCreateDTO;
 import com.sigem.backend.dto.ReposicionEntregaDTO;
+import com.sigem.backend.dto.ReposicionInternaUpdateDTO;
 import com.sigem.backend.dto.ReposicionItemDTO;
 import com.sigem.backend.dto.SolicitudReposicionDTO;
 import com.sigem.backend.dto.SugerenciaReposicionDTO;
 import com.sigem.backend.dto.EquipoOperativoMovilDTO;
+import com.sigem.backend.dto.StockDepositoDTO;
 import com.sigem.backend.model.ConsumoInsumo;
 import com.sigem.backend.model.EstadoReposicion;
 import com.sigem.backend.model.Incidente;
@@ -20,6 +22,8 @@ import com.sigem.backend.model.Insumo;
 import com.sigem.backend.model.Movil;
 import com.sigem.backend.model.MovilInsumo;
 import com.sigem.backend.model.MovimientoDepositoCentral;
+import com.sigem.backend.model.PrioridadReposicion;
+import com.sigem.backend.model.Rol;
 import com.sigem.backend.model.StockDepositoCentral;
 import com.sigem.backend.model.StockEstandarMovil;
 import com.sigem.backend.model.SolicitudReposicion;
@@ -40,7 +44,21 @@ import com.sigem.backend.repository.SolicitudReposicionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.lowagie.text.Document;
+import com.lowagie.text.DocumentException;
+import com.lowagie.text.Element;
+import com.lowagie.text.Font;
+import com.lowagie.text.FontFactory;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPCell;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+
+import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -84,6 +102,220 @@ public class InventarioMovilService {
         this.stockDepositoCentralRepository = stockDepositoCentralRepository;
         this.movimientoDepositoCentralRepository = movimientoDepositoCentralRepository;
         this.equiposOperativosMovilService = equiposOperativosMovilService;
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockDepositoDTO> catalogoReposicionEnfermeria(Usuario solicitante) {
+        exigirPermisoReposicionInterna(solicitante);
+        exigirGuardiaCentralActivaSiCoordinador(solicitante);
+        return stockDepositoCentralRepository
+                .findByActivoTrueAndInsumoActivoTrueOrderByInsumoCategoriaAscInsumoNombreAsc()
+                .stream()
+                .map(stock -> {
+                    StockDepositoDTO dto = new StockDepositoDTO();
+                    dto.setId(stock.getId());
+                    dto.setInsumoId(stock.getInsumo().getId());
+                    dto.setNombre(stock.getInsumo().getNombre());
+                    dto.setCategoria(stock.getInsumo().getCategoria());
+                    dto.setTipo(stock.getInsumo().getTipo());
+                    dto.setUnidadMedida(stock.getInsumo().getUnidadMedida());
+                    dto.setCantidadActual(stock.getCantidadActual());
+                    dto.setCantidadMinima(stock.getCantidadMinima());
+                    return dto;
+                })
+                .toList();
+    }
+
+    @Transactional
+    public SolicitudReposicionDTO crearSolicitudInterna(Usuario solicitante, ReposicionCreateDTO dto) {
+        exigirPermisoReposicionInterna(solicitante);
+        exigirGuardiaCentralActivaSiCoordinador(solicitante);
+        if (solicitante.getId() == null) {
+            throw new IllegalArgumentException("No se pudo identificar al usuario autenticado");
+        }
+        if (dto == null || dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw new IllegalArgumentException("Agregá al menos un insumo a la solicitud");
+        }
+
+        Map<Long, Integer> cantidadesPorInsumo = new LinkedHashMap<>();
+        Map<Long, StockDepositoCentral> stockPorInsumo = new LinkedHashMap<>();
+        for (ReposicionItemDTO item : dto.getItems()) {
+            if (item == null || item.getInsumoId() == null
+                    || item.getCantidad() == null || item.getCantidad() <= 0) {
+                throw new IllegalArgumentException("Cada insumo debe tener una cantidad mayor a cero");
+            }
+            if (cantidadesPorInsumo.putIfAbsent(item.getInsumoId(), item.getCantidad()) != null) {
+                throw new IllegalArgumentException("No repitas un insumo en la solicitud");
+            }
+
+            StockDepositoCentral stock = stockDepositoCentralRepository
+                    .findActiveByInsumoIdForUpdate(item.getInsumoId())
+                    .filter(StockDepositoCentral::isActivo)
+                    .filter(entry -> entry.getInsumo().isActivo())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El insumo seleccionado no está autorizado en el depósito central"));
+            stockPorInsumo.put(item.getInsumoId(), stock);
+        }
+
+        SolicitudReposicion solicitud = new SolicitudReposicion();
+        solicitud.setEnfermero(solicitante);
+        solicitud.setMovil(null);
+        solicitud.setEsInterna(true);
+        solicitud.setPrioridad(dto.getPrioridad() == null ? PrioridadReposicion.NORMAL : dto.getPrioridad());
+        solicitud.setFecha(LocalDateTime.now());
+        solicitud.setEstado(EstadoReposicion.PENDIENTE);
+        solicitud.setObservaciones(dto.getObservaciones());
+        SolicitudReposicion guardada = solicitudReposicionRepository.save(solicitud);
+
+        cantidadesPorInsumo.forEach((insumoId, cantidad) -> {
+            StockDepositoCentral stock = stockPorInsumo.get(insumoId);
+            SolicitudReposicionItem item = new SolicitudReposicionItem();
+            item.setSolicitud(guardada);
+            item.setInsumo(stock.getInsumo());
+            item.setCantidadSolicitada(cantidad);
+            item.setCantidadEntregada(0);
+            item.setCantidadActualAlMomento(stock.getCantidadActual());
+            solicitudReposicionItemRepository.save(item);
+        });
+
+        return mapearSolicitud(guardada);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SolicitudReposicionDTO> listarSolicitudesInternas(Usuario solicitante) {
+        exigirPermisoReposicionInterna(solicitante);
+        exigirGuardiaCentralActivaSiCoordinador(solicitante);
+        return solicitudReposicionRepository.findByEsInternaTrueOrderByFechaDesc()
+                .stream()
+                .map(this::mapearSolicitud)
+                .toList();
+    }
+
+    @Transactional
+    public SolicitudReposicionDTO actualizarSolicitudInterna(
+            Long solicitudId, Usuario solicitante, ReposicionInternaUpdateDTO dto) {
+        exigirPermisoReposicionInterna(solicitante);
+        exigirGuardiaCentralActivaSiCoordinador(solicitante);
+        if (dto == null || dto.getPrioridad() == null
+                || dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw new IllegalArgumentException("La prioridad y al menos un insumo son obligatorios");
+        }
+
+        SolicitudReposicion solicitud = solicitudReposicionRepository.findByIdForUpdate(solicitudId)
+                .filter(SolicitudReposicion::isEsInterna)
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró la solicitud interna"));
+        if (solicitud.getFecha() == null
+                || solicitud.getFecha().isBefore(LocalDateTime.now().minusMinutes(10))) {
+            throw new IllegalArgumentException(
+                    "El tiempo límite de 10 minutos para modificar la solicitud ha expirado");
+        }
+        if (solicitud.getEstado() != EstadoReposicion.PENDIENTE) {
+            throw new IllegalArgumentException("Solo se pueden modificar solicitudes pendientes");
+        }
+
+        Map<Long, Integer> cantidadesPorInsumo = new LinkedHashMap<>();
+        Map<Long, StockDepositoCentral> stockPorInsumo = new LinkedHashMap<>();
+        for (ReposicionItemDTO requestedItem : dto.getItems()) {
+            if (requestedItem == null || requestedItem.getInsumoId() == null
+                    || requestedItem.getCantidad() == null || requestedItem.getCantidad() <= 0) {
+                throw new IllegalArgumentException("Cada insumo debe tener una cantidad mayor a cero");
+            }
+            if (cantidadesPorInsumo.putIfAbsent(
+                    requestedItem.getInsumoId(), requestedItem.getCantidad()) != null) {
+                throw new IllegalArgumentException("No repitas un insumo en la solicitud");
+            }
+
+            StockDepositoCentral stock = stockDepositoCentralRepository
+                    .findActiveByInsumoIdForUpdate(requestedItem.getInsumoId())
+                    .filter(StockDepositoCentral::isActivo)
+                    .filter(entry -> entry.getInsumo().isActivo())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El insumo seleccionado no está autorizado en el depósito central"));
+            stockPorInsumo.put(requestedItem.getInsumoId(), stock);
+        }
+
+        Map<Long, SolicitudReposicionItem> itemsExistentes = solicitudReposicionItemRepository
+                .findBySolicitudId(solicitudId)
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        item -> item.getInsumo().getId(), item -> item));
+
+        for (SolicitudReposicionItem itemExistente : itemsExistentes.values()) {
+            Integer nuevaCantidad = cantidadesPorInsumo.get(itemExistente.getInsumo().getId());
+            if (nuevaCantidad == null) {
+                solicitudReposicionItemRepository.delete(itemExistente);
+            } else {
+                itemExistente.setCantidadSolicitada(nuevaCantidad);
+                solicitudReposicionItemRepository.save(itemExistente);
+            }
+        }
+
+        cantidadesPorInsumo.forEach((insumoId, cantidad) -> {
+            if (!itemsExistentes.containsKey(insumoId)) {
+                StockDepositoCentral stock = stockPorInsumo.get(insumoId);
+                SolicitudReposicionItem nuevoItem = new SolicitudReposicionItem();
+                nuevoItem.setSolicitud(solicitud);
+                nuevoItem.setInsumo(stock.getInsumo());
+                nuevoItem.setCantidadSolicitada(cantidad);
+                nuevoItem.setCantidadEntregada(0);
+                nuevoItem.setCantidadActualAlMomento(stock.getCantidadActual());
+                solicitudReposicionItemRepository.save(nuevoItem);
+            }
+        });
+
+        solicitud.setPrioridad(dto.getPrioridad());
+        return mapearSolicitud(solicitudReposicionRepository.save(solicitud));
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] exportarSolicitudInternaPdf(Long solicitudId, Usuario solicitante) {
+        exigirPermisoReposicionInterna(solicitante);
+        exigirGuardiaCentralActivaSiCoordinador(solicitante);
+        SolicitudReposicion solicitud = solicitudReposicionRepository.findById(solicitudId)
+                .filter(SolicitudReposicion::isEsInterna)
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró la solicitud interna"));
+        List<SolicitudReposicionItem> items = solicitudReposicionItemRepository.findBySolicitudId(solicitudId);
+
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Document document = new Document();
+        try {
+            PdfWriter.getInstance(document, output);
+            document.open();
+            Font titleFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16);
+            Font bodyFont = FontFactory.getFont(FontFactory.HELVETICA, 10);
+            Paragraph title = new Paragraph("Solicitud interna de reposición", titleFont);
+            title.setAlignment(Element.ALIGN_CENTER);
+            document.add(title);
+            document.add(new Paragraph("Número: " + solicitud.getId(), bodyFont));
+            document.add(new Paragraph("Solicitante: " + nombreCompleto(solicitud.getEnfermero()), bodyFont));
+            document.add(new Paragraph("Fecha y hora: "
+                    + solicitud.getFecha().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")), bodyFont));
+            document.add(new Paragraph("Prioridad: " + solicitud.getPrioridad(), bodyFont));
+            document.add(new Paragraph("Estado: " + solicitud.getEstado(), bodyFont));
+            if (solicitud.getObservaciones() != null && !solicitud.getObservaciones().isBlank()) {
+                document.add(new Paragraph("Observaciones: " + solicitud.getObservaciones(), bodyFont));
+            }
+            document.add(new Paragraph(" "));
+
+            PdfPTable table = new PdfPTable(new float[] { 4, 2, 1.5f });
+            table.setWidthPercentage(100);
+            for (String heading : List.of("Insumo", "Categoría", "Cantidad")) {
+                PdfPCell cell = new PdfPCell(new Phrase(heading, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+                table.addCell(cell);
+            }
+            for (SolicitudReposicionItem item : items) {
+                table.addCell(item.getInsumo().getNombre());
+                table.addCell(item.getInsumo().getCategoria().name());
+                table.addCell(item.getCantidadSolicitada().toString());
+            }
+            document.add(table);
+            document.close();
+            return output.toByteArray();
+        } catch (DocumentException exception) {
+            throw new IllegalStateException("No se pudo generar el PDF de la solicitud", exception);
+        } finally {
+            if (document.isOpen()) document.close();
+        }
     }
 
     @Transactional
@@ -339,6 +571,8 @@ public class InventarioMovilService {
         solicitud.setMovil(movil);
         solicitud.setEnfermero(enfermero);
         solicitud.setEstado(EstadoReposicion.PENDIENTE);
+        solicitud.setPrioridad(dto.getPrioridad() == null ? PrioridadReposicion.NORMAL : dto.getPrioridad());
+        solicitud.setEsInterna(false);
         solicitud.setObservaciones(dto.getObservaciones());
         SolicitudReposicion solicitudGuardada = solicitudReposicionRepository.save(solicitud);
 
@@ -365,7 +599,7 @@ public class InventarioMovilService {
     @Transactional(readOnly = true)
     public List<SolicitudReposicionDTO> listarMisSolicitudes(Usuario enfermero) {
         return solicitudReposicionRepository
-                .findByEnfermeroUsernameOrderByFechaDesc(enfermero.getUsername())
+                .findByEnfermeroUsernameAndEsInternaFalseOrderByFechaDesc(enfermero.getUsername())
                 .stream()
                 .map(this::mapearSolicitud)
                 .toList();
@@ -374,7 +608,7 @@ public class InventarioMovilService {
     @Transactional(readOnly = true)
     public List<SolicitudReposicionDTO> listarSolicitudesPendientes(Usuario solicitante) {
         exigirGuardiaCentralActivaSiCoordinador(solicitante);
-        return solicitudReposicionRepository.findByEstadoInOrderByFechaDesc(
+        return solicitudReposicionRepository.findByEstadoInAndEsInternaFalseOrderByFechaDesc(
                         List.of(EstadoReposicion.PENDIENTE, EstadoReposicion.PARCIAL))
                 .stream()
                 .map(this::mapearSolicitud)
@@ -392,6 +626,9 @@ public class InventarioMovilService {
         SolicitudReposicion solicitud = solicitudReposicionRepository.findByIdForUpdate(solicitudId)
                 .orElseThrow(() -> new RuntimeException("No se encontró la solicitud " + solicitudId));
         validarSolicitudAbierta(solicitud);
+        if (solicitud.isEsInterna()) {
+            throw new IllegalArgumentException("La solicitud interna no puede procesarse como reposición de móvil");
+        }
 
         Map<Long, SolicitudReposicionItem> itemsSolicitud = solicitudReposicionItemRepository
                 .findBySolicitudId(solicitudId).stream()
@@ -511,12 +748,19 @@ public class InventarioMovilService {
     }
 
     private void exigirGuardiaCentralActivaSiCoordinador(Usuario usuario) {
-        if (usuario.getRol() == com.sigem.backend.model.Rol.JEF) {
+        if (usuario != null && usuario.getRol() == Rol.JEF) {
             guardiaRepository.findByEnfermeroUsernameAndEstadoAndTipoGuardia(
                             usuario.getUsername(), GuardiaEstado.ACTIVA,
                             com.sigem.backend.model.TipoGuardia.CENTRAL)
                     .orElseThrow(() -> new RuntimeException(
                             "Iniciá tu guardia en la central de operaciones para gestionar estas solicitudes"));
+        }
+    }
+
+    private void exigirPermisoReposicionInterna(Usuario usuario) {
+        if (usuario == null || (usuario.getRol() != Rol.JEF && usuario.getRol() != Rol.ADM)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "No tenés permiso para gestionar solicitudes internas");
         }
     }
 
@@ -551,11 +795,20 @@ public class InventarioMovilService {
     private SolicitudReposicionDTO mapearSolicitud(SolicitudReposicion solicitud) {
         SolicitudReposicionDTO dto = new SolicitudReposicionDTO();
         dto.setId(solicitud.getId());
-        dto.setMovilNumeroInterno(solicitud.getMovil().getNumeroInterno());
-        dto.setEnfermeroNombre(solicitud.getEnfermero().getNombre() + " "
-                + solicitud.getEnfermero().getApellido());
+        dto.setMovilNumeroInterno(solicitud.getMovil() == null
+                ? null : solicitud.getMovil().getNumeroInterno());
+        dto.setEnfermeroNombre(nombreCompleto(solicitud.getEnfermero()));
+        dto.setSolicitanteId(solicitud.getEnfermero().getId());
+        dto.setSolicitanteNombre(nombreCompleto(solicitud.getEnfermero()));
         dto.setFecha(solicitud.getFecha());
+        dto.setFechaEmision(solicitud.getFecha());
+        dto.setFechaEmisionEpochMillis(solicitud.getFecha()
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli());
         dto.setEstado(solicitud.getEstado());
+        dto.setPrioridad(solicitud.getPrioridad());
+        dto.setInterna(solicitud.isEsInterna());
         dto.setObservaciones(solicitud.getObservaciones());
         dto.setMotivoResolucion(solicitud.getMotivoResolucion());
         if (solicitud.getUsuarioUltimaGestion() != null) {
@@ -567,6 +820,10 @@ public class InventarioMovilService {
                 .map(this::mapearItemReposicion)
                 .toList());
         return dto;
+    }
+
+    private String nombreCompleto(Usuario usuario) {
+        return usuario.getNombre() + " " + usuario.getApellido();
     }
 
     private ItemReposicionDTO mapearItemReposicion(SolicitudReposicionItem item) {

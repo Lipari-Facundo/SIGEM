@@ -4,8 +4,10 @@ import com.sigem.backend.dto.ConsumoBatchDTO;
 import com.sigem.backend.dto.ConsumoInsumoDTO;
 import com.sigem.backend.dto.EquipoOperativoMovilDTO;
 import com.sigem.backend.dto.InsumoStockDTO;
+import com.sigem.backend.dto.StockDepositoDTO;
 import com.sigem.backend.dto.ReposicionCreateDTO;
 import com.sigem.backend.dto.ReposicionEntregaDTO;
+import com.sigem.backend.dto.ReposicionInternaUpdateDTO;
 import com.sigem.backend.dto.ReposicionRechazoDTO;
 import com.sigem.backend.dto.SolicitudReposicionDTO;
 import com.sigem.backend.dto.SugerenciaReposicionDTO;
@@ -13,6 +15,9 @@ import com.sigem.backend.model.Movil;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.service.InventarioMovilService;
 import com.sigem.backend.service.MovilService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -95,6 +100,50 @@ public class InventarioMovilController {
             @AuthenticationPrincipal Usuario usuario,
             @RequestBody ReposicionCreateDTO dto) {
         return ResponseEntity.ok(inventarioMovilService.crearSolicitudReposicion(usuario, dto));
+    }
+
+    @GetMapping("/reposicion-interna/catalogo")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<List<StockDepositoDTO>> catalogoReposicionInterna(
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.catalogoReposicionEnfermeria(usuario));
+    }
+
+    @PostMapping("/reposicion-interna")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<SolicitudReposicionDTO> crearReposicionInterna(
+            @AuthenticationPrincipal Usuario usuario,
+            @Valid @RequestBody ReposicionCreateDTO dto) {
+        return ResponseEntity.ok(inventarioMovilService.crearSolicitudInterna(usuario, dto));
+    }
+
+    @GetMapping("/reposicion-interna")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<List<SolicitudReposicionDTO>> listarReposicionesInternas(
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.listarSolicitudesInternas(usuario));
+    }
+
+    @PutMapping("/reposicion-interna/{id}")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<SolicitudReposicionDTO> actualizarReposicionInterna(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario,
+            @Valid @RequestBody ReposicionInternaUpdateDTO dto) {
+        return ResponseEntity.ok(inventarioMovilService.actualizarSolicitudInterna(id, usuario, dto));
+    }
+
+    @GetMapping("/reposicion-interna/{id}/export/pdf")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<byte[]> exportarReposicionInternaPdf(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+        byte[] pdf = inventarioMovilService.exportarSolicitudInternaPdf(id, usuario);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"solicitud-interna-" + id + ".pdf\"")
+                .body(pdf);
     }
 
     @GetMapping("/reposicion/mias")

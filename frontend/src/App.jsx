@@ -16,6 +16,7 @@ import InformesControl from './pages/InformesControl';
 import SolicitudesReposicion from './pages/SolicitudesReposicion';
 import DepositoCentral from './pages/DepositoCentral';
 import EquiposMedicos from './pages/EquiposMedicos';
+import RegistrarReposicionEnfermeria from './pages/RegistrarReposicionEnfermeria';
 
 export default function App() {
   return (
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/control-movil" element={<PrivateRoute roles={['ENF']}><ControlMovil /></PrivateRoute>} />
           <Route path="/informes-control" element={<PrivateRoute roles={['JEF', 'ADM', 'DIR']}><InformesControl /></PrivateRoute>} />
           <Route path="/solicitudes-reposicion" element={<PrivateRoute roles={['JEF', 'ADM', 'DES']}><SolicitudesReposicion /></PrivateRoute>} />
+          <Route path="/reposicion-interna-enfermeria" element={<PrivateRoute roles={['JEF', 'ADM']}><RegistrarReposicionEnfermeria /></PrivateRoute>} />
           <Route path="/deposito-central" element={<PrivateRoute roles={['JEF', 'ADM']}><DepositoCentral /></PrivateRoute>} />
           <Route path="/equipos-medicos" element={<PrivateRoute roles={['ADM', 'JEF', 'COORD_ENF']}><EquiposMedicos /></PrivateRoute>} />
           <Route path="/asignacion-equipos" element={<PrivateRoute roles={['JEF','ADM']}><Navigate to="/equipos-medicos" replace /></PrivateRoute>} />

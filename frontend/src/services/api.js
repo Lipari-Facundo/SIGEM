@@ -90,6 +90,14 @@ export const inventarioService = {
   rechazarReposicion: (id, motivo) => api.put(`/inventario/reposicion/${id}/rechazar`, { motivo }),
 };
 
+export const reposicionInternaService = {
+  catalogo: () => api.get('/inventario/reposicion-interna/catalogo'),
+  crear: (data) => api.post('/inventario/reposicion-interna', data),
+  historial: () => api.get('/inventario/reposicion-interna'),
+  actualizar: (id, data) => api.put(`/inventario/reposicion-interna/${id}`, data),
+  exportarPdf: (id) => api.get(`/inventario/reposicion-interna/${id}/export/pdf`, { responseType: 'blob' }),
+};
+
 export const depositoCentralService = {
   stock: (activo = true) => api.get('/deposito-central/stock', { params: { activo } }),
   catalogo: () => api.get('/deposito-central/catalogo'),
