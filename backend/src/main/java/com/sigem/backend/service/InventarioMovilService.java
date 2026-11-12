@@ -698,14 +698,34 @@ public class InventarioMovilService {
     @Transactional(readOnly = true)
     public List<SolicitudReposicionDTO> listarSolicitudesPendientes(Usuario solicitante) {
         exigirGuardiaCentralActivaSiCoordinador(solicitante);
-        return mapearSolicitudes(solicitudReposicionRepository.findByEstadoInAndEsInternaFalseOrderByFechaDesc(
+        return mapearSolicitudes(solicitudReposicionRepository
+                .findByEstadoInAndEsInternaFalseAndArchivadoFalseOrderByFechaDesc(
                 List.of(EstadoReposicion.PENDIENTE, EstadoReposicion.PARCIAL)));
     }
 
     @Transactional(readOnly = true)
     public List<SolicitudReposicionDTO> listarHistorialSolicitudesReposicion(Usuario solicitante) {
         exigirGuardiaCentralActivaSiCoordinador(solicitante);
-        return mapearSolicitudes(solicitudReposicionRepository.findByEsInternaFalseOrderByFechaDesc());
+        return mapearSolicitudes(
+                solicitudReposicionRepository.findByEsInternaFalseAndArchivadoFalseOrderByFechaDesc());
+    }
+
+    @Transactional
+    public void archivarSolicitudReposicion(Long solicitudId, Usuario coordinador) {
+        if (coordinador == null || (coordinador.getRol() != Rol.JEF && coordinador.getRol() != Rol.ADM)) {
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "No tenés permiso para archivar solicitudes de reposición");
+        }
+        exigirGuardiaCentralActivaSiCoordinador(coordinador);
+        SolicitudReposicion solicitud = solicitudReposicionRepository.findByIdForUpdate(solicitudId)
+                .filter(row -> !row.isEsInterna())
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró la solicitud"));
+        if (solicitud.isArchivado()) return;
+
+        solicitud.setArchivado(true);
+        solicitudReposicionRepository.save(solicitud);
+        guardarGestion(solicitud, coordinador, "ARCHIVAR",
+                "Solicitud archivada del historial habitual. Estado conservado: " + solicitud.getEstado(), null);
     }
 
     @Transactional(readOnly = true)

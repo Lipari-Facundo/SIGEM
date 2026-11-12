@@ -80,6 +80,32 @@ class ControlMovilServiceTest {
     }
 
     @Test
+    void noPermiteRegistrarMasDeUnControlEnLaMismaGuardia() {
+        Usuario enfermero = new Usuario();
+        enfermero.setId(77L);
+        enfermero.setUsername("enfermero");
+        enfermero.setRol(Rol.ENF);
+        Movil movil = new Movil();
+        movil.setId(5L);
+        Guardia guardia = new Guardia();
+        guardia.setId(11L);
+        guardia.setMovil(movil);
+        when(guardiaRepository.findByEnfermeroUsernameAndEstado("enfermero", GuardiaEstado.ACTIVA))
+                .thenReturn(Optional.of(guardia));
+        when(movilRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(movil));
+        when(controlRepository.existsByGuardia_IdAndEnfermero_Id(11L, 77L)).thenReturn(true);
+        ControlItemInputDTO item = new ControlItemInputDTO();
+        item.setInsumoId(8L);
+        ControlCreateDTO request = new ControlCreateDTO();
+        request.setItems(List.of(item));
+
+        assertThrows(ResourceConflictException.class,
+                () -> service.crearControl(enfermero, request));
+
+        verify(controlRepository, never()).save(any(ControlMovil.class));
+    }
+
+    @Test
     void controlEnviandoUnaSerieAnteriorAlCambioDeAsignacionRespondeConflicto() {
         Usuario enfermero = new Usuario();
         enfermero.setUsername("enfermero");

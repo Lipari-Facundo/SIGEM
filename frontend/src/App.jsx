@@ -33,7 +33,7 @@ export default function App() {
           <Route path="/inventario" element={<PrivateRoute roles={['ENF']}><InventarioMovil /></PrivateRoute>} />
           <Route path="/control-movil" element={<PrivateRoute roles={['ENF']}><ControlMovil /></PrivateRoute>} />
           <Route path="/informes-control" element={<PrivateRoute roles={['JEF', 'ADM', 'DIR']}><InformesControl /></PrivateRoute>} />
-          <Route path="/solicitudes-reposicion" element={<PrivateRoute roles={['JEF', 'ADM', 'DES']}><SolicitudesReposicion /></PrivateRoute>} />
+          <Route path="/solicitudes-reposicion/:solicitudId?" element={<PrivateRoute roles={['JEF', 'ADM', 'DES']}><SolicitudesReposicion /></PrivateRoute>} />
           <Route path="/reposicion-interna-enfermeria" element={<PrivateRoute roles={['JEF', 'ADM']}><RegistrarReposicionEnfermeria /></PrivateRoute>} />
           <Route path="/deposito-central" element={<PrivateRoute roles={['JEF', 'ADM']}><DepositoCentral /></PrivateRoute>} />
           <Route path="/equipos-medicos" element={<PrivateRoute roles={['ADM', 'JEF', 'COORD_ENF']}><EquiposMedicos /></PrivateRoute>} />

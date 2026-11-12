@@ -88,6 +88,7 @@ export const inventarioService = {
   miSolicitud:       (id)     => api.get(`/inventario/reposicion/mias/${id}`),
   solicitudesPendientes: ()   => api.get('/inventario/reposicion/pendientes'),
   historialReposiciones: ()   => api.get('/inventario/reposicion/historial'),
+  archivarReposicion: (id) => api.patch(`/inventario/reposicion/${id}/archivar`),
   catalogoEdicionSolicitud: (id) => api.get(`/inventario/reposicion/${id}/catalogo-edicion`),
   modificarReposicion: (id, data) => api.put(`/inventario/reposicion/${id}`, data),
   entregarReposicion: (id, data) => api.post(`/inventario/reposicion/${id}/entregas`, data),

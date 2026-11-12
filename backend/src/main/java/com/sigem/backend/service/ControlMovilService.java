@@ -115,6 +115,9 @@ public class ControlMovilService {
         Guardia guardia = buscarGuardiaActiva(enfermero);
         Movil movil = movilRepository.findByIdForUpdate(guardia.getMovil().getId())
                 .orElseThrow(() -> new RuntimeException("No existe el móvil de la guardia activa"));
+        if (controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(guardia.getId(), enfermero.getId())) {
+            throw new ResourceConflictException("El control de móvil ya fue registrado para esta guardia");
+        }
 
         List<ControlPlantillaItemDTO> plantilla = obtenerPlantilla(enfermero);
         Map<Long, ControlPlantillaItemDTO> plantillaPorId = plantilla.stream()

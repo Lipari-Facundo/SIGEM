@@ -107,6 +107,43 @@ class ReposicionInternaServiceTest {
     }
 
     @Test
+    void archivarSolicitudExternaConservaEstadoYRegistraAuditoria() {
+        Usuario admin = new Usuario();
+        admin.setRol(Rol.ADM);
+        SolicitudReposicion solicitud = new SolicitudReposicion();
+        solicitud.setId(4L);
+        solicitud.setEstado(EstadoReposicion.PARCIAL);
+        solicitud.setEsInterna(false);
+        when(solicitudReposicionRepository.findByIdForUpdate(4L)).thenReturn(Optional.of(solicitud));
+
+        service.archivarSolicitudReposicion(4L, admin);
+
+        assertTrue(solicitud.isArchivado());
+        assertEquals(EstadoReposicion.PARCIAL, solicitud.getEstado());
+        verify(solicitudReposicionRepository).save(solicitud);
+        ArgumentCaptor<SolicitudReposicionGestion> gestionCaptor =
+                ArgumentCaptor.forClass(SolicitudReposicionGestion.class);
+        verify(solicitudReposicionGestionRepository).save(gestionCaptor.capture());
+        assertEquals("ARCHIVAR", gestionCaptor.getValue().getAccion());
+        assertEquals(solicitud, gestionCaptor.getValue().getSolicitud());
+    }
+
+    @Test
+    void archivarSolicitudYaArchivadaNoDuplicaAuditoria() {
+        Usuario admin = new Usuario();
+        admin.setRol(Rol.ADM);
+        SolicitudReposicion solicitud = new SolicitudReposicion();
+        solicitud.setEsInterna(false);
+        solicitud.setArchivado(true);
+        when(solicitudReposicionRepository.findByIdForUpdate(4L)).thenReturn(Optional.of(solicitud));
+
+        service.archivarSolicitudReposicion(4L, admin);
+
+        verify(solicitudReposicionRepository, never()).save(any(SolicitudReposicion.class));
+        verifyNoInteractions(solicitudReposicionGestionRepository);
+    }
+
+    @Test
     void crearSolicitudReposicionRequiereControlDeGuardiaActiva() {
         Usuario enfermero = usuarioEnfermero();
         Guardia guardia = new Guardia();
@@ -513,7 +550,7 @@ class ReposicionInternaServiceTest {
         stock.setInsumo(guantes);
         MovimientoDepositoCentral firstMovement = movimientoReposicion(solicitud, stock, firstCoordinator);
         MovimientoDepositoCentral secondMovement = movimientoReposicion(solicitud, stock, secondCoordinator);
-        when(solicitudReposicionRepository.findByEsInternaFalseOrderByFechaDesc())
+        when(solicitudReposicionRepository.findByEsInternaFalseAndArchivadoFalseOrderByFechaDesc())
                 .thenReturn(List.of(solicitud));
         when(movimientoDepositoCentralRepository.findBySolicitudIdInOrderByFechaAsc(List.of(42L)))
                 .thenReturn(List.of(firstMovement, secondMovement));
