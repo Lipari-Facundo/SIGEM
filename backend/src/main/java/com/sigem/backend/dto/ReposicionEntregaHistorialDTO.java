@@ -8,6 +8,7 @@ public class ReposicionEntregaHistorialDTO {
     private Integer cantidad;
     private String detalle;
     private String usuario;
+    private String usuarioUsername;
 
     public LocalDateTime getFecha() { return fecha; }
     public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
@@ -19,4 +20,6 @@ public class ReposicionEntregaHistorialDTO {
     public void setDetalle(String detalle) { this.detalle = detalle; }
     public String getUsuario() { return usuario; }
     public void setUsuario(String usuario) { this.usuario = usuario; }
+    public String getUsuarioUsername() { return usuarioUsername; }
+    public void setUsuarioUsername(String usuarioUsername) { this.usuarioUsername = usuarioUsername; }
 }

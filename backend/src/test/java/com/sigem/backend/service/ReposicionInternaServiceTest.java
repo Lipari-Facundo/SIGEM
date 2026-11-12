@@ -20,6 +20,7 @@ import com.sigem.backend.model.MovimientoDepositoCentral;
 import com.sigem.backend.model.PrioridadReposicion;
 import com.sigem.backend.model.Rol;
 import com.sigem.backend.model.SolicitudReposicion;
+import com.sigem.backend.model.SolicitudReposicionGestion;
 import com.sigem.backend.model.SolicitudReposicionItem;
 import com.sigem.backend.model.StockEstandarMovil;
 import com.sigem.backend.model.StockDepositoCentral;
@@ -28,6 +29,7 @@ import com.sigem.backend.model.TipoMovil;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.ConsumoInsumoRepository;
 import com.sigem.backend.repository.ControlMovilRepository;
+import com.sigem.backend.repository.ControlMovilItemRepository;
 import com.sigem.backend.repository.GuardiaRepository;
 import com.sigem.backend.repository.IncidenteRepository;
 import com.sigem.backend.repository.InsumoRepository;
@@ -35,6 +37,7 @@ import com.sigem.backend.repository.MovilInsumoRepository;
 import com.sigem.backend.repository.MovimientoDepositoCentralRepository;
 import com.sigem.backend.repository.SolicitudReposicionItemRepository;
 import com.sigem.backend.repository.SolicitudReposicionRepository;
+import com.sigem.backend.repository.SolicitudReposicionGestionRepository;
 import com.sigem.backend.repository.StockDepositoCentralRepository;
 import com.sigem.backend.repository.StockEstandarMovilRepository;
 import com.sigem.backend.service.NotificacionService;
@@ -72,7 +75,9 @@ class ReposicionInternaServiceTest {
     @Mock private IncidenteRepository incidenteRepository;
     @Mock private ConsumoInsumoRepository consumoInsumoRepository;
     @Mock private ControlMovilRepository controlMovilRepository;
+    @Mock private ControlMovilItemRepository controlMovilItemRepository;
     @Mock private SolicitudReposicionRepository solicitudReposicionRepository;
+    @Mock private SolicitudReposicionGestionRepository solicitudReposicionGestionRepository;
     @Mock private SolicitudReposicionItemRepository solicitudReposicionItemRepository;
     @Mock private StockDepositoCentralRepository stockDepositoCentralRepository;
     @Mock private MovimientoDepositoCentralRepository movimientoDepositoCentralRepository;
@@ -96,6 +101,8 @@ class ReposicionInternaServiceTest {
                 movimientoDepositoCentralRepository,
                 equiposOperativosMovilService,
                 controlMovilRepository,
+                controlMovilItemRepository,
+                solicitudReposicionGestionRepository,
                 notificacionService);
     }
 
@@ -386,6 +393,161 @@ class ReposicionInternaServiceTest {
         verificarEntregaNotificada(3, 1, EstadoReposicion.PARCIAL, true);
     }
 
+    @Test
+    void modificarSolicitudParcialPreservaLoEntregadoYRegistraAuditoriaSinMoverStock() {
+        Usuario coordinador = usuarioCoordinador();
+        Usuario enfermero = usuarioEnfermero();
+        Movil movil = new Movil();
+        movil.setId(7L);
+        movil.setTipoMovil(TipoMovil.AMBULANCIA_UTIM);
+        SolicitudReposicion solicitud = new SolicitudReposicion();
+        solicitud.setId(42L);
+        solicitud.setMovil(movil);
+        solicitud.setEnfermero(enfermero);
+        solicitud.setEsInterna(false);
+        solicitud.setEstado(EstadoReposicion.PARCIAL);
+        solicitud.setFecha(LocalDateTime.now());
+        solicitud.setObservaciones("Antes");
+
+        Insumo guantes = insumo();
+        SolicitudReposicionItem existente = new SolicitudReposicionItem();
+        existente.setId(55L);
+        existente.setSolicitud(solicitud);
+        existente.setInsumo(guantes);
+        existente.setCantidadSolicitada(5);
+        existente.setCantidadEntregada(2);
+        existente.setCantidadActualAlMomento(1);
+
+        StockEstandarMovil estandar = new StockEstandarMovil();
+        estandar.setInsumo(guantes);
+        estandar.setCantidadRecomendada(8);
+        when(solicitudReposicionRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(solicitud));
+        when(solicitudReposicionItemRepository.findBySolicitudId(42L)).thenReturn(List.of(existente));
+        when(solicitudReposicionItemRepository.save(any(SolicitudReposicionItem.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(stockEstandarMovilRepository.findByTipoMovil(TipoMovil.AMBULANCIA_UTIM))
+                .thenReturn(List.of(estandar));
+        when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(7L))
+                .thenReturn(List.of());
+        when(solicitudReposicionRepository.save(any(SolicitudReposicion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ReposicionItemDTO nuevoPedido = new ReposicionItemDTO();
+        nuevoPedido.setInsumoId(9L);
+        nuevoPedido.setCantidad(4);
+        ReposicionCreateDTO update = new ReposicionCreateDTO();
+        update.setItems(List.of(nuevoPedido));
+        update.setObservaciones("Después");
+
+        SolicitudReposicionDTO response = service.modificarSolicitudReposicion(42L, update, coordinador);
+
+        assertEquals(4, existente.getCantidadSolicitada());
+        assertEquals(2, existente.getCantidadEntregada());
+        assertEquals(EstadoReposicion.PARCIAL, response.getEstado());
+        assertEquals("Después", response.getObservaciones());
+        ArgumentCaptor<SolicitudReposicionGestion> gestionCaptor =
+                ArgumentCaptor.forClass(SolicitudReposicionGestion.class);
+        verify(solicitudReposicionGestionRepository).save(gestionCaptor.capture());
+        assertEquals("MODIFICACION", gestionCaptor.getValue().getAccion());
+        assertTrue(gestionCaptor.getValue().getDetalle().contains("solicitado=5, entregado=2"));
+        assertTrue(gestionCaptor.getValue().getDetalle().contains("solicitado=4, entregado=2"));
+        verify(movilInsumoRepository, never()).save(any());
+        verify(movimientoDepositoCentralRepository, never()).save(any());
+    }
+
+    @Test
+    void modificarSolicitudNoPermiteReducirDebajoDeLoYaEntregado() {
+        Usuario coordinador = usuarioCoordinador();
+        SolicitudReposicion solicitud = new SolicitudReposicion();
+        solicitud.setId(42L);
+        solicitud.setMovil(movilPrueba());
+        solicitud.setEsInterna(false);
+        solicitud.setEstado(EstadoReposicion.PARCIAL);
+        SolicitudReposicionItem existente = new SolicitudReposicionItem();
+        existente.setInsumo(insumo());
+        existente.setCantidadSolicitada(4);
+        existente.setCantidadEntregada(3);
+        StockEstandarMovil estandar = new StockEstandarMovil();
+        estandar.setInsumo(insumo());
+        estandar.setCantidadRecomendada(8);
+        when(solicitudReposicionRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(solicitud));
+        when(solicitudReposicionItemRepository.findBySolicitudId(42L)).thenReturn(List.of(existente));
+        when(stockEstandarMovilRepository.findByTipoMovil(TipoMovil.AMBULANCIA_UTIM))
+                .thenReturn(List.of(estandar));
+
+        ReposicionItemDTO pedido = new ReposicionItemDTO();
+        pedido.setInsumoId(9L);
+        pedido.setCantidad(2);
+        ReposicionCreateDTO update = new ReposicionCreateDTO();
+        update.setItems(List.of(pedido));
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> service.modificarSolicitudReposicion(42L, update, coordinador));
+
+        assertTrue(error.getMessage().contains("menor a lo ya entregado"));
+        verify(solicitudReposicionGestionRepository, never()).save(any());
+        verify(movimientoDepositoCentralRepository, never()).save(any());
+    }
+
+    @Test
+    void historialIncluyeTodosLosCoordinadoresDeLosMovimientos() {
+        Usuario nurse = usuarioEnfermero();
+        Usuario firstCoordinator = usuarioCoordinador();
+        firstCoordinator.setUsername("coord-uno");
+        firstCoordinator.setNombre("Ana");
+        firstCoordinator.setApellido("Pérez");
+        Usuario secondCoordinator = usuarioCoordinador();
+        secondCoordinator.setId(13L);
+        secondCoordinator.setUsername("coord-dos");
+        secondCoordinator.setNombre("Ana");
+        secondCoordinator.setApellido("Pérez");
+        SolicitudReposicion solicitud = new SolicitudReposicion();
+        solicitud.setId(42L);
+        solicitud.setMovil(movilPrueba());
+        solicitud.setEnfermero(nurse);
+        solicitud.setEsInterna(false);
+        solicitud.setEstado(EstadoReposicion.PARCIAL);
+        solicitud.setFecha(LocalDateTime.now());
+        Insumo guantes = insumo();
+        StockDepositoCentral stock = new StockDepositoCentral();
+        stock.setInsumo(guantes);
+        MovimientoDepositoCentral firstMovement = movimientoReposicion(solicitud, stock, firstCoordinator);
+        MovimientoDepositoCentral secondMovement = movimientoReposicion(solicitud, stock, secondCoordinator);
+        when(solicitudReposicionRepository.findByEsInternaFalseOrderByFechaDesc())
+                .thenReturn(List.of(solicitud));
+        when(movimientoDepositoCentralRepository.findBySolicitudIdInOrderByFechaAsc(List.of(42L)))
+                .thenReturn(List.of(firstMovement, secondMovement));
+        when(solicitudReposicionItemRepository.findBySolicitudIdIn(List.of(42L))).thenReturn(List.of());
+        when(movilInsumoRepository.findByMovilIdInOrderByInsumoCategoriaAscInsumoNombreAsc(List.of(7L)))
+                .thenReturn(List.of());
+
+        List<SolicitudReposicionDTO> historial = service.listarHistorialSolicitudesReposicion(usuarioCoordinador());
+
+        assertEquals(1, historial.size());
+        assertEquals(List.of("Ana Pérez (coord-uno)", "Ana Pérez (coord-dos)"),
+                historial.get(0).getCoordinadoresPrepararon());
+        assertEquals(2, historial.get(0).getEntregas().size());
+    }
+
+    private MovimientoDepositoCentral movimientoReposicion(
+            SolicitudReposicion solicitud, StockDepositoCentral stock, Usuario coordinador) {
+        MovimientoDepositoCentral movimiento = new MovimientoDepositoCentral();
+        movimiento.setSolicitud(solicitud);
+        movimiento.setStock(stock);
+        movimiento.setUsuario(coordinador);
+        movimiento.setTipo(com.sigem.backend.model.TipoMovimientoDeposito.ENTREGA_REPOSICION);
+        movimiento.setCantidad(1);
+        movimiento.setFecha(LocalDateTime.now());
+        return movimiento;
+    }
+
+    private Movil movilPrueba() {
+        Movil movil = new Movil();
+        movil.setId(7L);
+        movil.setTipoMovil(TipoMovil.AMBULANCIA_UTIM);
+        return movil;
+    }
+
     private void verificarEntregaNotificada(int cantidadSolicitada,
                                              int cantidadEntregada,
                                              EstadoReposicion estadoEsperado,
@@ -434,6 +596,7 @@ class ReposicionInternaServiceTest {
         entrega.setCantidad(cantidadEntregada);
         ReposicionEntregaDTO request = new ReposicionEntregaDTO();
         request.setItems(List.of(entrega));
+        request.setObservaciones("Entrega preparada por el coordinador");
 
         SolicitudReposicionDTO response = service.entregarSolicitudReposicion(42L, request, coordinador);
 
@@ -442,6 +605,12 @@ class ReposicionInternaServiceTest {
         assertEquals(2 + cantidadEntregada, stockMovil.getCantidadActual());
         verify(notificacionService).crearNotificacionReposicion(solicitud, parcial);
         verify(movimientoDepositoCentralRepository).save(any(MovimientoDepositoCentral.class));
+        ArgumentCaptor<SolicitudReposicionGestion> gestionCaptor =
+                ArgumentCaptor.forClass(SolicitudReposicionGestion.class);
+        verify(solicitudReposicionGestionRepository).save(gestionCaptor.capture());
+        assertEquals("ENTREGA", gestionCaptor.getValue().getAccion());
+        assertEquals("Entrega preparada por el coordinador", gestionCaptor.getValue().getObservaciones());
+        assertTrue(gestionCaptor.getValue().getDetalle().contains("Guantes: " + cantidadEntregada));
     }
 
     private Guardia prepararGuardiaMovilConControl(Usuario enfermero) {

@@ -191,6 +191,30 @@ public class InventarioMovilController {
         return ResponseEntity.ok(inventarioMovilService.listarSolicitudesPendientes(usuario));
     }
 
+    @GetMapping("/reposicion/historial")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM', 'DES')")
+    public ResponseEntity<List<SolicitudReposicionDTO>> historialReposiciones(
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.listarHistorialSolicitudesReposicion(usuario));
+    }
+
+    @GetMapping("/reposicion/{id}/catalogo-edicion")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<List<InsumoStockDTO>> catalogoEdicionReposicion(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.catalogoEdicionSolicitudReposicion(id, usuario));
+    }
+
+    @PutMapping("/reposicion/{id}")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<SolicitudReposicionDTO> modificarReposicion(
+            @PathVariable Long id,
+            @Valid @RequestBody ReposicionCreateDTO dto,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.modificarSolicitudReposicion(id, dto, usuario));
+    }
+
     @PostMapping("/reposicion/{id}/entregas")
     @PreAuthorize("hasAnyRole('JEF', 'ADM')")
     public ResponseEntity<SolicitudReposicionDTO> entregarReposicion(

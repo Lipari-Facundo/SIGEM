@@ -17,6 +17,10 @@ public class SolicitudReposicion {
     @JoinColumn(name = "movil_id")
     private Movil movil;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "guardia_id")
+    private Guardia guardia;
+
     @JsonIgnoreProperties({"password", "authorities"})
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "enfermero_id", nullable = false)
@@ -73,6 +77,8 @@ public class SolicitudReposicion {
     public void setId(Long id) { this.id = id; }
     public Movil getMovil() { return movil; }
     public void setMovil(Movil movil) { this.movil = movil; }
+    public Guardia getGuardia() { return guardia; }
+    public void setGuardia(Guardia guardia) { this.guardia = guardia; }
     public Usuario getEnfermero() { return enfermero; }
     public void setEnfermero(Usuario enfermero) { this.enfermero = enfermero; }
     public LocalDateTime getFecha() { return fecha; }

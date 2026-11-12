@@ -14,6 +14,9 @@ function tiempoRelativo(fecha) {
 }
 
 function contenidoNotificacion(notificacion, rol) {
+  if (notificacion.tipo === 'SOLICITUD_REPOSICION_NUEVA') {
+    return { icono: '📋', mensaje: notificacion.mensaje };
+  }
   if (notificacion.tipo === 'REPOSICION_ENTREGADA') {
     return { icono: '📦', mensaje: notificacion.mensaje };
   }
@@ -27,6 +30,9 @@ function contenidoNotificacion(notificacion, rol) {
 }
 
 function tituloAlerta(notificacion, rol) {
+  if (notificacion.tipo === 'SOLICITUD_REPOSICION_NUEVA') {
+    return '📋 NUEVA SOLICITUD DE REPOSICIÓN';
+  }
   if (notificacion.tipo === 'REPOSICION_ENTREGADA') {
     return '📦 REPOSICIÓN REALIZADA';
   }
@@ -61,6 +67,8 @@ export default function NotificationBell({ controlPendiente }) {
       setAbierto(false);
       if (notificacion.tipo === 'REPOSICION_ENTREGADA' && notificacion.solicitudId) {
         navigate('/inventario', { state: { solicitudId: notificacion.solicitudId } });
+      } else if (notificacion.tipo === 'SOLICITUD_REPOSICION_NUEVA' && notificacion.solicitudId) {
+        navigate('/solicitudes-reposicion', { state: { solicitudId: notificacion.solicitudId } });
       } else {
         navigate('/incidentes');
       }

@@ -9,6 +9,9 @@ import java.util.List;
 public class SolicitudReposicionDTO {
     private Long id;
     private String movilNumeroInterno;
+    private Long guardiaId;
+    private String guardiaTurno;
+    private LocalDateTime guardiaFechaInicio;
     private String enfermeroNombre;
     private LocalDateTime fecha;
     private LocalDateTime fechaEmision;
@@ -27,12 +30,20 @@ public class SolicitudReposicionDTO {
     private String usuarioExcepcionControl;
     private LocalDateTime fechaExcepcionControl;
     private List<ReposicionEntregaHistorialDTO> entregas;
+    private List<SolicitudReposicionGestionDTO> gestiones;
+    private List<String> coordinadoresPrepararon;
     private List<ItemReposicionDTO> items;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getMovilNumeroInterno() { return movilNumeroInterno; }
     public void setMovilNumeroInterno(String movilNumeroInterno) { this.movilNumeroInterno = movilNumeroInterno; }
+    public Long getGuardiaId() { return guardiaId; }
+    public void setGuardiaId(Long guardiaId) { this.guardiaId = guardiaId; }
+    public String getGuardiaTurno() { return guardiaTurno; }
+    public void setGuardiaTurno(String guardiaTurno) { this.guardiaTurno = guardiaTurno; }
+    public LocalDateTime getGuardiaFechaInicio() { return guardiaFechaInicio; }
+    public void setGuardiaFechaInicio(LocalDateTime guardiaFechaInicio) { this.guardiaFechaInicio = guardiaFechaInicio; }
     public String getEnfermeroNombre() { return enfermeroNombre; }
     public void setEnfermeroNombre(String enfermeroNombre) { this.enfermeroNombre = enfermeroNombre; }
     public LocalDateTime getFecha() { return fecha; }
@@ -77,6 +88,12 @@ public class SolicitudReposicionDTO {
     }
     public List<ReposicionEntregaHistorialDTO> getEntregas() { return entregas; }
     public void setEntregas(List<ReposicionEntregaHistorialDTO> entregas) { this.entregas = entregas; }
+    public List<SolicitudReposicionGestionDTO> getGestiones() { return gestiones; }
+    public void setGestiones(List<SolicitudReposicionGestionDTO> gestiones) { this.gestiones = gestiones; }
+    public List<String> getCoordinadoresPrepararon() { return coordinadoresPrepararon; }
+    public void setCoordinadoresPrepararon(List<String> coordinadoresPrepararon) {
+        this.coordinadoresPrepararon = coordinadoresPrepararon;
+    }
     public List<ItemReposicionDTO> getItems() { return items; }
     public void setItems(List<ItemReposicionDTO> items) { this.items = items; }
 }

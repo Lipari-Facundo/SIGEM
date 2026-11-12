@@ -30,6 +30,9 @@ public class Notificacion {
     @Column(nullable = false)
     private boolean leida = false;
 
+    @Column(nullable = false)
+    private boolean compartida = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TipoNotificacion tipo;
@@ -61,6 +64,9 @@ public class Notificacion {
 
     public boolean isLeida() { return leida; }
     public void setLeida(boolean leida) { this.leida = leida; }
+
+    public boolean isCompartida() { return compartida; }
+    public void setCompartida(boolean compartida) { this.compartida = compartida; }
 
     public TipoNotificacion getTipo() { return tipo; }
     public void setTipo(TipoNotificacion tipo) { this.tipo = tipo; }

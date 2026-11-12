@@ -1,6 +1,7 @@
 package com.sigem.backend.repository;
 
 import com.sigem.backend.model.ControlMovilItem;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -11,6 +12,11 @@ import java.util.Optional;
 public interface ControlMovilItemRepository extends JpaRepository<ControlMovilItem, Long> {
 
     List<ControlMovilItem> findByControlId(Long controlId);
+
+    @EntityGraph(attributePaths = {"insumo"})
+    List<ControlMovilItem> findByControlIdIn(List<Long> controlIds);
+
+    Optional<ControlMovilItem> findFirstByControlIdAndInsumoId(Long controlId, Long insumoId);
 
         @Query(value = """
                         select cmi.*

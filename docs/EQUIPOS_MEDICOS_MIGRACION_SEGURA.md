@@ -58,6 +58,78 @@ El endpoint `GET /api/inventario/mi-movil/estado-control` informa si hay guardia
 
 El rol Enfermero ya no dispone de operación para cancelar o rechazar solicitudes ni registrar entregas; las gestiona desde consulta. Estos cambios no ejecutan SQL ni migraciones y no alteran aceptación de incidentes.
 
+## Reposiciones — historial, coordinación y auditoría
+
+La migración `V20261111234600__reposiciones_coordinador_historial_notificaciones.sql` está pendiente y debe aplicarse después de las migraciones de catálogo e Inventario Móvil. Agrega la relación nullable entre solicitud y guardia sin completar solicitudes históricas, habilita una única notificación compartida por solicitud nueva, y crea `solicitud_reposicion_gestion` para auditorías inmutables de modificaciones, entregas y rechazos.
+
+`GET /api/inventario/reposicion/historial` lista todas las solicitudes externas, sin filtrar por el coordinador que las creó o gestionó. `PUT /api/inventario/reposicion/{id}` permite editar únicamente solicitudes abiertas y conserva cantidades ya entregadas; `GET /api/inventario/reposicion/{id}/catalogo-edicion` limita las opciones al estándar del móvil. Las entregas continúan usando `POST /api/inventario/reposicion/{id}/entregas` y el movimiento transaccional existente; los equipos reutilizables siguen excluidos de cualquier movimiento de stock.
+
+Las notificaciones de nuevas solicitudes se guardan una vez y se muestran como compartidas únicamente a coordinadores con guardia central activa. Marcarla como leída cambia el mismo registro persistido para todos. Solicitudes antiguas sin vínculo de guardia o auditoría conservan sus datos tal cual; los movimientos históricos continúan disponibles como fuente de participación y stock.
+
+Esta etapa añade el archivo de migración, pero no ejecuta SQL ni modifica la base. No se conectó a `sigem_dev`.
+
 ## Pruebas
 
 `src/test/resources/application.properties` y cada test Spring fijan una base H2 en memoria, `create-drop`, inicialización SQL deshabilitada y Flyway deshabilitado. `H2TestDataSourceGuard` aborta el contexto si la URL o el driver no son H2, si está habilitado `bootstrap`, SQL init o Flyway. No se depende exclusivamente de las propiedades de Maven Surefire y las pruebas no deben leer `SIGEM_DB_*`.
+
+## Auditoría Etapa 5 — flujos y límites de verificación
+
+### Uso y reposición
+
+- El control se consulta por la guardia activa. Registrar consumo o crear reposición exige control completado o una excepción con motivo; la excepción queda junto al consumo/solicitud, con usuario y fecha.
+- El consumo valida cantidades y actualiza el saldo del móvil y el registro de consumo dentro de la operación transaccional. La aceptación de incidentes no consulta el control.
+- Las solicitudes usan `PENDIENTE`, `EN_PROCESO`, `PARCIAL`, `COMPLETADA`, `RECHAZADA` o `CANCELADA`. El detalle distingue solicitado, entregado y pendiente. El Enfermero consulta; la gestión/rechazo corresponde a Coordinación.
+- Modificar una solicitud abierta audita coordinador, fecha, valores previos y nuevos, y no permite reducir cantidades debajo de lo ya entregado. Los movimientos ya registrados no se reescriben.
+- Cada entrega valida saldo central y cantidad pendiente, bloquea los registros de stock, actualiza depósito y móvil, registra el movimiento y la gestión y crea la notificación en la misma transacción. Un error revierte esas escrituras; la notificación no se confirma separadamente.
+- Cardiodesfibrilador, Electrocardiógrafo, Respirador y los demás reutilizables se registran como solicitud informativa con motivo. No son entregables de stock y no producen asignaciones ni movimientos de Equipos Médicos.
+- La solicitud nueva genera un único registro compartido dirigido a un coordinador de la guardia central activa; los demás JEF activos pueden verla y cualquiera que la abra la marca leída en el registro persistido. La notificación de entrega se emite después de actualizar los stocks dentro de la misma transacción; parcial y completa se distinguen.
+- El historial del coordinador hace lecturas agrupadas para entregas, gestiones, items, stocks y controles, en vez de repetir esas consultas por solicitud. Las asociaciones de relaciones principales se cargan mediante `EntityGraph`.
+
+### Alcance de las pruebas
+
+La última ejecución de `mvn test` terminó correctamente: 54 pruebas, sin fallas ni errores, usando H2 en memoria. Incluye una prueba de aceptación que verifica permiso por asignación, transición a `EN_PROCESO` y ausencia de interacción con guardias/control; además, el mapeo del endpoint conserva `PUT /api/incidentes/{id}/estado` y `hasRole('ENF')`. No se modificaron el controlador ni el servicio de incidentes.
+
+`npm run lint`, `npm run build` y `git diff --check` finalizaron correctamente. El build advierte que el bundle principal supera 500 kB (1.43 MB minificado); no se cambió la configuración para ocultar el aviso.
+
+No hay un runner E2E configurado en el frontend. Por tanto, no se simuló inicio de sesión ni navegación real de ambos roles. La prueba aislada valida lógica de servicio, no la conciliación de saldos contra una base con datos reales. No se obtuvo inventario de duplicados, negativos, huérfanos o diferencias entre saldos y movimientos: para eso hace falta una copia de datos aislada y autorizada. En consecuencia, la integridad histórica/operativa de una base persistente no está certificada por esta auditoría. No se consultó ninguna base para intentar inferirla.
+
+## Inventario pendiente de migraciones
+
+Las siete migraciones siguientes están pendientes según el inventario de trabajo. No se consultó `flyway_schema_history` ni se intentó conectar a una base, de modo que no se afirma un estado observado de una instancia. Orden Flyway ascendente:
+
+1. **`V20261109163500__equipos_medicos_modelo.sql`**
+   - Dependencias: tablas preexistentes `usuarios`, `moviles`, `insumos`, `equipos_medicos`, `asignaciones_equipos` y `control_movil_item`.
+   - Crea `tipos_equipos_medicos`, `movimientos_equipos`, `movimientos_equipos_detalle` y `mantenimientos_equipos`. Agrega `tipo_equipo_id` a equipos y asignaciones; en `control_movil_item`, `equipo_medico_id`, `tipo_equipo_snapshot` y `numero_serie_snapshot`.
+   - Índices: unicidad de equipo activo, tipo único activo por móvil y número de serie; búsquedas de historial de asignaciones, movimientos, detalle y mantenimiento; índices parciales por movimiento original, mantenimiento con movimiento y control con equipo.
+   - Restricciones: FKs de tipo, actor/responsable, equipos, móvil y control; unicidad de `(id,tipo_equipo_id)` y `(movimiento_id,equipo_id)`; checks de estados, clasificación y orden de fechas. Algunos checks y la FK compuesta están `NOT VALID`.
+   - Datos: inserta los tres tipos si no existen; no clasifica equipos/asignaciones heredadas ni inventa snapshots. Aborta ante asignaciones activas duplicadas o varios equipos activos de igual tipo por móvil.
+   - Riesgo: constraints `ADD CONSTRAINT` no están todos protegidos contra re-ejecución manual y los datos existentes deben revisarse antes; la FK compuesta requiere coherencia de tipo.
+2. **`V20261109175000__equipos_medicos_snapshots_integridad.sql`**
+   - Dependencias: tablas y columnas de la anterior.
+   - Agrega snapshots de actor/responsable a movimientos; tipo, serie, marca, modelo y móviles anterior/nuevo a detalles; actor y snapshots de equipo/estado/ubicación/móvil a mantenimiento.
+   - Índices: ninguno. Restricción: FK nullable de `mantenimientos_equipos.actor_id`.
+   - Crea la vista `vw_asignaciones_equipos_activas_sin_tipo`, función de validación y triggers de asignación/tipo, baja y bloqueo de mutaciones del historial de movimientos/mantenimientos.
+   - Datos: snapshots anteriores permanecen nulos, no se rellenan desde el estado actual. Riesgo: historial heredado sin snapshots es incompleto para reconstruir el pasado; los triggers requieren revisar escrituras existentes y reglas de estados.
+3. **`V20261110210000__solicitudes_internas_prioridad.sql`**
+   - Dependencia: `solicitud_reposicion` preexistente.
+   - Permite `movil_id` nulo y agrega `prioridad varchar(20) NOT NULL DEFAULT 'NORMAL'`, `es_interna boolean NOT NULL DEFAULT false` y check de prioridad (`URGENTE`, `NORMAL`, `PROGRAMADA`).
+   - Índices: ninguno. Datos existentes reciben prioridad normal y quedan externos. Riesgo: valida las prioridades actuales al agregar el check.
+4. **`V20261110214000__default_internal_replenishment_true.sql`**
+   - Dependencia: columna `es_interna` de la migración anterior.
+   - Agrega esa columna solo si falta y establece `DEFAULT true`; sin índices ni restricciones nuevas.
+   - Si la columna falta, el `ADD` usa temporalmente `DEFAULT false`; filas ya existentes conservan el valor externo. Riesgo: aplicada por fuera de orden, puede modificar el default inesperadamente.
+5. **`V20261111230000__catalogo_equipos_y_discrepancias_control.sql`**
+   - Dependencias: `control_movil_item`, `insumos`, `tipos_equipos_medicos`, `stock_estandar_movil` y catálogo de tipos de móvil ya existentes.
+   - Agrega `equipo_no_coincide boolean NOT NULL DEFAULT false` y `equipo_observado varchar(500)`. No agrega índices ni restricciones.
+   - Datos: conserva el ID del insumo exacto `Desfibrilador` al renombrarlo; crea los insumos faltantes; asocia explícitamente tipos e insumos y añade Respirador al estándar de los cuatro tipos de móvil. No actualiza saldos actuales.
+   - Riesgo: aborta si hay nombres duplicados, ambos nombres de desfibrilador, categoría/tipo incompatible, tipos faltantes o asociaciones contradictorias; requiere conciliar esos datos en copia aislada.
+6. **`V20261111232000__inventario_movil_control_excepcion_y_notificaciones.sql`**
+   - Dependencias: tablas `consumo_insumo`, `solicitud_reposicion`, `usuarios`, `notificaciones`; debe preceder a la migración 7.
+   - Agrega observaciones, motivo (500), usuario con FK y fecha a consumos y solicitudes; permite `notificaciones.incidente_id` nulo y agrega `solicitud_id` con FK.
+   - Índices: ninguno. Datos históricos no reciben motivos ni usuario/fecha inferidos. Riesgo: el campo de incidente pasa a ser nullable; clientes consumidores deben tolerar notificaciones asociadas solo a reposición.
+7. **`V20261111234600__reposiciones_coordinador_historial_notificaciones.sql`**
+   - Dependencias: migraciones 3, 5 y 6; tablas `guardias`, `usuarios`, `solicitud_reposicion` y `notificaciones`.
+   - Agrega `solicitud_reposicion.guardia_id` nullable con FK y `notificaciones.compartida boolean NOT NULL DEFAULT false`. Crea `solicitud_reposicion_gestion` con ID, solicitud, coordinador, acción, detalle, observaciones y fecha.
+   - Índices: ninguno declarado. Datos históricos mantienen `guardia_id` nulo, no se asocian por inferencia y no reciben gestiones retroactivas. Riesgo: historial antiguo tendrá menos metadatos de guardia/participantes que solicitudes creadas luego de aplicar la migración.
+
+No se ejecutó ninguna de estas migraciones, SQL manual ni operación contra `sigem_dev`.

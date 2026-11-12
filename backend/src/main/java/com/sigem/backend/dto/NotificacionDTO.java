@@ -7,6 +7,7 @@ public class NotificacionDTO {
     private Long id;
     private String mensaje;
     private boolean leida;
+    private boolean compartida;
     private LocalDateTime fechaCreacion;
     private Long incidenteId;
     private String ubicacionIncidente;
@@ -21,6 +22,8 @@ public class NotificacionDTO {
 
     public boolean isLeida() { return leida; }
     public void setLeida(boolean leida) { this.leida = leida; }
+    public boolean isCompartida() { return compartida; }
+    public void setCompartida(boolean compartida) { this.compartida = compartida; }
 
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }

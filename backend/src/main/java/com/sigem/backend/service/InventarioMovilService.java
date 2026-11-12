@@ -12,10 +12,13 @@ import com.sigem.backend.dto.ReposicionInternaUpdateDTO;
 import com.sigem.backend.dto.ReposicionItemDTO;
 import com.sigem.backend.dto.SolicitudReposicionDTO;
 import com.sigem.backend.dto.ReposicionEntregaHistorialDTO;
+import com.sigem.backend.dto.SolicitudReposicionGestionDTO;
 import com.sigem.backend.dto.SugerenciaReposicionDTO;
 import com.sigem.backend.dto.EquipoOperativoMovilDTO;
 import com.sigem.backend.dto.StockDepositoDTO;
 import com.sigem.backend.model.ConsumoInsumo;
+import com.sigem.backend.model.ControlMovil;
+import com.sigem.backend.model.ControlMovilItem;
 import com.sigem.backend.model.EstadoReposicion;
 import com.sigem.backend.model.Incidente;
 import com.sigem.backend.model.Guardia;
@@ -29,12 +32,14 @@ import com.sigem.backend.model.Rol;
 import com.sigem.backend.model.StockDepositoCentral;
 import com.sigem.backend.model.StockEstandarMovil;
 import com.sigem.backend.model.SolicitudReposicion;
+import com.sigem.backend.model.SolicitudReposicionGestion;
 import com.sigem.backend.model.SolicitudReposicionItem;
 import com.sigem.backend.model.TipoInsumo;
 import com.sigem.backend.model.TipoMovil;
 import com.sigem.backend.model.TipoMovimientoDeposito;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.ControlMovilRepository;
+import com.sigem.backend.repository.ControlMovilItemRepository;
 import com.sigem.backend.repository.GuardiaRepository;
 import com.sigem.backend.repository.IncidenteRepository;
 import com.sigem.backend.repository.InsumoRepository;
@@ -45,6 +50,7 @@ import com.sigem.backend.repository.StockDepositoCentralRepository;
 import com.sigem.backend.repository.StockEstandarMovilRepository;
 import com.sigem.backend.repository.SolicitudReposicionItemRepository;
 import com.sigem.backend.repository.SolicitudReposicionRepository;
+import com.sigem.backend.repository.SolicitudReposicionGestionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,6 +71,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -87,6 +94,8 @@ public class InventarioMovilService {
     private final MovimientoDepositoCentralRepository movimientoDepositoCentralRepository;
     private final EquiposOperativosMovilService equiposOperativosMovilService;
     private final ControlMovilRepository controlMovilRepository;
+    private final ControlMovilItemRepository controlMovilItemRepository;
+    private final SolicitudReposicionGestionRepository solicitudReposicionGestionRepository;
     private final NotificacionService notificacionService;
 
     public InventarioMovilService(StockEstandarMovilRepository stockEstandarMovilRepository,
@@ -101,6 +110,8 @@ public class InventarioMovilService {
                                   MovimientoDepositoCentralRepository movimientoDepositoCentralRepository,
                                   EquiposOperativosMovilService equiposOperativosMovilService,
                                   ControlMovilRepository controlMovilRepository,
+                                  ControlMovilItemRepository controlMovilItemRepository,
+                                  SolicitudReposicionGestionRepository solicitudReposicionGestionRepository,
                                   NotificacionService notificacionService) {
         this.stockEstandarMovilRepository = stockEstandarMovilRepository;
         this.movilInsumoRepository = movilInsumoRepository;
@@ -114,6 +125,8 @@ public class InventarioMovilService {
         this.movimientoDepositoCentralRepository = movimientoDepositoCentralRepository;
         this.equiposOperativosMovilService = equiposOperativosMovilService;
         this.controlMovilRepository = controlMovilRepository;
+        this.controlMovilItemRepository = controlMovilItemRepository;
+        this.solicitudReposicionGestionRepository = solicitudReposicionGestionRepository;
         this.notificacionService = notificacionService;
     }
 
@@ -198,20 +211,16 @@ public class InventarioMovilService {
     public List<SolicitudReposicionDTO> listarSolicitudesInternas(Usuario solicitante) {
         exigirPermisoReposicionInterna(solicitante);
         exigirGuardiaCentralActivaSiCoordinador(solicitante);
-        return solicitudReposicionRepository.findByEsInternaTrueAndArchivadoFalseOrderByFechaDesc()
-                .stream()
-                .map(this::mapearSolicitud)
-                .toList();
+        return mapearSolicitudes(
+                solicitudReposicionRepository.findByEsInternaTrueAndArchivadoFalseOrderByFechaDesc());
     }
 
     @Transactional(readOnly = true)
     public List<SolicitudReposicionDTO> listarSolicitudesInternasArchivadas(Usuario solicitante) {
         exigirPermisoReposicionInterna(solicitante);
         exigirGuardiaCentralActivaSiCoordinador(solicitante);
-        return solicitudReposicionRepository.findByEsInternaTrueAndArchivadoTrueOrderByFechaDesc()
-                .stream()
-                .map(this::mapearSolicitud)
-                .toList();
+        return mapearSolicitudes(
+                solicitudReposicionRepository.findByEsInternaTrueAndArchivadoTrueOrderByFechaDesc());
     }
 
     @Transactional
@@ -637,6 +646,7 @@ public class InventarioMovilService {
 
         SolicitudReposicion solicitud = new SolicitudReposicion();
         solicitud.setMovil(movil);
+        solicitud.setGuardia(guardia);
         solicitud.setEnfermero(enfermero);
         solicitud.setEstado(EstadoReposicion.PENDIENTE);
         solicitud.setPrioridad(dto.getPrioridad() == null ? PrioridadReposicion.NORMAL : dto.getPrioridad());
@@ -666,16 +676,14 @@ public class InventarioMovilService {
             solicitudReposicionItemRepository.save(item);
         }
 
+        notificacionService.notificarNuevaSolicitud(solicitudGuardada);
         return mapearSolicitud(solicitudGuardada);
     }
 
     @Transactional(readOnly = true)
     public List<SolicitudReposicionDTO> listarMisSolicitudes(Usuario enfermero) {
-        return solicitudReposicionRepository
-                .findByEnfermeroUsernameAndEsInternaFalseOrderByFechaDesc(enfermero.getUsername())
-                .stream()
-                .map(this::mapearSolicitud)
-                .toList();
+        return mapearSolicitudes(solicitudReposicionRepository
+                .findByEnfermeroUsernameAndEsInternaFalseOrderByFechaDesc(enfermero.getUsername()));
     }
 
     @Transactional(readOnly = true)
@@ -690,11 +698,163 @@ public class InventarioMovilService {
     @Transactional(readOnly = true)
     public List<SolicitudReposicionDTO> listarSolicitudesPendientes(Usuario solicitante) {
         exigirGuardiaCentralActivaSiCoordinador(solicitante);
-        return solicitudReposicionRepository.findByEstadoInAndEsInternaFalseOrderByFechaDesc(
-                        List.of(EstadoReposicion.PENDIENTE, EstadoReposicion.PARCIAL))
+        return mapearSolicitudes(solicitudReposicionRepository.findByEstadoInAndEsInternaFalseOrderByFechaDesc(
+                List.of(EstadoReposicion.PENDIENTE, EstadoReposicion.PARCIAL)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SolicitudReposicionDTO> listarHistorialSolicitudesReposicion(Usuario solicitante) {
+        exigirGuardiaCentralActivaSiCoordinador(solicitante);
+        return mapearSolicitudes(solicitudReposicionRepository.findByEsInternaFalseOrderByFechaDesc());
+    }
+
+    @Transactional(readOnly = true)
+    public List<InsumoStockDTO> catalogoEdicionSolicitudReposicion(Long solicitudId, Usuario coordinador) {
+        exigirGuardiaCentralActivaSiCoordinador(coordinador);
+        SolicitudReposicion solicitud = solicitudReposicionRepository.findById(solicitudId)
+                .filter(row -> !row.isEsInterna())
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró la solicitud"));
+        Map<Long, MovilInsumo> saldos = movilInsumoRepository
+                .findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(solicitud.getMovil().getId())
                 .stream()
-                .map(this::mapearSolicitud)
+                .collect(java.util.stream.Collectors.toMap(
+                        stock -> stock.getInsumo().getId(), stock -> stock, (primera, segunda) -> primera));
+        return stockEstandarMovilRepository.findByTipoMovil(solicitud.getMovil().getTipoMovil()).stream()
+                .filter(stock -> stock.getInsumo() != null && stock.getInsumo().isActivo())
+                .map(stock -> {
+                    Insumo insumo = stock.getInsumo();
+                    InsumoStockDTO dto = new InsumoStockDTO();
+                    dto.setInsumoId(insumo.getId());
+                    dto.setNombre(insumo.getNombre());
+                    dto.setCategoria(insumo.getCategoria());
+                    dto.setTipo(insumo.getTipo());
+                    dto.setUnidadMedida(insumo.getUnidadMedida());
+                    MovilInsumo saldo = saldos.get(insumo.getId());
+                    dto.setCantidadActual(saldo == null ? 0 : saldo.getCantidadActual());
+                    dto.setCantidadRecomendada(stock.getCantidadRecomendada());
+                    return dto;
+                })
                 .toList();
+    }
+
+    @Transactional
+    public SolicitudReposicionDTO modificarSolicitudReposicion(
+            Long solicitudId, ReposicionCreateDTO dto, Usuario coordinador) {
+        exigirGuardiaCentralActivaSiCoordinador(coordinador);
+        if (dto == null || dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw new IllegalArgumentException("La solicitud debe conservar al menos un elemento");
+        }
+
+        SolicitudReposicion solicitud = solicitudReposicionRepository.findByIdForUpdate(solicitudId)
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró la solicitud"));
+        if (solicitud.isEsInterna()) {
+            throw new IllegalArgumentException("Esta pantalla solo permite modificar solicitudes de móviles");
+        }
+        validarSolicitudAbierta(solicitud);
+        if (solicitud.getMovil() == null) {
+            throw new IllegalArgumentException("La solicitud no tiene un móvil asociado");
+        }
+
+        List<SolicitudReposicionItem> existentes =
+                solicitudReposicionItemRepository.findBySolicitudId(solicitudId);
+        String valoresAnteriores = snapshotSolicitud(solicitud, existentes);
+        Map<Long, StockEstandarMovil> estandar = stockEstandarMovilRepository
+                .findByTipoMovil(solicitud.getMovil().getTipoMovil()).stream()
+                .filter(row -> row.getInsumo() != null && row.getInsumo().isActivo())
+                .collect(java.util.stream.Collectors.toMap(
+                        row -> row.getInsumo().getId(), row -> row, (primera, segunda) -> primera));
+        Map<Long, ReposicionItemDTO> solicitados = new LinkedHashMap<>();
+        Set<String> motivosPermitidos = Set.of("ROTURA", "FALTANTE", "FALLA", "DESGASTE", "OTRO");
+
+        for (ReposicionItemDTO itemDto : dto.getItems()) {
+            if (itemDto == null || itemDto.getInsumoId() == null
+                    || itemDto.getCantidad() == null || itemDto.getCantidad() <= 0) {
+                throw new IllegalArgumentException("Cada elemento debe tener una cantidad mayor a cero");
+            }
+            if (solicitados.putIfAbsent(itemDto.getInsumoId(), itemDto) != null) {
+                throw new IllegalArgumentException("No repitas un elemento en la solicitud");
+            }
+            StockEstandarMovil standard = estandar.get(itemDto.getInsumoId());
+            if (standard == null) {
+                throw new IllegalArgumentException("El elemento no forma parte del estándar de este móvil");
+            }
+            Insumo insumo = standard.getInsumo();
+            if (itemDto.getCantidad() > standard.getCantidadRecomendada()) {
+                throw new IllegalArgumentException("La cantidad solicitada para " + insumo.getNombre()
+                        + " supera el estándar (" + standard.getCantidadRecomendada() + ")");
+            }
+            if (insumo.getTipo() == TipoInsumo.REUTILIZABLE) {
+                String motivo = itemDto.getMotivoCambio() == null
+                        ? null : itemDto.getMotivoCambio().trim().toUpperCase();
+                String detalle = itemDto.getDetalleCambio() == null
+                        ? null : itemDto.getDetalleCambio().trim();
+                if (itemDto.getCantidad() != 1 || motivo == null || !motivosPermitidos.contains(motivo)) {
+                    throw new IllegalArgumentException("Cada equipo reutilizable requiere cantidad uno y motivo válido");
+                }
+                if ("OTRO".equals(motivo) && (detalle == null || detalle.isBlank())) {
+                    throw new IllegalArgumentException("Describí el motivo de cambio para " + insumo.getNombre());
+                }
+                if (detalle != null && detalle.length() > 500) {
+                    throw new IllegalArgumentException("El detalle del cambio no puede superar 500 caracteres");
+                }
+                itemDto.setMotivoCambio(motivo);
+                itemDto.setDetalleCambio(detalle);
+            } else if (itemDto.getMotivoCambio() != null || itemDto.getDetalleCambio() != null) {
+                throw new IllegalArgumentException("El motivo solo corresponde a equipos reutilizables");
+            }
+        }
+
+        for (SolicitudReposicionItem item : existentes) {
+            ReposicionItemDTO pedido = solicitados.get(item.getInsumo().getId());
+            if (pedido == null) {
+                if (item.getCantidadEntregada() > 0) {
+                    throw new IllegalArgumentException("No se puede quitar un insumo que ya tuvo entregas");
+                }
+                solicitudReposicionItemRepository.delete(item);
+                continue;
+            }
+            int entregado = item.getCantidadEntregada() == null ? 0 : item.getCantidadEntregada();
+            if (pedido.getCantidad() < entregado) {
+                throw new IllegalArgumentException("La cantidad solicitada no puede ser menor a lo ya entregado");
+            }
+            item.setCantidadSolicitada(pedido.getCantidad());
+            item.setMotivoCambio(pedido.getMotivoCambio());
+            item.setDetalleCambio(pedido.getDetalleCambio());
+            solicitudReposicionItemRepository.save(item);
+            solicitados.remove(item.getInsumo().getId());
+        }
+
+        Map<Long, MovilInsumo> stockActual = movilInsumoRepository
+                .findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(solicitud.getMovil().getId())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        stock -> stock.getInsumo().getId(), stock -> stock, (primera, segunda) -> primera));
+        for (ReposicionItemDTO nuevoPedido : solicitados.values()) {
+            Insumo insumo = estandar.get(nuevoPedido.getInsumoId()).getInsumo();
+            SolicitudReposicionItem nuevo = new SolicitudReposicionItem();
+            nuevo.setSolicitud(solicitud);
+            nuevo.setInsumo(insumo);
+            nuevo.setCantidadSolicitada(nuevoPedido.getCantidad());
+            nuevo.setCantidadEntregada(0);
+            MovilInsumo saldo = stockActual.get(insumo.getId());
+            nuevo.setCantidadActualAlMomento(saldo == null ? 0 : saldo.getCantidadActual());
+            nuevo.setMotivoCambio(nuevoPedido.getMotivoCambio());
+            nuevo.setDetalleCambio(nuevoPedido.getDetalleCambio());
+            solicitudReposicionItemRepository.save(nuevo);
+        }
+
+        solicitud.setObservaciones(dto.getObservaciones());
+        List<SolicitudReposicionItem> actuales =
+                solicitudReposicionItemRepository.findBySolicitudId(solicitudId);
+        actualizarEstadoSolicitud(solicitud, actuales);
+        solicitud.setUsuarioUltimaGestion(coordinador);
+        solicitud.setFechaUltimaGestion(LocalDateTime.now());
+        solicitudReposicionRepository.save(solicitud);
+        guardarGestion(solicitud, coordinador, "MODIFICACION",
+                "Valores anteriores:\n" + valoresAnteriores
+                        + "\nValores nuevos:\n" + snapshotSolicitud(solicitud, actuales),
+                "Modificación de solicitud");
+        return mapearSolicitud(solicitud);
     }
 
     @Transactional
@@ -704,6 +864,9 @@ public class InventarioMovilService {
         exigirGuardiaCentralActivaSiCoordinador(coordinador);
         if (dto == null || dto.getItems() == null || dto.getItems().isEmpty()) {
             throw new RuntimeException("Indicá al menos un ítem y una cantidad para entregar");
+        }
+        if (dto.getObservaciones() != null && dto.getObservaciones().trim().length() > 500) {
+            throw new IllegalArgumentException("Las observaciones de la entrega no pueden superar 500 caracteres");
         }
         SolicitudReposicion solicitud = solicitudReposicionRepository.findByIdForUpdate(solicitudId)
                 .orElseThrow(() -> new RuntimeException("No se encontró la solicitud " + solicitudId));
@@ -799,13 +962,18 @@ public class InventarioMovilService {
             movimientoDepositoCentralRepository.save(movimiento);
         }
 
-        boolean completa = itemsSolicitud.values().stream()
-                .allMatch(item -> item.getCantidadEntregada() >= item.getCantidadSolicitada());
-        solicitud.setEstado(completa ? EstadoReposicion.COMPLETADA : EstadoReposicion.PARCIAL);
+        actualizarEstadoSolicitud(solicitud, itemsSolicitud.values().stream().toList());
         solicitud.setUsuarioUltimaGestion(coordinador);
         solicitud.setFechaUltimaGestion(LocalDateTime.now());
         SolicitudReposicion guardada = solicitudReposicionRepository.save(solicitud);
-        notificacionService.crearNotificacionReposicion(guardada, !completa);
+        String resumenEntrega = cantidades.entrySet().stream()
+                .map(entrega -> itemsSolicitud.get(entrega.getKey()).getInsumo().getNombre()
+                        + ": " + entrega.getValue())
+                .collect(java.util.stream.Collectors.joining("; "));
+        guardarGestion(guardada, coordinador, "ENTREGA", resumenEntrega,
+                dto.getObservaciones() == null ? null : dto.getObservaciones().trim());
+        notificacionService.crearNotificacionReposicion(
+                guardada, guardada.getEstado() != EstadoReposicion.COMPLETADA);
         return mapearSolicitud(guardada);
     }
 
@@ -825,7 +993,10 @@ public class InventarioMovilService {
         solicitud.setMotivoResolucion(motivo.trim());
         solicitud.setUsuarioUltimaGestion(coordinador);
         solicitud.setFechaUltimaGestion(LocalDateTime.now());
-        return mapearSolicitud(solicitudReposicionRepository.save(solicitud));
+        SolicitudReposicion guardada = solicitudReposicionRepository.save(solicitud);
+        guardarGestion(guardada, coordinador, "RECHAZO", "Solicitud rechazada",
+                motivo.trim());
+        return mapearSolicitud(guardada);
     }
 
     private void validarSolicitudAbierta(SolicitudReposicion solicitud) {
@@ -899,10 +1070,76 @@ public class InventarioMovilService {
     }
 
     private SolicitudReposicionDTO mapearSolicitud(SolicitudReposicion solicitud) {
+        return mapearSolicitud(solicitud, null);
+    }
+
+    private List<SolicitudReposicionDTO> mapearSolicitudes(List<SolicitudReposicion> solicitudes) {
+        if (solicitudes.isEmpty()) {
+            return List.of();
+        }
+
+        SolicitudReposicionMappingData datos = new SolicitudReposicionMappingData();
+        List<Long> solicitudIds = solicitudes.stream().map(SolicitudReposicion::getId).toList();
+        movimientoDepositoCentralRepository.findBySolicitudIdInOrderByFechaAsc(solicitudIds)
+                .forEach(movimiento -> datos.movimientos
+                        .computeIfAbsent(movimiento.getSolicitud().getId(), ignored -> new ArrayList<>())
+                        .add(movimiento));
+        solicitudReposicionGestionRepository.findBySolicitudIdInOrderByFechaAsc(solicitudIds)
+                .forEach(gestion -> datos.gestiones
+                        .computeIfAbsent(gestion.getSolicitud().getId(), ignored -> new ArrayList<>())
+                        .add(gestion));
+        solicitudReposicionItemRepository.findBySolicitudIdIn(solicitudIds)
+                .forEach(item -> datos.items
+                        .computeIfAbsent(item.getSolicitud().getId(), ignored -> new ArrayList<>())
+                        .add(item));
+
+        List<Long> movilIds = solicitudes.stream()
+                .map(SolicitudReposicion::getMovil)
+                .filter(java.util.Objects::nonNull)
+                .map(Movil::getId)
+                .distinct()
+                .toList();
+        if (!movilIds.isEmpty()) {
+            movilInsumoRepository.findByMovilIdInOrderByInsumoCategoriaAscInsumoNombreAsc(movilIds)
+                    .forEach(stock -> datos.stockMovil
+                            .computeIfAbsent(stock.getMovil().getId(), ignored -> new LinkedHashMap<>())
+                            .putIfAbsent(stock.getInsumo().getId(), stock.getCantidadActual()));
+        }
+
+        List<Long> guardiaIds = solicitudes.stream()
+                .map(SolicitudReposicion::getGuardia)
+                .filter(java.util.Objects::nonNull)
+                .map(Guardia::getId)
+                .distinct()
+                .toList();
+        if (!guardiaIds.isEmpty()) {
+            controlMovilRepository.findByGuardia_IdInOrderByFechaDesc(guardiaIds)
+                    .forEach(control -> datos.controlesPorGuardia.putIfAbsent(
+                            control.getGuardia().getId(), control));
+        }
+        List<Long> controlIds = datos.controlesPorGuardia.values().stream()
+                .map(ControlMovil::getId)
+                .toList();
+        if (!controlIds.isEmpty()) {
+            controlMovilItemRepository.findByControlIdIn(controlIds)
+                    .forEach(item -> datos.controlItems.putIfAbsent(
+                            new ControlItemKey(item.getControl().getId(), item.getInsumo().getId()), item));
+        }
+
+        return solicitudes.stream().map(solicitud -> mapearSolicitud(solicitud, datos)).toList();
+    }
+
+    private SolicitudReposicionDTO mapearSolicitud(
+            SolicitudReposicion solicitud, SolicitudReposicionMappingData datos) {
         SolicitudReposicionDTO dto = new SolicitudReposicionDTO();
         dto.setId(solicitud.getId());
         dto.setMovilNumeroInterno(solicitud.getMovil() == null
                 ? null : solicitud.getMovil().getNumeroInterno());
+        if (solicitud.getGuardia() != null) {
+            dto.setGuardiaId(solicitud.getGuardia().getId());
+            dto.setGuardiaTurno(solicitud.getGuardia().getTurno());
+            dto.setGuardiaFechaInicio(solicitud.getGuardia().getFechaInicio());
+        }
         dto.setEnfermeroNombre(nombreCompleto(solicitud.getEnfermero()));
         dto.setSolicitanteId(solicitud.getEnfermero().getId());
         dto.setSolicitanteNombre(nombreCompleto(solicitud.getEnfermero()));
@@ -928,13 +1165,54 @@ public class InventarioMovilService {
             dto.setUsuarioExcepcionControl(nombreCompleto(solicitud.getUsuarioExcepcionControl()));
         }
         dto.setFechaExcepcionControl(solicitud.getFechaExcepcionControl());
-        dto.setEntregas(movimientoDepositoCentralRepository
-                .findBySolicitudIdOrderByFechaAsc(solicitud.getId()).stream()
+        List<MovimientoDepositoCentral> movimientosSolicitud = (datos == null
+                ? movimientoDepositoCentralRepository.findBySolicitudIdOrderByFechaAsc(solicitud.getId())
+                : datos.movimientos.getOrDefault(solicitud.getId(), List.of())).stream()
                 .filter(movimiento -> movimiento.getTipo() == TipoMovimientoDeposito.ENTREGA_REPOSICION)
+                .toList();
+        List<ReposicionEntregaHistorialDTO> entregas = movimientosSolicitud.stream()
                 .map(this::mapearEntrega)
-                .toList());
-        dto.setItems(solicitudReposicionItemRepository.findBySolicitudId(solicitud.getId()).stream()
-                .map(this::mapearItemReposicion)
+                .toList();
+        dto.setEntregas(entregas);
+        List<SolicitudReposicionGestion> gestionesRegistradas = datos == null
+                ? solicitudReposicionGestionRepository.findBySolicitudIdOrderByFechaAsc(solicitud.getId())
+                : datos.gestiones.getOrDefault(solicitud.getId(), List.of());
+        List<SolicitudReposicionGestionDTO> gestiones = gestionesRegistradas.stream()
+                .map(this::mapearGestion)
+                .toList();
+        dto.setGestiones(gestiones);
+        Map<Long, String> coordinadores = new LinkedHashMap<>();
+        movimientosSolicitud.forEach(movimiento -> {
+            Usuario participante = movimiento.getUsuario();
+            coordinadores.putIfAbsent(participante.getId(), nombreCompleto(participante)
+                    + " (" + participante.getUsername() + ")");
+        });
+        gestionesRegistradas.forEach(gestion -> {
+            Usuario participante = gestion.getCoordinador();
+            coordinadores.putIfAbsent(participante.getId(), nombreCompleto(participante)
+                    + " (" + participante.getUsername() + ")");
+        });
+        if (solicitud.getUsuarioUltimaGestion() != null) {
+            Usuario participante = solicitud.getUsuarioUltimaGestion();
+            coordinadores.putIfAbsent(participante.getId(), nombreCompleto(participante)
+                    + " (" + participante.getUsername() + ")");
+        }
+        dto.setCoordinadoresPrepararon(List.copyOf(coordinadores.values()));
+        List<SolicitudReposicionItem> items = datos == null
+                ? solicitudReposicionItemRepository.findBySolicitudId(solicitud.getId())
+                : datos.items.getOrDefault(solicitud.getId(), List.of());
+        Map<Long, Integer> stockMovilActual = solicitud.getMovil() == null
+                ? Map.of()
+                : datos == null
+                        ? movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(
+                                        solicitud.getMovil().getId()).stream()
+                                .collect(java.util.stream.Collectors.toMap(
+                                        stock -> stock.getInsumo().getId(), MovilInsumo::getCantidadActual,
+                                        (primero, segundo) -> primero))
+                        : datos.stockMovil.getOrDefault(solicitud.getMovil().getId(), Map.of());
+        dto.setItems(items.stream()
+                .map(item -> mapearItemReposicion(item, solicitud.getGuardia(),
+                        stockMovilActual.getOrDefault(item.getInsumo().getId(), 0), datos))
                 .toList());
         return dto;
     }
@@ -943,7 +1221,9 @@ public class InventarioMovilService {
         return usuario.getNombre() + " " + usuario.getApellido();
     }
 
-    private ItemReposicionDTO mapearItemReposicion(SolicitudReposicionItem item) {
+    private ItemReposicionDTO mapearItemReposicion(
+            SolicitudReposicionItem item, Guardia guardia, Integer cantidadActualMovil,
+            SolicitudReposicionMappingData datos) {
         ItemReposicionDTO dto = new ItemReposicionDTO();
         dto.setId(item.getId());
         dto.setInsumoId(item.getInsumo().getId());
@@ -953,9 +1233,81 @@ public class InventarioMovilService {
         dto.setCantidadSolicitada(item.getCantidadSolicitada());
         dto.setCantidadEntregada(item.getCantidadEntregada());
         dto.setCantidadActualAlMomento(item.getCantidadActualAlMomento());
+        dto.setCantidadActualMovil(cantidadActualMovil);
         dto.setMotivoCambio(item.getMotivoCambio());
         dto.setDetalleCambio(item.getDetalleCambio());
+        if (guardia != null) {
+            ControlMovil control = datos == null
+                    ? controlMovilRepository.findFirstByGuardia_IdOrderByFechaDesc(guardia.getId()).orElse(null)
+                    : datos.controlesPorGuardia.get(guardia.getId());
+            ControlMovilItem controlItem = control == null ? null : datos == null
+                    ? controlMovilItemRepository.findFirstByControlIdAndInsumoId(
+                            control.getId(), item.getInsumo().getId()).orElse(null)
+                    : datos.controlItems.get(new ControlItemKey(control.getId(), item.getInsumo().getId()));
+            if (controlItem != null) {
+                dto.setControlFecha(control.getFecha());
+                dto.setControlResultado(control.getResultado() == null
+                        ? null : control.getResultado().name());
+                dto.setControlNumeroSerie(controlItem.getNumeroSerieSnapshot() != null
+                        ? controlItem.getNumeroSerieSnapshot() : controlItem.getNumeroSerie());
+                dto.setControlObservacion(controlItem.getObservacion());
+                dto.setControlFaltante(controlItem.getEstadoEquipo()
+                        == com.sigem.backend.model.EstadoEquipo.FALTANTE);
+                dto.setControlNoCoincide(controlItem.isEquipoNoCoincide());
+                dto.setControlEquipoObservado(controlItem.getEquipoObservado());
+            }
+        }
         return dto;
+    }
+
+    private SolicitudReposicionGestionDTO mapearGestion(SolicitudReposicionGestion gestion) {
+        SolicitudReposicionGestionDTO dto = new SolicitudReposicionGestionDTO();
+        dto.setFecha(gestion.getFecha());
+        dto.setCoordinador(nombreCompleto(gestion.getCoordinador()));
+        dto.setCoordinadorUsername(gestion.getCoordinador().getUsername());
+        dto.setAccion(gestion.getAccion());
+        dto.setDetalle(gestion.getDetalle());
+        dto.setObservaciones(gestion.getObservaciones());
+        return dto;
+    }
+
+    private String snapshotSolicitud(SolicitudReposicion solicitud, List<SolicitudReposicionItem> items) {
+        String lineas = items.stream()
+                .map(item -> item.getInsumo().getNombre()
+                        + " [solicitado=" + item.getCantidadSolicitada()
+                        + ", entregado=" + item.getCantidadEntregada()
+                        + ", motivo=" + (item.getMotivoCambio() == null ? "-" : item.getMotivoCambio())
+                        + ", detalle=" + (item.getDetalleCambio() == null ? "-" : item.getDetalleCambio()) + "]")
+                .collect(java.util.stream.Collectors.joining("; "));
+        return "Observaciones: " + (solicitud.getObservaciones() == null ? "-" : solicitud.getObservaciones())
+                + "\nElementos: " + lineas;
+    }
+
+    private void guardarGestion(SolicitudReposicion solicitud, Usuario coordinador,
+                                String accion, String detalle, String observaciones) {
+        SolicitudReposicionGestion gestion = new SolicitudReposicionGestion();
+        gestion.setSolicitud(solicitud);
+        gestion.setCoordinador(coordinador);
+        gestion.setAccion(accion);
+        gestion.setDetalle(detalle == null ? "" : detalle);
+        gestion.setObservaciones(observaciones);
+        solicitudReposicionGestionRepository.save(gestion);
+    }
+
+    private void actualizarEstadoSolicitud(
+            SolicitudReposicion solicitud, List<SolicitudReposicionItem> items) {
+        List<SolicitudReposicionItem> insumos = items.stream()
+                .filter(item -> item.getInsumo().getTipo() != TipoInsumo.REUTILIZABLE)
+                .toList();
+        if (insumos.isEmpty()) {
+            solicitud.setEstado(EstadoReposicion.PENDIENTE);
+            return;
+        }
+        boolean completa = insumos.stream().allMatch(item ->
+                item.getCantidadEntregada() >= item.getCantidadSolicitada());
+        boolean hayEntrega = insumos.stream().anyMatch(item -> item.getCantidadEntregada() > 0);
+        solicitud.setEstado(completa ? EstadoReposicion.COMPLETADA
+                : hayEntrega ? EstadoReposicion.PARCIAL : EstadoReposicion.PENDIENTE);
     }
 
     private Guardia buscarGuardiaActiva(Usuario enfermero) {
@@ -999,8 +1351,20 @@ public class InventarioMovilService {
         dto.setCantidad(movimiento.getCantidad());
         dto.setDetalle(movimiento.getMotivo());
         dto.setUsuario(nombreCompleto(movimiento.getUsuario()));
+        dto.setUsuarioUsername(movimiento.getUsuario().getUsername());
         return dto;
     }
+
+    private static class SolicitudReposicionMappingData {
+        private final Map<Long, List<MovimientoDepositoCentral>> movimientos = new HashMap<>();
+        private final Map<Long, List<SolicitudReposicionGestion>> gestiones = new HashMap<>();
+        private final Map<Long, List<SolicitudReposicionItem>> items = new HashMap<>();
+        private final Map<Long, Map<Long, Integer>> stockMovil = new HashMap<>();
+        private final Map<Long, ControlMovil> controlesPorGuardia = new HashMap<>();
+        private final Map<ControlItemKey, ControlMovilItem> controlItems = new HashMap<>();
+    }
+
+    private record ControlItemKey(Long controlId, Long insumoId) {}
 
     private InsumoStockDTO mapearStock(MovilInsumo movilInsumo, Integer cantidadRecomendada) {
         return mapearStock(movilInsumo.getInsumo(),
