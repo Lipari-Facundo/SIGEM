@@ -98,6 +98,8 @@ public class SecurityConfig {
                     .hasAnyRole("ADM", "JEF")
                 .requestMatchers("/api/insumos/**")
                     .hasAnyRole("ADM", "JEF")
+                .requestMatchers("/api/existencias-movil/**")
+                    .hasRole("JEF")
 
                 // ── Equipos médicos ───────────────────────────────────────
                 .requestMatchers("/api/equipos-medicos/**")

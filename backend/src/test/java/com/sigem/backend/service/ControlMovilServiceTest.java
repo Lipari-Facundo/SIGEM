@@ -141,7 +141,7 @@ class ControlMovilServiceTest {
         when(guardiaRepository.findByEnfermeroUsernameAndEstado("enfermero", GuardiaEstado.ACTIVA))
                 .thenReturn(Optional.of(guardia));
         when(movilRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(movil));
-        when(stockRepository.findByTipoMovil(TipoMovil.AMBULANCIA_UTIM)).thenReturn(List.of(stock));
+        when(stockRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(TipoMovil.AMBULANCIA_UTIM)).thenReturn(List.of(stock));
         when(tipoRepository.findByInsumoId(8L)).thenReturn(Optional.of(tipo));
         when(asignacionRepository.findActivaPorMovilYTipo(5L, "ELECTROCARDIOGRAFO"))
                 .thenReturn(List.of(asignacionActual));
@@ -284,7 +284,7 @@ class ControlMovilServiceTest {
 
         when(guardiaRepository.findByEnfermeroUsernameAndEstado("enfermero", GuardiaEstado.ACTIVA))
                 .thenReturn(Optional.of(guardia));
-        when(stockRepository.findByTipoMovil(TipoMovil.AMBULANCIA_UTIM))
+        when(stockRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(TipoMovil.AMBULANCIA_UTIM))
                 .thenReturn(List.of(stock));
         when(tipoRepository.findByInsumoId(8L)).thenReturn(Optional.of(tipoEquipo));
         return new EquipoFixture(enfermero, guardia, movil, insumo, tipoEquipo, null);

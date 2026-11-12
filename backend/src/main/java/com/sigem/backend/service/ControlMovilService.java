@@ -94,8 +94,8 @@ public class ControlMovilService {
         Guardia guardia = buscarGuardiaActiva(enfermero);
         Movil movil = guardia.getMovil();
 
-        return stockEstandarMovilRepository.findByTipoMovil(movil.getTipoMovil()).stream()
-            .filter(stock -> stock.getInsumo() != null && stock.getInsumo().isActivo())
+        return stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(movil.getTipoMovil()).stream()
+            .filter(stock -> stock.getInsumo() != null)
                 .sorted(Comparator
                         .comparing((StockEstandarMovil stock) -> stock.getInsumo().getCategoria().ordinal())
                         .thenComparing(stock -> stock.getInsumo().getNombre(), String.CASE_INSENSITIVE_ORDER))

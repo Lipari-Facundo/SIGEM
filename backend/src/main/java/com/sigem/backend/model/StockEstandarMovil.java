@@ -23,6 +23,9 @@ public class StockEstandarMovil {
     @Column(name = "cantidad_recomendada", nullable = false)
     private Integer cantidadRecomendada;
 
+    @Column(nullable = false)
+    private boolean archivado = false;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -34,4 +37,6 @@ public class StockEstandarMovil {
 
     public Integer getCantidadRecomendada() { return cantidadRecomendada; }
     public void setCantidadRecomendada(Integer cantidadRecomendada) { this.cantidadRecomendada = cantidadRecomendada; }
+    public boolean isArchivado() { return archivado; }
+    public void setArchivado(boolean archivado) { this.archivado = archivado; }
 }

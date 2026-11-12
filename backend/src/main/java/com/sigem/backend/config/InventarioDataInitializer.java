@@ -49,7 +49,7 @@ public class InventarioDataInitializer {
             movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(movil.getId())
                     .forEach(stock -> insumosExistentes.add(stock.getInsumo().getId()));
 
-                stockEstandarMovilRepository.findByTipoMovilAndInsumo_ActivoTrue(movil.getTipoMovil()).stream()
+                stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(movil.getTipoMovil()).stream()
                     .filter(stock -> insumosExistentes.add(stock.getInsumo().getId()))
                     .forEach(stockEstandar -> {
                         MovilInsumo nuevoStock = new MovilInsumo();

@@ -219,7 +219,7 @@ class ReposicionInternaServiceTest {
         estandar.setCantidadRecomendada(1);
         when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(7L))
                 .thenReturn(List.of());
-        when(stockEstandarMovilRepository.findByTipoMovil(guardia.getMovil().getTipoMovil()))
+        when(stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(guardia.getMovil().getTipoMovil()))
                 .thenReturn(List.of(estandar));
 
         var inventario = service.obtenerInventarioDeMiMovil(enfermero);
@@ -228,6 +228,41 @@ class ReposicionInternaServiceTest {
         assertEquals("Respirador", inventario.get(0).getNombre());
         assertEquals(0, inventario.get(0).getCantidadActual());
         assertEquals(1, inventario.get(0).getCantidadRecomendada());
+        verify(movilInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    void inventarioIncluyeEstandaresActivosSinSaldoYExcluyeLosArchivados() {
+        Usuario enfermero = usuarioEnfermero();
+        Guardia guardia = prepararGuardiaMovilConControl(enfermero);
+        Insumo consumible = insumo();
+        Insumo reutilizable = insumo();
+        reutilizable.setId(10L);
+        reutilizable.setNombre("Oxímetro");
+        reutilizable.setTipo(TipoInsumo.REUTILIZABLE);
+        Insumo archivado = insumo();
+        archivado.setId(11L);
+        archivado.setNombre("Material archivado");
+
+        StockEstandarMovil estandarConsumible = stockEstandar(consumible, false);
+        StockEstandarMovil estandarReutilizable = stockEstandar(reutilizable, false);
+        StockEstandarMovil estandarArchivado = stockEstandar(archivado, true);
+        when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(7L))
+                .thenReturn(List.of());
+        when(stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(
+                guardia.getMovil().getTipoMovil()))
+                .thenReturn(List.of(estandarConsumible, estandarReutilizable));
+        when(stockEstandarMovilRepository.findByTipoMovilAndArchivadoTrueAndInsumo_ActivoTrue(
+                guardia.getMovil().getTipoMovil()))
+                .thenReturn(List.of(estandarArchivado));
+
+        var inventario = service.obtenerInventarioDeMiMovil(enfermero);
+
+        assertEquals(2, inventario.size());
+        assertTrue(inventario.stream().allMatch(item -> item.getCantidadActual() == 0));
+        assertTrue(inventario.stream().anyMatch(item -> item.getNombre().equals("Guantes")));
+        assertTrue(inventario.stream().anyMatch(item -> item.getNombre().equals("Oxímetro")));
+        assertTrue(inventario.stream().noneMatch(item -> item.getNombre().equals("Material archivado")));
         verify(movilInsumoRepository, never()).save(any());
     }
 
@@ -268,7 +303,7 @@ class ReposicionInternaServiceTest {
         estandar.setInsumo(respirador);
         estandar.setCantidadRecomendada(1);
         when(insumoRepository.findById(9L)).thenReturn(Optional.of(respirador));
-        when(stockEstandarMovilRepository.findByTipoMovil(guardia.getMovil().getTipoMovil()))
+        when(stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(guardia.getMovil().getTipoMovil()))
                 .thenReturn(List.of(estandar));
         when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(
                 guardia.getMovil().getId())).thenReturn(List.of());
@@ -386,7 +421,7 @@ class ReposicionInternaServiceTest {
         StockEstandarMovil estandar = new StockEstandarMovil();
         estandar.setInsumo(guantes);
         estandar.setCantidadRecomendada(5);
-        when(stockEstandarMovilRepository.findByTipoMovil(guardia.getMovil().getTipoMovil()))
+        when(stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(guardia.getMovil().getTipoMovil()))
                 .thenReturn(List.of(estandar));
         when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(7L))
                 .thenReturn(List.of());
@@ -462,7 +497,7 @@ class ReposicionInternaServiceTest {
         when(solicitudReposicionItemRepository.findBySolicitudId(42L)).thenReturn(List.of(existente));
         when(solicitudReposicionItemRepository.save(any(SolicitudReposicionItem.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
-        when(stockEstandarMovilRepository.findByTipoMovil(TipoMovil.AMBULANCIA_UTIM))
+        when(stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(TipoMovil.AMBULANCIA_UTIM))
                 .thenReturn(List.of(estandar));
         when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(7L))
                 .thenReturn(List.of());
@@ -509,7 +544,7 @@ class ReposicionInternaServiceTest {
         estandar.setCantidadRecomendada(8);
         when(solicitudReposicionRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(solicitud));
         when(solicitudReposicionItemRepository.findBySolicitudId(42L)).thenReturn(List.of(existente));
-        when(stockEstandarMovilRepository.findByTipoMovil(TipoMovil.AMBULANCIA_UTIM))
+        when(stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(TipoMovil.AMBULANCIA_UTIM))
                 .thenReturn(List.of(estandar));
 
         ReposicionItemDTO pedido = new ReposicionItemDTO();
@@ -583,6 +618,15 @@ class ReposicionInternaServiceTest {
         movil.setId(7L);
         movil.setTipoMovil(TipoMovil.AMBULANCIA_UTIM);
         return movil;
+    }
+
+    private StockEstandarMovil stockEstandar(Insumo insumo, boolean archivado) {
+        StockEstandarMovil stock = new StockEstandarMovil();
+        stock.setInsumo(insumo);
+        stock.setTipoMovil(TipoMovil.AMBULANCIA_UTIM);
+        stock.setCantidadRecomendada(4);
+        stock.setArchivado(archivado);
+        return stock;
     }
 
     private void verificarEntregaNotificada(int cantidadSolicitada,

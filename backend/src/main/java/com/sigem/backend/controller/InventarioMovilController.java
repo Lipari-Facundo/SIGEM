@@ -63,7 +63,9 @@ public class InventarioMovilController {
     @GetMapping("/movil/{movilId}")
     @PreAuthorize("hasAnyRole('ADM', 'DES')")
     public ResponseEntity<List<InsumoStockDTO>> inventarioDeMovil(@PathVariable Long movilId) {
-        return ResponseEntity.ok(inventarioMovilService.obtenerInventarioDeMovil(movilId));
+        Movil movil = movilService.buscarPorId(movilId);
+        return ResponseEntity.ok(inventarioMovilService.obtenerInventarioDeMovil(
+                movil.getId(), movil.getTipoMovil()));
     }
 
     @PostMapping("/movil/{movilId}/inicializar")

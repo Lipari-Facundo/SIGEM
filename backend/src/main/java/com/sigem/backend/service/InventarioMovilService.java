@@ -364,9 +364,9 @@ public class InventarioMovilService {
     @Transactional
     public void inicializarStockMovil(Movil movil) {
         List<StockEstandarMovil> stockEstandar = stockEstandarMovilRepository
-                .findByTipoMovil(movil.getTipoMovil())
+                .findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(movil.getTipoMovil())
                 .stream()
-                .filter(stock -> stock.getInsumo() != null && stock.getInsumo().isActivo())
+                .filter(stock -> stock.getInsumo() != null)
                 .toList();
 
         for (StockEstandarMovil stock : stockEstandar) {
@@ -382,25 +382,46 @@ public class InventarioMovilService {
     }
 
     @Transactional(readOnly = true)
-    public List<InsumoStockDTO> obtenerInventarioDeMovil(Long movilId) {
-        List<MovilInsumo> inventario = movilInsumoRepository
-            .findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(movilId)
+    public List<InsumoStockDTO> obtenerInventarioDeMovil(Long movilId, TipoMovil tipoMovil) {
+        List<StockEstandarMovil> estandaresActivos = stockEstandarMovilRepository
+                .findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(tipoMovil);
+        Set<Long> idsArchivados = stockEstandarMovilRepository
+                .findByTipoMovilAndArchivadoTrueAndInsumo_ActivoTrue(tipoMovil)
                 .stream()
-                .filter(stock -> stock.getInsumo() != null && stock.getInsumo().isActivo())
-            .toList();
-        if (inventario.isEmpty()) {
-            return List.of();
-        }
+                .filter(stock -> stock.getInsumo() != null)
+                .map(stock -> stock.getInsumo().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        Map<Long, Integer> cantidadesRecomendadas = estandaresActivos.stream()
+                .filter(stock -> stock.getInsumo() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        stock -> stock.getInsumo().getId(),
+                        StockEstandarMovil::getCantidadRecomendada,
+                        (primera, segunda) -> primera));
 
-        Map<Long, Integer> cantidadesRecomendadas = stockEstandarMovilRepository
-            .findByTipoMovil(inventario.get(0).getMovil().getTipoMovil()).stream()
-            .collect(java.util.stream.Collectors.toMap(
-                stock -> stock.getInsumo().getId(), StockEstandarMovil::getCantidadRecomendada,
-                (primera, segunda) -> primera));
+        List<InsumoStockDTO> inventario = new ArrayList<>();
+        Set<Long> idsPresentes = new HashSet<>();
+        movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(movilId)
+                .stream()
+                .filter(stock -> stock.getInsumo() != null
+                        && stock.getInsumo().isActivo()
+                        && !idsArchivados.contains(stock.getInsumo().getId()))
+                .forEach(stock -> {
+                    Long insumoId = stock.getInsumo().getId();
+                    idsPresentes.add(insumoId);
+                    inventario.add(mapearStock(stock, cantidadesRecomendadas.get(insumoId)));
+                });
 
-        return inventario.stream()
-            .map(stock -> mapearStock(stock, cantidadesRecomendadas.get(stock.getInsumo().getId())))
-                .toList();
+        estandaresActivos.stream()
+                .filter(stock -> stock.getInsumo() != null
+                        && idsPresentes.add(stock.getInsumo().getId()))
+                .map(stock -> mapearStock(
+                        stock.getInsumo(), 0, stock.getCantidadRecomendada()))
+                .forEach(inventario::add);
+
+        inventario.sort(Comparator
+                .comparing((InsumoStockDTO item) -> item.getCategoria().ordinal())
+                .thenComparing(InsumoStockDTO::getNombre, String.CASE_INSENSITIVE_ORDER));
+        return inventario;
     }
 
     @Transactional(readOnly = true)
@@ -411,26 +432,6 @@ public class InventarioMovilService {
                         "No tenés una guardia activa, no hay móvil asignado"));
         return obtenerInventarioDeMovil(
                 guardia.getMovil().getId(), guardia.getMovil().getTipoMovil());
-    }
-
-    private List<InsumoStockDTO> obtenerInventarioDeMovil(Long movilId, TipoMovil tipoMovil) {
-        List<InsumoStockDTO> inventario = new ArrayList<>(obtenerInventarioDeMovil(movilId));
-        Set<Long> idsPresentes = new HashSet<>();
-        inventario.forEach(item -> idsPresentes.add(item.getInsumoId()));
-
-        stockEstandarMovilRepository.findByTipoMovil(tipoMovil).stream()
-                .filter(stock -> stock.getInsumo() != null
-                        && stock.getInsumo().isActivo()
-                        && stock.getInsumo().getTipo() == TipoInsumo.REUTILIZABLE
-                        && idsPresentes.add(stock.getInsumo().getId()))
-                .map(stock -> mapearStock(
-                        stock.getInsumo(), 0, stock.getCantidadRecomendada()))
-                .forEach(inventario::add);
-
-        inventario.sort(Comparator
-                .comparing((InsumoStockDTO item) -> item.getCategoria().ordinal())
-                .thenComparing(InsumoStockDTO::getNombre, String.CASE_INSENSITIVE_ORDER));
-        return inventario;
     }
 
     @Transactional(readOnly = true)
@@ -557,8 +558,8 @@ public class InventarioMovilService {
                 .collect(java.util.stream.Collectors.toMap(
                         stock -> stock.getInsumo().getId(), stock -> stock));
 
-        return stockEstandarMovilRepository.findByTipoMovil(movil.getTipoMovil()).stream()
-                .filter(stock -> stock.getInsumo() != null && stock.getInsumo().isActivo())
+        return stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(movil.getTipoMovil()).stream()
+                .filter(stock -> stock.getInsumo() != null)
                 .map(stockEstandar -> crearSugerencia(stockEstandar, stockActual))
                 .filter(sugerencia -> sugerencia.getCantidadSugerida() > 0)
                 .toList();
@@ -616,8 +617,8 @@ public class InventarioMovilService {
         }
 
         Map<Long, StockEstandarMovil> estandaresPorInsumo = stockEstandarMovilRepository
-                .findByTipoMovil(movil.getTipoMovil()).stream()
-                .filter(stock -> stock.getInsumo() != null && stock.getInsumo().isActivo())
+                .findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(movil.getTipoMovil()).stream()
+                .filter(stock -> stock.getInsumo() != null)
                 .collect(java.util.stream.Collectors.toMap(
                 stock -> stock.getInsumo().getId(), stock -> stock,
                         (primera, segunda) -> primera));
@@ -739,8 +740,8 @@ public class InventarioMovilService {
                 .stream()
                 .collect(java.util.stream.Collectors.toMap(
                         stock -> stock.getInsumo().getId(), stock -> stock, (primera, segunda) -> primera));
-        return stockEstandarMovilRepository.findByTipoMovil(solicitud.getMovil().getTipoMovil()).stream()
-                .filter(stock -> stock.getInsumo() != null && stock.getInsumo().isActivo())
+        return stockEstandarMovilRepository.findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(solicitud.getMovil().getTipoMovil()).stream()
+                .filter(stock -> stock.getInsumo() != null)
                 .map(stock -> {
                     Insumo insumo = stock.getInsumo();
                     InsumoStockDTO dto = new InsumoStockDTO();
@@ -779,8 +780,8 @@ public class InventarioMovilService {
                 solicitudReposicionItemRepository.findBySolicitudId(solicitudId);
         String valoresAnteriores = snapshotSolicitud(solicitud, existentes);
         Map<Long, StockEstandarMovil> estandar = stockEstandarMovilRepository
-                .findByTipoMovil(solicitud.getMovil().getTipoMovil()).stream()
-                .filter(row -> row.getInsumo() != null && row.getInsumo().isActivo())
+                .findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(solicitud.getMovil().getTipoMovil()).stream()
+                .filter(row -> row.getInsumo() != null)
                 .collect(java.util.stream.Collectors.toMap(
                         row -> row.getInsumo().getId(), row -> row, (primera, segunda) -> primera));
         Map<Long, ReposicionItemDTO> solicitados = new LinkedHashMap<>();

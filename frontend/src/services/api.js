@@ -120,6 +120,14 @@ export const depositoCentralService = {
   registrarMovimiento: (data) => api.post('/deposito-central/movimientos', data),
 };
 
+export const existenciasMovilService = {
+  listar: () => api.get('/existencias-movil'),
+  archivadas: () => api.get('/existencias-movil/archivadas'),
+  crear: (data) => api.post('/existencias-movil', data),
+  actualizar: (id, data) => api.put(`/existencias-movil/${id}`, data),
+  alternarArchivo: (id) => api.patch(`/existencias-movil/${id}/toggle-archivo`),
+};
+
 export const equipoMedicoService = {
   tipos: () => api.get('/equipos-medicos/tipos'),
   insumosReutilizables: () => api.get('/equipos-medicos/insumos-reutilizables'),

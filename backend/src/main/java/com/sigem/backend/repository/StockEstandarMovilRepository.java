@@ -12,5 +12,15 @@ public interface StockEstandarMovilRepository extends JpaRepository<StockEstanda
 
     List<StockEstandarMovil> findByTipoMovilAndInsumo_ActivoTrue(TipoMovil tipoMovil);
 
+    List<StockEstandarMovil> findByTipoMovilAndArchivadoFalseAndInsumo_ActivoTrue(TipoMovil tipoMovil);
+
+    List<StockEstandarMovil> findByTipoMovilAndArchivadoTrueAndInsumo_ActivoTrue(TipoMovil tipoMovil);
+
     List<StockEstandarMovil> findByInsumo_Id(Long insumoId);
+
+    List<StockEstandarMovil> findByArchivadoFalseAndInsumo_ActivoTrueOrderByInsumo_CategoriaAscInsumo_NombreAscTipoMovilAsc();
+
+    List<StockEstandarMovil> findByArchivadoTrueAndInsumo_ActivoTrueOrderByInsumo_CategoriaAscInsumo_NombreAscTipoMovilAsc();
+
+    List<StockEstandarMovil> findByInsumo_IdAndArchivadoFalse(Long insumoId);
 }

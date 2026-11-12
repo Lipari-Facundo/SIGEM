@@ -113,6 +113,8 @@ CREATE TABLE IF NOT EXISTS stock_estandar_movil (
     CONSTRAINT uk_stock_estandar_tipo_insumo UNIQUE (tipo_movil, insumo_id),
     CONSTRAINT fk_stock_estandar_insumo FOREIGN KEY (insumo_id) REFERENCES insumos(id)
 );
+ALTER TABLE stock_estandar_movil
+    ADD COLUMN IF NOT EXISTS archivado boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS stock_deposito_central (
     id bigserial PRIMARY KEY,
