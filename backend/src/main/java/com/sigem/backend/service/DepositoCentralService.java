@@ -192,8 +192,8 @@ public class DepositoCentralService {
             if (dto.getNombre().trim().length() > 255) {
                 throw new IllegalArgumentException("El nombre no puede superar 255 caracteres");
             }
-            if (dto.getCategoria() == null || dto.getTipo() == null) {
-                throw new IllegalArgumentException("La categoría y el tipo de insumo son obligatorios");
+            if (dto.getCategoria() == null) {
+                throw new IllegalArgumentException("La categoría del insumo es obligatoria");
             }
             if (dto.getUnidadMedida() != null && dto.getUnidadMedida().trim().length() > 100) {
                 throw new IllegalArgumentException("La presentación no puede superar 100 caracteres");

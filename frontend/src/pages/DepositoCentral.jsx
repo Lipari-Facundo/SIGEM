@@ -114,6 +114,13 @@ export default function DepositoCentral() {
     }
   };
 
+  const abrirAltaInsumo = () => {
+    setError('');
+    setMensaje('');
+    setFormData({ nombre: '', categoria: '', cantidadInicial: '0', cantidadMinima: '0' });
+    setModalAlta(true);
+  };
+
   const registrarIngresoStock = async (event) => {
     event.preventDefault();
     const insumoId = Number(reposicionForm.insumoId);
@@ -271,7 +278,7 @@ export default function DepositoCentral() {
       <main style={S.main}>
         <header style={S.header}>
           <div>
-            <p style={S.overline}>Abastecimiento · Central de operaciones</p>
+            <p style={S.headerOverline}>Abastecimiento · Central de operaciones</p>
             <h1 style={S.h1}>Depósito central</h1>
             <p style={S.sub}>Existencias generales, mínimos y movimientos de farmacia.</p>
           </div>
@@ -292,12 +299,7 @@ export default function DepositoCentral() {
               <Button
                 type="button"
                 variant="primary"
-                onClick={() => {
-                  setError('');
-                  setMensaje('');
-                  setFormData({ nombre: '', categoria: '', cantidadInicial: '0', cantidadMinima: '0' });
-                  setModalAlta(true);
-                }}
+                onClick={abrirAltaInsumo}
               >
                 + Alta Insumo
               </Button>
@@ -344,7 +346,7 @@ export default function DepositoCentral() {
             </div>
             {insumosEnVista.length === 0 ? (
               vista === 'stock'
-                ? <EmptyState icon="🏥" title="Depósito aún sin insumos" description="Agregá insumos desde el catálogo para comenzar a administrar existencias." action={<Button onClick={() => setModalAlta(true)}>Agregar insumo</Button>} />
+                ? <EmptyState icon="🏥" title="Depósito aún sin insumos" description="Agregá insumos desde el catálogo para comenzar a administrar existencias." action={<Button onClick={abrirAltaInsumo}>Agregar insumo</Button>} />
                 : <EmptyState icon="📦" title="Sin insumos archivados" description="Los insumos archivados aparecerán aquí." />
             ) : (
               categoriasConInsumos.length === 0 ? (
@@ -573,19 +575,22 @@ export default function DepositoCentral() {
                 placeholder="Ej.: Guantes descartables"
               />
             </label>
-            <label style={S.field}>
-              Categoría
-              <select
-                style={S.input}
-                value={formData.categoria}
-                onChange={event => setFormData(current => ({ ...current, categoria: event.target.value }))}
-              >
-                <option value="">Seleccionar categoría</option>
-                {Object.entries(CATEGORIAS_DEPOSITO).map(([value, category]) => (
-                  <option key={value} value={value}>{category.label}</option>
-                ))}
-              </select>
-            </label>
+            <div style={S.formGrid}>
+              <label style={S.field}>
+                Categoría
+                <select
+                  style={S.input}
+                  value={formData.categoria}
+                  onChange={event => setFormData(current => ({ ...current, categoria: event.target.value }))}
+                  required
+                >
+                  <option value="">Seleccionar categoría</option>
+                  {Object.entries(CATEGORIAS_DEPOSITO).map(([value, category]) => (
+                    <option key={value} value={value}>{category.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <div style={S.formGrid}>
               <label style={S.field}>
                 Existencia inicial
@@ -739,6 +744,7 @@ const S = {
   page: { display: 'flex', minHeight: '100vh', background: 'var(--color-page-bg)', color: 'var(--color-text-primary)' },
   main: { display: 'flex', flex: 1, minWidth: 0, maxWidth: 'var(--max-content-width)', flexDirection: 'column', gap: 'var(--spacing-5)', margin: '0 auto', padding: 'var(--spacing-5)', width: '100%' },
   header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--spacing-4)', padding: 'var(--spacing-5)', color: 'var(--color-on-primary)', background: 'var(--color-primary)', borderRadius: 'var(--radius-lg)' },
+  headerOverline: { margin: '0 0 var(--spacing-1)', color: 'rgba(255,255,255,0.82)', fontSize: 'var(--font-size-xs)', fontWeight: 700, textTransform: 'uppercase' },
   overline: { margin: '0 0 var(--spacing-1)', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', fontWeight: 700, textTransform: 'uppercase' },
   h1: { margin: 0, color: 'var(--color-on-primary)', fontSize: 'var(--font-size-2xl)' },
   sub: { margin: 'var(--spacing-1) 0 0', color: 'rgba(255,255,255,0.82)', fontSize: 'var(--font-size-sm)' },

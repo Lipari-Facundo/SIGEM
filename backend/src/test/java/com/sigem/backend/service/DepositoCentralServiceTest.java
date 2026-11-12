@@ -2,11 +2,14 @@ package com.sigem.backend.service;
 
 import com.sigem.backend.dto.InsumoEstandarUpdateDTO;
 import com.sigem.backend.dto.IngresoStockDTO;
+import com.sigem.backend.dto.StockDepositoCreateDTO;
+import com.sigem.backend.model.CategoriaInsumo;
 import com.sigem.backend.model.Insumo;
 import com.sigem.backend.model.MovimientoDepositoCentral;
 import com.sigem.backend.model.StockDepositoCentral;
 import com.sigem.backend.model.StockEstandarMovil;
 import com.sigem.backend.model.TipoMovimientoDeposito;
+import com.sigem.backend.model.TipoInsumo;
 import com.sigem.backend.model.TipoMovil;
 import com.sigem.backend.repository.InsumoRepository;
 import com.sigem.backend.repository.MovimientoDepositoCentralRepository;
@@ -26,6 +29,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -119,6 +123,29 @@ class DepositoCentralServiceTest {
         dto.setCantidad(0);
 
         assertThrows(IllegalArgumentException.class, () -> service.registrarIngresoStock(12L, dto, null));
+    }
+
+    @Test
+    void agregarInsumoSinTipoUsaConsumiblePorDefecto() {
+        when(insumoRepository.findByNombreIgnoreCase("Insumo nuevo")).thenReturn(Optional.empty());
+        when(insumoRepository.save(any(Insumo.class))).thenAnswer(invocation -> {
+            Insumo insumo = invocation.getArgument(0);
+            insumo.setId(21L);
+            return insumo;
+        });
+        when(stockRepository.findByInsumoId(21L)).thenReturn(Optional.empty());
+
+        StockDepositoCreateDTO dto = new StockDepositoCreateDTO();
+        dto.setNombre("Insumo nuevo");
+        dto.setCategoria(CategoriaInsumo.DESCARTABLE);
+        dto.setCantidadInicial(0);
+        dto.setCantidadMinima(0);
+
+        service.agregarInsumo(dto, null);
+
+        ArgumentCaptor<Insumo> insumoCaptor = ArgumentCaptor.forClass(Insumo.class);
+        verify(insumoRepository).save(insumoCaptor.capture());
+        assertEquals(TipoInsumo.CONSUMIBLE, insumoCaptor.getValue().getTipo());
     }
 
     private Map<TipoMovil, Integer> cantidadesEstandar() {
