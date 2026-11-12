@@ -16,6 +16,7 @@ public class SolicitudReposicionDTO {
     private EstadoReposicion estado;
     private PrioridadReposicion prioridad;
     private boolean interna;
+    private boolean archivado;
     private Long solicitanteId;
     private String solicitanteNombre;
     private String observaciones;
@@ -48,6 +49,8 @@ public class SolicitudReposicionDTO {
     public void setPrioridad(PrioridadReposicion prioridad) { this.prioridad = prioridad; }
     public boolean isInterna() { return interna; }
     public void setInterna(boolean interna) { this.interna = interna; }
+    public boolean isArchivado() { return archivado; }
+    public void setArchivado(boolean archivado) { this.archivado = archivado; }
     public Long getSolicitanteId() { return solicitanteId; }
     public void setSolicitanteId(Long solicitanteId) { this.solicitanteId = solicitanteId; }
     public String getSolicitanteNombre() { return solicitanteNombre; }

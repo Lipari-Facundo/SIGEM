@@ -95,6 +95,8 @@ export const reposicionInternaService = {
   catalogo: () => api.get('/inventario/reposicion-interna/catalogo'),
   crear: (data) => api.post('/inventario/reposicion-interna', data),
   historial: () => api.get('/inventario/reposicion-interna'),
+  archivadas: () => api.get('/inventario/reposicion-interna/archivadas'),
+  alternarArchivo: (id) => api.patch(`/inventario/reposicion-interna/${id}/toggle-archivo`),
   actualizar: (id, data) => api.put(`/inventario/reposicion-interna/${id}`, data),
   exportarPdf: (id) => api.get(`/inventario/reposicion-interna/${id}/export/pdf`, { responseType: 'blob' }),
 };
