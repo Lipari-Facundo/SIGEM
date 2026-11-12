@@ -49,6 +49,16 @@ public class SolicitudReposicion {
     @Column(name = "fecha_ultima_gestion")
     private LocalDateTime fechaUltimaGestion;
 
+    @Column(name = "motivo_excepcion_control", length = 500)
+    private String motivoExcepcionControl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_excepcion_control_id")
+    private Usuario usuarioExcepcionControl;
+
+    @Column(name = "fecha_excepcion_control")
+    private LocalDateTime fechaExcepcionControl;
+
     @PrePersist
     protected void onCreate() {
         if (fecha == null) fecha = LocalDateTime.now();
@@ -78,4 +88,16 @@ public class SolicitudReposicion {
     public void setUsuarioUltimaGestion(Usuario usuarioUltimaGestion) { this.usuarioUltimaGestion = usuarioUltimaGestion; }
     public LocalDateTime getFechaUltimaGestion() { return fechaUltimaGestion; }
     public void setFechaUltimaGestion(LocalDateTime fechaUltimaGestion) { this.fechaUltimaGestion = fechaUltimaGestion; }
+    public String getMotivoExcepcionControl() { return motivoExcepcionControl; }
+    public void setMotivoExcepcionControl(String motivoExcepcionControl) {
+        this.motivoExcepcionControl = motivoExcepcionControl;
+    }
+    public Usuario getUsuarioExcepcionControl() { return usuarioExcepcionControl; }
+    public void setUsuarioExcepcionControl(Usuario usuarioExcepcionControl) {
+        this.usuarioExcepcionControl = usuarioExcepcionControl;
+    }
+    public LocalDateTime getFechaExcepcionControl() { return fechaExcepcionControl; }
+    public void setFechaExcepcionControl(LocalDateTime fechaExcepcionControl) {
+        this.fechaExcepcionControl = fechaExcepcionControl;
+    }
 }

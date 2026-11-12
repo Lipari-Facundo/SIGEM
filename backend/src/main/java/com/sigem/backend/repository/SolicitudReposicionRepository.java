@@ -24,10 +24,4 @@ public interface SolicitudReposicionRepository extends JpaRepository<SolicitudRe
     @Query("select solicitud from SolicitudReposicion solicitud where solicitud.id = :id")
     Optional<SolicitudReposicion> findByIdForUpdate(@Param("id") Long id);
 
-        @Lock(LockModeType.PESSIMISTIC_WRITE)
-        @Query("select solicitud from SolicitudReposicion solicitud "
-            + "where solicitud.id = :id and solicitud.enfermero.username = :username")
-        Optional<SolicitudReposicion> findByIdAndEnfermeroUsernameForUpdate(
-            @Param("id") Long id,
-            @Param("username") String username);
 }

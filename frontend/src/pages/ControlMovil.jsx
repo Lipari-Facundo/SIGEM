@@ -44,6 +44,8 @@ export default function ControlMovil() {
   const [notaAbiertaPorInsumo, setNotaAbiertaPorInsumo] = useState({});
   const [masAbiertoPorInsumo, setMasAbiertoPorInsumo] = useState({});
   const [numeroSeriePorInsumo, setNumeroSeriePorInsumo] = useState({});
+  const [equipoNoCoincidePorInsumo, setEquipoNoCoincidePorInsumo] = useState({});
+  const [equipoObservadoPorInsumo, setEquipoObservadoPorInsumo] = useState({});
   const [testPorInsumo, setTestPorInsumo] = useState({});
   const [guardando, setGuardando] = useState(false);
   const [resultado, setResultado] = useState(null);
@@ -93,9 +95,17 @@ export default function ControlMovil() {
       const seriesIniciales = { ...(borrador?.numeroSeriePorInsumo || {}) };
       items.forEach((item) => {
         if (item.tipo === 'REUTILIZABLE') {
-          estadoInicial[item.insumoId] ||= 'OPERATIVO';
-          if (item.requiereSerie && !seriesIniciales[item.insumoId]) {
-            seriesIniciales[item.insumoId] = item.ultimoNumeroSerie || '';
+          const esEquipoMedicoAsignable = Boolean(item.tipoEquipoSnapshot);
+          const tieneAsignacionVigente = Boolean(item.asignacionEquipoId && item.equipoMedicoId);
+          if (esEquipoMedicoAsignable && !tieneAsignacionVigente) {
+            estadoInicial[item.insumoId] = 'FALTANTE';
+          } else {
+            estadoInicial[item.insumoId] ||= 'OPERATIVO';
+          }
+          if (item.requiereSerie) {
+            seriesIniciales[item.insumoId] = esEquipoMedicoAsignable
+              ? item.ultimoNumeroSerie || ''
+              : seriesIniciales[item.insumoId] || item.ultimoNumeroSerie || '';
           }
         } else {
           if (!(item.insumoId in cantidadesIniciales)) cantidadesIniciales[item.insumoId] = '';
@@ -104,6 +114,8 @@ export default function ControlMovil() {
       setEstadoPorInsumo(estadoInicial);
       setCantidadPorInsumo(cantidadesIniciales);
       setNumeroSeriePorInsumo(seriesIniciales);
+      setEquipoNoCoincidePorInsumo({});
+      setEquipoObservadoPorInsumo({});
       setTestPorInsumo(borrador?.testPorInsumo || {});
       setObservacionPorInsumo(borrador?.observacionPorInsumo || {});
       setMotivoPorInsumo(borrador?.motivoPorInsumo || {});
@@ -246,11 +258,16 @@ export default function ControlMovil() {
     if (!window.confirm('¿Limpiar el borrador de este móvil?')) return;
     if (claveBorrador) sessionStorage.removeItem(claveBorrador);
     const cantidades = Object.fromEntries(plantilla.filter((item) => item.tipo === 'CONSUMIBLE').map((item) => [item.insumoId, '']));
-    const estados = Object.fromEntries(plantilla.filter((item) => item.tipo === 'REUTILIZABLE').map((item) => [item.insumoId, 'OPERATIVO']));
+    const estados = Object.fromEntries(plantilla.filter((item) => item.tipo === 'REUTILIZABLE').map((item) => [
+      item.insumoId,
+      item.tipoEquipoSnapshot && !item.equipoMedicoId ? 'FALTANTE' : 'OPERATIVO',
+    ]));
     const series = Object.fromEntries(plantilla.filter((item) => item.requiereSerie).map((item) => [item.insumoId, item.ultimoNumeroSerie || '']));
     setCantidadPorInsumo(cantidades);
     setEstadoPorInsumo(estados);
     setNumeroSeriePorInsumo(series);
+    setEquipoNoCoincidePorInsumo({});
+    setEquipoObservadoPorInsumo({});
     setTestPorInsumo({});
     setObservacionPorInsumo({});
     setMotivoPorInsumo({});
@@ -267,7 +284,7 @@ export default function ControlMovil() {
       return;
     }
 
-    if (!window.confirm('Este control es definitivo y ajusta el stock real del móvil. ¿Querés continuar?')) {
+    if (!window.confirm('Este control es definitivo y actualiza el stock real de insumos consumibles del móvil. ¿Querés continuar?')) {
       return;
     }
 
@@ -279,10 +296,19 @@ export default function ControlMovil() {
       cantidadContada: item.tipo === 'CONSUMIBLE' ? Number(cantidadPorInsumo[item.insumoId] ?? 0) : null,
       estadoEquipo: item.tipo === 'REUTILIZABLE' ? (estadoPorInsumo[item.insumoId] || 'OPERATIVO') : null,
       observacion: observacionCompleta(item.insumoId),
-      numeroSerie: item.tipo === 'REUTILIZABLE' && estadoPorInsumo[item.insumoId] !== 'FALTANTE'
-        ? numeroSeriePorInsumo[item.insumoId]?.trim().toUpperCase() || null : null,
+      numeroSerie: item.tipo !== 'REUTILIZABLE' || estadoPorInsumo[item.insumoId] === 'FALTANTE'
+        ? null
+        : item.tipoEquipoSnapshot
+          ? item.ultimoNumeroSerie || null
+          : numeroSeriePorInsumo[item.insumoId]?.trim().toUpperCase() || null,
+      asignacionEquipoId: item.asignacionEquipoId ?? null,
+      asignacionEquipoEnviada: Boolean(item.tipoEquipoSnapshot),
       testOk: item.tipo === 'REUTILIZABLE' && estadoPorInsumo[item.insumoId] !== 'FALTANTE'
         ? testPorInsumo[item.insumoId] ?? null : null,
+      equipoNoCoincide: Boolean(equipoNoCoincidePorInsumo[item.insumoId]),
+      equipoObservado: equipoNoCoincidePorInsumo[item.insumoId]
+        ? equipoObservadoPorInsumo[item.insumoId]?.trim() || null
+        : null,
     }));
 
     try {
@@ -291,11 +317,14 @@ export default function ControlMovil() {
         items,
       });
       setResultado(response.data);
+      window.dispatchEvent(new Event('sigem:control-movil-actualizado'));
       setMensaje('Control registrado correctamente.');
       setObservaciones('');
       setCantidadPorInsumo({});
       setEstadoPorInsumo({});
       setObservacionPorInsumo({});
+      setEquipoNoCoincidePorInsumo({});
+      setEquipoObservadoPorInsumo({});
       if (claveBorrador) sessionStorage.removeItem(claveBorrador);
       setBorradorListo(false);
       setTab('nuevo');
@@ -333,12 +362,16 @@ export default function ControlMovil() {
     const id = item.insumoId;
     const recomendada = Number(item.cantidadRecomendada) || 0;
     const cantidad = cantidadPorInsumo[id];
-    const estado = item.requiereTest && testPorInsumo[id] === false
+    const equipoSinAsignacion = Boolean(item.tipoEquipoSnapshot && !item.equipoMedicoId);
+    const estado = equipoSinAsignacion
+      ? 'FALTANTE'
+      : item.requiereTest && testPorInsumo[id] === false
       ? 'DEFECTUOSO'
       : estadoPorInsumo[id] || 'OPERATIVO';
+    const equipoNoCoincide = Boolean(equipoNoCoincidePorInsumo[id]);
     const itemConNovedad = item.tipo === 'CONSUMIBLE'
       ? cantidad !== '' && Number(cantidad) < recomendada
-      : estado !== 'OPERATIVO' || testPorInsumo[id] === false;
+      : estado !== 'OPERATIVO' || testPorInsumo[id] === false || equipoNoCoincide;
     const itemNoDisponible = item.tipo === 'REUTILIZABLE' && estado === 'FALTANTE';
     const etiquetaEstado = !itemCompleto(item)
       ? 'Pendiente'
@@ -424,8 +457,15 @@ export default function ControlMovil() {
                   key={opcion.value}
                   className="control-segment"
                   aria-pressed={estado === opcion.value}
+                  disabled={equipoSinAsignacion && opcion.value !== 'FALTANTE'}
                   style={{ ...S.segment, ...(estado === opcion.value ? S.segmentActive : {}) }}
-                  onClick={() => setEstadoPorInsumo((previo) => ({ ...previo, [id]: opcion.value }))}
+                  onClick={() => {
+                    setEstadoPorInsumo((previo) => ({ ...previo, [id]: opcion.value }));
+                    if (opcion.value === 'FALTANTE') {
+                      setEquipoNoCoincidePorInsumo((previo) => ({ ...previo, [id]: false }));
+                      setEquipoObservadoPorInsumo((previo) => ({ ...previo, [id]: '' }));
+                    }
+                  }}
                 >{opcion.label}</button>
               ))}
             </div>
@@ -451,7 +491,24 @@ export default function ControlMovil() {
               </div>
             )}
 
-            {item.requiereSerie && estado !== 'FALTANTE' && (
+            {item.tipoEquipoSnapshot && (
+              <div style={S.controlField}>
+                <span className="controlFieldLabel" style={S.label}>Serie asignada</span>
+                <input
+                  type="text"
+                  className="control-serial"
+                  value={item.ultimoNumeroSerie || ''}
+                  readOnly
+                  disabled
+                  aria-label={`Número de serie asignado de ${item.nombre}`}
+                  style={S.serialInput}
+                  placeholder="Sin asignación vigente"
+                />
+                {!item.equipoMedicoId && <span style={S.reference}>FALTANTE · No hay equipo asignado actualmente.</span>}
+              </div>
+            )}
+
+            {!item.tipoEquipoSnapshot && item.requiereSerie && estado !== 'FALTANTE' && (
               <label style={S.controlField}>
                 <span className="controlFieldLabel" style={S.label}>N° de serie</span>
                 <input
@@ -466,6 +523,38 @@ export default function ControlMovil() {
                 />
                 {item.ultimoNumeroSerie && <span style={S.reference}>Último registrado: {item.ultimoNumeroSerie}</span>}
               </label>
+            )}
+
+            {item.tipoEquipoSnapshot && item.equipoMedicoId && estado !== 'FALTANTE' && (
+              <div style={S.controlField}>
+                <label style={S.choiceWrap}>
+                  <input
+                    type="checkbox"
+                    checked={equipoNoCoincide}
+                    onChange={(event) => {
+                      const noCoincide = event.target.checked;
+                      setEquipoNoCoincidePorInsumo((previo) => ({ ...previo, [id]: noCoincide }));
+                      if (!noCoincide) {
+                        setEquipoObservadoPorInsumo((previo) => ({ ...previo, [id]: '' }));
+                      }
+                    }}
+                  />
+                  <span>El equipo físico no coincide con el asignado</span>
+                </label>
+                {equipoNoCoincide && (
+                  <input
+                    type="text"
+                    maxLength={500}
+                    value={equipoObservadoPorInsumo[id] || ''}
+                    onChange={(event) => setEquipoObservadoPorInsumo(
+                      (previo) => ({ ...previo, [id]: event.target.value }),
+                    )}
+                    style={S.noteInput}
+                    aria-label={`Descripción del equipo observado para ${item.nombre}`}
+                    placeholder="Equipo o número de serie observado (opcional)"
+                  />
+                )}
+              </div>
             )}
           </div>
         )}
@@ -986,6 +1075,14 @@ export default function ControlMovil() {
                                         <span className="controlHistoryItemMeta">Test: {item.testOk ? 'Aprobó' : 'No aprobó'}</span>
                                       )}
                                       {item.observacion && <span className="controlHistoryItemNote"><strong>Novedad / observación:</strong> {item.observacion}</span>}
+                                      {item.equipoNoCoincide && (
+                                        <span className="controlHistoryItemNote">
+                                          <strong>Equipo no coincide:</strong>{' '}
+                                          esperado {item.tipoEquipoSnapshot || item.insumoNombre},
+                                          serie {item.numeroSerieSnapshot || '—'}
+                                          {item.equipoObservado ? ` · observado ${item.equipoObservado}` : ''}
+                                        </span>
+                                      )}
                                     </td>
                                     <td data-label="Cantidad recomendada / estándar">
                                       {item.cantidadRecomendada ?? '—'} {item.unidadMedida || ''}

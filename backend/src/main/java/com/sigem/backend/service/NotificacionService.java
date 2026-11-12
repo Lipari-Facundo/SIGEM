@@ -3,6 +3,7 @@ package com.sigem.backend.service;
 import com.sigem.backend.dto.NotificacionDTO;
 import com.sigem.backend.model.Incidente;
 import com.sigem.backend.model.Notificacion;
+import com.sigem.backend.model.SolicitudReposicion;
 import com.sigem.backend.model.TipoNotificacion;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.NotificacionRepository;
@@ -23,18 +24,30 @@ public class NotificacionService {
     @Transactional
     public NotificacionDTO crearNotificacionAsignacion(Usuario destinatario, Incidente incidente) {
         return crearNotificacion(destinatario, incidente, TipoNotificacion.INCIDENTE_ASIGNADO,
-            "Nuevo incidente asignado: " + incidente.getMotivo()
-                + " en " + incidente.getUbicacion());
-        }
+                "Nuevo incidente asignado: " + incidente.getMotivo()
+                        + " en " + incidente.getUbicacion());
+    }
 
-        @Transactional
-        public NotificacionDTO crearNotificacion(Usuario destinatario, Incidente incidente,
-                             TipoNotificacion tipo, String mensaje) {
+    @Transactional
+    public NotificacionDTO crearNotificacion(Usuario destinatario, Incidente incidente,
+                                             TipoNotificacion tipo, String mensaje) {
         Notificacion notificacion = new Notificacion();
         notificacion.setUsuario(destinatario);
         notificacion.setIncidente(incidente);
         notificacion.setTipo(tipo);
         notificacion.setMensaje(mensaje);
+        return convertir(notificacionRepository.saveAndFlush(notificacion));
+    }
+
+    @Transactional
+    public NotificacionDTO crearNotificacionReposicion(SolicitudReposicion solicitud, boolean parcial) {
+        Notificacion notificacion = new Notificacion();
+        notificacion.setUsuario(solicitud.getEnfermero());
+        notificacion.setSolicitud(solicitud);
+        notificacion.setTipo(TipoNotificacion.REPOSICION_ENTREGADA);
+        notificacion.setMensaje(parcial
+                ? "Tu solicitud de reposición recibió una entrega parcial. El stock del móvil fue actualizado."
+                : "Tu solicitud de reposición fue entregada. El stock del móvil fue actualizado.");
         return convertir(notificacionRepository.saveAndFlush(notificacion));
     }
 
@@ -70,8 +83,13 @@ public class NotificacionService {
         dto.setMensaje(notificacion.getMensaje());
         dto.setLeida(notificacion.isLeida());
         dto.setFechaCreacion(notificacion.getFechaCreacion());
-        dto.setIncidenteId(notificacion.getIncidente().getId());
-        dto.setUbicacionIncidente(notificacion.getIncidente().getUbicacion());
+        if (notificacion.getIncidente() != null) {
+            dto.setIncidenteId(notificacion.getIncidente().getId());
+            dto.setUbicacionIncidente(notificacion.getIncidente().getUbicacion());
+        }
+        if (notificacion.getSolicitud() != null) {
+            dto.setSolicitudId(notificacion.getSolicitud().getId());
+        }
         dto.setTipo(notificacion.getTipo() != null ? notificacion.getTipo().name() : null);
         return dto;
     }

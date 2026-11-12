@@ -1,12 +1,14 @@
 package com.sigem.backend.dto;
 
 import com.sigem.backend.model.CategoriaInsumo;
+import com.sigem.backend.model.TipoInsumo;
 
 public class ItemReposicionDTO {
     private Long id;
     private Long insumoId;
     private String insumoNombre;
     private CategoriaInsumo categoria;
+    private TipoInsumo tipo;
     private Integer cantidadSolicitada;
     private Integer cantidadActualAlMomento;
     private Integer cantidadEntregada;
@@ -21,6 +23,8 @@ public class ItemReposicionDTO {
     public void setInsumoNombre(String insumoNombre) { this.insumoNombre = insumoNombre; }
     public CategoriaInsumo getCategoria() { return categoria; }
     public void setCategoria(CategoriaInsumo categoria) { this.categoria = categoria; }
+    public TipoInsumo getTipo() { return tipo; }
+    public void setTipo(TipoInsumo tipo) { this.tipo = tipo; }
     public Integer getCantidadSolicitada() { return cantidadSolicitada; }
     public void setCantidadSolicitada(Integer cantidadSolicitada) { this.cantidadSolicitada = cantidadSolicitada; }
     public Integer getCantidadEntregada() { return cantidadEntregada; }

@@ -12,4 +12,6 @@ public interface ControlMovilRepository extends JpaRepository<ControlMovil, Long
     List<ControlMovil> findAllByOrderByFechaDesc();
 
     List<ControlMovil> findByMovilIdOrderByFechaDesc(Long movilId);
+
+    boolean existsByGuardia_IdAndEnfermero_Id(Long guardiaId, Long enfermeroId);
 }

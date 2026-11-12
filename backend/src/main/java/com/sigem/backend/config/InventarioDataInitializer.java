@@ -70,8 +70,21 @@ public class InventarioDataInitializer {
             String nombre = registro.nombre.trim();
             nombresActuales.add(nombre);
 
-            Insumo insumo = insumoRepository.findByNombreIgnoreCase(nombre)
-                    .orElseGet(Insumo::new);
+            Insumo insumo = insumoRepository.findByNombreIgnoreCase(nombre).orElse(null);
+            if ("Cardiodesfibrilador".equals(nombre)) {
+                var legacy = insumoRepository.findByNombreIgnoreCase("Desfibrilador");
+                if (insumo != null && legacy.isPresent()) {
+                    throw new IllegalStateException(
+                            "Hay registros separados de Desfibrilador y Cardiodesfibrilador; "
+                                    + "requiere conciliación antes de inicializar el inventario");
+                }
+                if (insumo == null) {
+                    insumo = legacy.orElseGet(Insumo::new);
+                }
+            }
+            if (insumo == null) {
+                insumo = new Insumo();
+            }
 
             insumo.setNombre(nombre);
             insumo.setCategoria(parseCategoria(registro.categoria));

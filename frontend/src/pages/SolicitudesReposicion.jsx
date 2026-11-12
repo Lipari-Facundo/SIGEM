@@ -25,6 +25,7 @@ export default function SolicitudesReposicion() {
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
   const puedeDespachar = ['JEF', 'ADM'].includes(user?.rol);
+  const esCambioEquipo = item => item.tipo === 'REUTILIZABLE' || Boolean(item.motivoCambio);
 
   useEffect(() => {
     cargarSolicitudes();
@@ -55,6 +56,7 @@ export default function SolicitudesReposicion() {
 
   const entregar = async (solicitud) => {
     const items = solicitud.items
+      .filter(item => !esCambioEquipo(item))
       .map(item => ({ itemId: item.id, cantidad: Number(cantidadesEntrega[item.id]) || 0 }))
       .filter(item => item.cantidad > 0);
     if (!items.length) {
@@ -136,11 +138,14 @@ export default function SolicitudesReposicion() {
                         <strong>{item.insumoNombre}</strong>
                         <span style={S.category}>{item.categoria}</span>
                         {item.motivoCambio && <span style={S.changeReason}>{etiquetaMotivo(item.motivoCambio)}{item.detalleCambio ? ` · ${item.detalleCambio}` : ''}</span>}
+                        {esCambioEquipo(item) && <span style={S.changeReason}>Solicitud informativa · gestionar desde Equipos Médicos (sin movimiento de stock)</span>}
                       </div>
                       <div style={S.amounts}>
                         <span>Al solicitar: {item.cantidadActualAlMomento}</span>
-                        <span>Entregado: {item.cantidadEntregada || 0} / {item.cantidadSolicitada}</span>
-                        {puedeDespachar && (() => {
+                        <span>{esCambioEquipo(item)
+                          ? 'Cambio informativo · no se entrega desde inventario'
+                          : `Entregado: ${item.cantidadEntregada || 0} / ${item.cantidadSolicitada}`}</span>
+                        {puedeDespachar && !esCambioEquipo(item) && (() => {
                           const stock = stockCentral.find(row => row.insumoId === item.insumoId);
                           const pendiente = item.cantidadSolicitada - (item.cantidadEntregada || 0);
                           const maximo = Math.min(pendiente, stock?.cantidadActual || 0);
@@ -165,7 +170,12 @@ export default function SolicitudesReposicion() {
                 </div>
                 {puedeDespachar && (
                   <div style={S.dispatchActions}>
-                    <Button size="sm" onClick={() => entregar(solicitud)} disabled={procesandoId === solicitud.id}>
+                    <Button
+                      size="sm"
+                      onClick={() => entregar(solicitud)}
+                      disabled={procesandoId === solicitud.id || !solicitud.items.some(item =>
+                        !esCambioEquipo(item) && Number(cantidadesEntrega[item.id]) > 0)}
+                    >
                       {procesandoId === solicitud.id ? 'Procesando...' : 'Registrar entrega'}
                     </Button>
                     <button type="button" style={S.rejectToggle} onClick={() => setRechazoAbierto(rechazoAbierto === solicitud.id ? null : solicitud.id)}>Rechazar</button>

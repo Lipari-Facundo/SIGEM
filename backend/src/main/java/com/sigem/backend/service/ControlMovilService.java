@@ -170,6 +170,7 @@ public class ControlMovilService {
                 throw new RuntimeException("El insumo indicado no está en la plantilla del móvil: " + item.getInsumoId());
             }
             validarAsignacionEquipoEnviada(plantillaItem, item, movil.getId());
+            validarNovedadEquipo(plantillaItem, item);
 
             if (plantillaItem.getTipo() == TipoInsumo.CONSUMIBLE) {
                 if (item.getCantidadContada() == null) {
@@ -257,16 +258,19 @@ public class ControlMovilService {
                 }
             }
 
-            MovilInsumo movilInsumo = movilInsumoRepository.findByMovilIdAndInsumoId(movil.getId(), insumo.getId())
-                    .orElseGet(() -> {
-                        MovilInsumo nuevo = new MovilInsumo();
-                        nuevo.setMovil(movil);
-                        nuevo.setInsumo(insumo);
-                        nuevo.setCantidadActual(0);
-                        return nuevo;
-                    });
-            movilInsumo.setCantidadActual(cantidadContada);
-            movilInsumoRepository.save(movilInsumo);
+            if (plantillaItem.getTipo() == TipoInsumo.CONSUMIBLE) {
+                MovilInsumo movilInsumo = movilInsumoRepository
+                        .findByMovilIdAndInsumoId(movil.getId(), insumo.getId())
+                        .orElseGet(() -> {
+                            MovilInsumo nuevo = new MovilInsumo();
+                            nuevo.setMovil(movil);
+                            nuevo.setInsumo(insumo);
+                            nuevo.setCantidadActual(0);
+                            return nuevo;
+                        });
+                movilInsumo.setCantidadActual(cantidadContada);
+                movilInsumoRepository.save(movilInsumo);
+            }
 
             ControlMovilItem itemControl = new ControlMovilItem();
             itemControl.setControl(controlGuardado);
@@ -285,20 +289,24 @@ public class ControlMovilService {
             itemControl.setTipoEquipoSnapshot(plantillaItem.getTipoEquipoSnapshot());
             itemControl.setNumeroSerieSnapshot(plantillaItem.getUltimoNumeroSerie());
             itemControl.setTestOk(item.getTestOk());
+            itemControl.setEquipoNoCoincide(Boolean.TRUE.equals(item.getEquipoNoCoincide()));
+            itemControl.setEquipoObservado(item.getEquipoObservado());
             controlMovilItemRepository.save(itemControl);
 
             if (cantidadContada < plantillaItem.getCantidadRecomendada()) {
                 totalFaltantes++;
             }
-            if (estadoEquipo == EstadoEquipo.DEFECTUOSO) {
+            if (estadoEquipo == EstadoEquipo.DEFECTUOSO
+                    || Boolean.TRUE.equals(item.getEquipoNoCoincide())) {
                 totalEquiposConNovedad++;
             }
-            if (!Objects.equals(cantidadContada, cantidadSistema)) {
+            if (plantillaItem.getTipo() == TipoInsumo.CONSUMIBLE
+                    && !Objects.equals(cantidadContada, cantidadSistema)) {
                 totalDiscrepanciasSistema++;
             }
 
             ControlMovilItemDTO itemDTO = new ControlMovilItemDTO();
-            itemDTO.setInsumoNombre(insumo.getNombre());
+            itemDTO.setInsumoNombre(plantillaItem.getNombre());
             itemDTO.setCategoria(insumo.getCategoria());
             itemDTO.setTipo(insumo.getTipo());
             itemDTO.setUnidadMedida(insumo.getUnidadMedida());
@@ -313,6 +321,8 @@ public class ControlMovilService {
             itemDTO.setTipoEquipoSnapshot(plantillaItem.getTipoEquipoSnapshot());
             itemDTO.setNumeroSerieSnapshot(plantillaItem.getUltimoNumeroSerie());
             itemDTO.setTestOk(item.getTestOk());
+            itemDTO.setEquipoNoCoincide(Boolean.TRUE.equals(item.getEquipoNoCoincide()));
+            itemDTO.setEquipoObservado(item.getEquipoObservado());
             itemsDetalle.add(itemDTO);
         }
 
@@ -393,6 +403,7 @@ public class ControlMovilService {
             dto.setRequiereTest(NOMBRES_REQUIEREN_TEST.stream().anyMatch(nombreNormalizado::contains));
             var tipoEquipo = tipoEquipoRepository.findByInsumoId(insumo.getId()).orElse(null);
             if (tipoEquipo != null) {
+                dto.setNombre(tipoEquipo.getNombre());
                 dto.setTipoEquipoSnapshot(tipoEquipo.getCodigo());
                 dto.setRequiereSerie(true);
                 AsignacionEquipo asignacion = obtenerAsignacionActivaPorTipo(movilId, tipoEquipo.getCodigo());
@@ -404,15 +415,31 @@ public class ControlMovilService {
             }
             if (dto.getTipoEquipoSnapshot() != null && dto.getEquipoMedicoId() == null) {
                 dto.setUltimoNumeroSerie(null);
-            } else if (dto.isRequiereSerie() && dto.getTipoEquipoSnapshot() == null) {
-                dto.setUltimoNumeroSerie(controlMovilItemRepository
-                        .findFirstByControlMovilIdAndInsumoIdAndNumeroSerieIsNotNullOrderByControlFechaDesc(
-                                movilId, insumo.getId())
-                        .map(ControlMovilItem::getNumeroSerie)
-                        .orElse(null));
             }
         }
         return dto;
+    }
+
+    private void validarNovedadEquipo(ControlPlantillaItemDTO plantillaItem, ControlItemInputDTO item) {
+        boolean noCoincide = Boolean.TRUE.equals(item.getEquipoNoCoincide());
+        String equipoObservado = item.getEquipoObservado() == null
+                ? null : item.getEquipoObservado().trim();
+
+        if (equipoObservado != null && equipoObservado.length() > 500) {
+            throw new IllegalArgumentException("La descripción del equipo observado no puede superar 500 caracteres");
+        }
+        if (noCoincide && (plantillaItem.getTipoEquipoSnapshot() == null
+                || plantillaItem.getEquipoMedicoId() == null
+                || item.getEstadoEquipo() == EstadoEquipo.FALTANTE)) {
+            throw new IllegalArgumentException(
+                    "Solo se puede informar una discrepancia cuando hay un equipo médico asignado");
+        }
+        if (!noCoincide && equipoObservado != null && !equipoObservado.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Indicá si el equipo físico no coincide antes de informar el equipo observado");
+        }
+        item.setEquipoObservado(noCoincide && equipoObservado != null && !equipoObservado.isBlank()
+                ? equipoObservado : null);
     }
 
     private void validarAsignacionEquipoEnviada(
@@ -511,7 +538,13 @@ public class ControlMovilService {
 
     private ControlMovilItemDTO mapearItemDetalle(ControlMovilItem item) {
         ControlMovilItemDTO dto = new ControlMovilItemDTO();
-        dto.setInsumoNombre(item.getInsumo().getNombre());
+        String nombreTipoEquipo = item.getTipoEquipoSnapshot() == null
+                ? null
+                : tipoEquipoRepository.findById(item.getTipoEquipoSnapshot())
+                        .map(com.sigem.backend.model.TipoEquipoMedico::getNombre)
+                        .orElse(null);
+        dto.setInsumoNombre(nombreTipoEquipo == null
+                ? item.getInsumo().getNombre() : nombreTipoEquipo);
         dto.setCategoria(item.getInsumo().getCategoria());
         dto.setTipo(item.getInsumo().getTipo());
         dto.setUnidadMedida(item.getInsumo().getUnidadMedida());
@@ -527,6 +560,8 @@ public class ControlMovilService {
         dto.setNumeroSerieSnapshot(item.getNumeroSerieSnapshot() == null
                 ? item.getNumeroSerie() : item.getNumeroSerieSnapshot());
         dto.setTestOk(item.getTestOk());
+        dto.setEquipoNoCoincide(item.isEquipoNoCoincide());
+        dto.setEquipoObservado(item.getEquipoObservado());
         return dto;
     }
 }

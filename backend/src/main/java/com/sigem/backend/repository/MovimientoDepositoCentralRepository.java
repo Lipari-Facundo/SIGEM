@@ -8,4 +8,6 @@ import java.util.List;
 public interface MovimientoDepositoCentralRepository extends JpaRepository<MovimientoDepositoCentral, Long> {
 
     List<MovimientoDepositoCentral> findTop200ByOrderByFechaDesc();
+
+    List<MovimientoDepositoCentral> findBySolicitudIdOrderByFechaAsc(Long solicitudId);
 }

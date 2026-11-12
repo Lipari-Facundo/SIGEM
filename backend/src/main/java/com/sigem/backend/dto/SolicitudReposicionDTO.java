@@ -22,6 +22,10 @@ public class SolicitudReposicionDTO {
     private String motivoResolucion;
     private String usuarioUltimaGestion;
     private LocalDateTime fechaUltimaGestion;
+    private String motivoExcepcionControl;
+    private String usuarioExcepcionControl;
+    private LocalDateTime fechaExcepcionControl;
+    private List<ReposicionEntregaHistorialDTO> entregas;
     private List<ItemReposicionDTO> items;
 
     public Long getId() { return id; }
@@ -56,6 +60,20 @@ public class SolicitudReposicionDTO {
     public void setUsuarioUltimaGestion(String usuarioUltimaGestion) { this.usuarioUltimaGestion = usuarioUltimaGestion; }
     public LocalDateTime getFechaUltimaGestion() { return fechaUltimaGestion; }
     public void setFechaUltimaGestion(LocalDateTime fechaUltimaGestion) { this.fechaUltimaGestion = fechaUltimaGestion; }
+    public String getMotivoExcepcionControl() { return motivoExcepcionControl; }
+    public void setMotivoExcepcionControl(String motivoExcepcionControl) {
+        this.motivoExcepcionControl = motivoExcepcionControl;
+    }
+    public String getUsuarioExcepcionControl() { return usuarioExcepcionControl; }
+    public void setUsuarioExcepcionControl(String usuarioExcepcionControl) {
+        this.usuarioExcepcionControl = usuarioExcepcionControl;
+    }
+    public LocalDateTime getFechaExcepcionControl() { return fechaExcepcionControl; }
+    public void setFechaExcepcionControl(LocalDateTime fechaExcepcionControl) {
+        this.fechaExcepcionControl = fechaExcepcionControl;
+    }
+    public List<ReposicionEntregaHistorialDTO> getEntregas() { return entregas; }
+    public void setEntregas(List<ReposicionEntregaHistorialDTO> entregas) { this.entregas = entregas; }
     public List<ItemReposicionDTO> getItems() { return items; }
     public void setItems(List<ItemReposicionDTO> items) { this.items = items; }
 }

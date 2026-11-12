@@ -1,20 +1,33 @@
 package com.sigem.backend.service;
 
 import com.sigem.backend.dto.ReposicionCreateDTO;
+import com.sigem.backend.dto.ConsumoBatchDTO;
+import com.sigem.backend.dto.ConsumoItemDTO;
+import com.sigem.backend.dto.ReposicionEntregaDTO;
+import com.sigem.backend.dto.ReposicionEntregaItemDTO;
 import com.sigem.backend.dto.ReposicionInternaUpdateDTO;
 import com.sigem.backend.dto.ReposicionItemDTO;
 import com.sigem.backend.dto.SolicitudReposicionDTO;
 import com.sigem.backend.model.CategoriaInsumo;
+import com.sigem.backend.model.ConsumoInsumo;
 import com.sigem.backend.model.EstadoReposicion;
+import com.sigem.backend.model.Guardia;
+import com.sigem.backend.model.GuardiaEstado;
 import com.sigem.backend.model.Insumo;
+import com.sigem.backend.model.Movil;
+import com.sigem.backend.model.MovilInsumo;
+import com.sigem.backend.model.MovimientoDepositoCentral;
 import com.sigem.backend.model.PrioridadReposicion;
 import com.sigem.backend.model.Rol;
 import com.sigem.backend.model.SolicitudReposicion;
 import com.sigem.backend.model.SolicitudReposicionItem;
+import com.sigem.backend.model.StockEstandarMovil;
 import com.sigem.backend.model.StockDepositoCentral;
 import com.sigem.backend.model.TipoInsumo;
+import com.sigem.backend.model.TipoMovil;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.repository.ConsumoInsumoRepository;
+import com.sigem.backend.repository.ControlMovilRepository;
 import com.sigem.backend.repository.GuardiaRepository;
 import com.sigem.backend.repository.IncidenteRepository;
 import com.sigem.backend.repository.InsumoRepository;
@@ -24,6 +37,7 @@ import com.sigem.backend.repository.SolicitudReposicionItemRepository;
 import com.sigem.backend.repository.SolicitudReposicionRepository;
 import com.sigem.backend.repository.StockDepositoCentralRepository;
 import com.sigem.backend.repository.StockEstandarMovilRepository;
+import com.sigem.backend.service.NotificacionService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +58,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,11 +71,13 @@ class ReposicionInternaServiceTest {
     @Mock private InsumoRepository insumoRepository;
     @Mock private IncidenteRepository incidenteRepository;
     @Mock private ConsumoInsumoRepository consumoInsumoRepository;
+    @Mock private ControlMovilRepository controlMovilRepository;
     @Mock private SolicitudReposicionRepository solicitudReposicionRepository;
     @Mock private SolicitudReposicionItemRepository solicitudReposicionItemRepository;
     @Mock private StockDepositoCentralRepository stockDepositoCentralRepository;
     @Mock private MovimientoDepositoCentralRepository movimientoDepositoCentralRepository;
     @Mock private EquiposOperativosMovilService equiposOperativosMovilService;
+    @Mock private NotificacionService notificacionService;
 
     private InventarioMovilService service;
 
@@ -76,7 +94,368 @@ class ReposicionInternaServiceTest {
                 solicitudReposicionItemRepository,
                 stockDepositoCentralRepository,
                 movimientoDepositoCentralRepository,
-                equiposOperativosMovilService);
+                equiposOperativosMovilService,
+                controlMovilRepository,
+                notificacionService);
+    }
+
+    @Test
+    void crearSolicitudReposicionRequiereControlDeGuardiaActiva() {
+        Usuario enfermero = usuarioEnfermero();
+        Guardia guardia = new Guardia();
+        guardia.setId(11L);
+        guardia.setEnfermero(enfermero);
+        Movil movil = new Movil();
+        movil.setId(7L);
+        movil.setTipoMovil(TipoMovil.AMBULANCIA_UTIM);
+        guardia.setMovil(movil);
+        guardia.setEstado(GuardiaEstado.ACTIVA);
+        when(guardiaRepository.findByEnfermeroUsernameAndEstado(enfermero.getUsername(), GuardiaEstado.ACTIVA))
+                .thenReturn(Optional.of(guardia));
+        when(controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(11L, 77L)).thenReturn(false);
+
+        ReposicionItemDTO requestedItem = new ReposicionItemDTO();
+        requestedItem.setInsumoId(9L);
+        requestedItem.setCantidad(1);
+        ReposicionCreateDTO request = new ReposicionCreateDTO();
+        request.setItems(List.of(requestedItem));
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> service.crearSolicitudReposicion(enfermero, request));
+
+        assertTrue(exception.getMessage().contains("motivo de excepción"));
+    }
+
+    @Test
+    void entregarSolicitudDeEquipoReutilizableNoAlteraStock() {
+        Usuario coordinador = usuarioCoordinador();
+        Insumo equipo = insumo();
+        equipo.setNombre("Respirador");
+        equipo.setTipo(TipoInsumo.REUTILIZABLE);
+
+        SolicitudReposicion solicitud = new SolicitudReposicion();
+        solicitud.setId(42L);
+        solicitud.setEnfermero(usuarioEnfermero());
+        solicitud.setEsInterna(false);
+        solicitud.setEstado(EstadoReposicion.PENDIENTE);
+
+        SolicitudReposicionItem item = new SolicitudReposicionItem();
+        item.setId(55L);
+        item.setSolicitud(solicitud);
+        item.setInsumo(equipo);
+        item.setCantidadSolicitada(1);
+        item.setCantidadEntregada(0);
+
+        when(solicitudReposicionRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(solicitud));
+        when(solicitudReposicionItemRepository.findBySolicitudId(42L)).thenReturn(List.of(item));
+        ReposicionEntregaItemDTO entrega = new ReposicionEntregaItemDTO();
+        entrega.setItemId(55L);
+        entrega.setCantidad(1);
+        ReposicionEntregaDTO request = new ReposicionEntregaDTO();
+        request.setItems(List.of(entrega));
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> service.entregarSolicitudReposicion(42L, request, coordinador));
+
+        assertTrue(exception.getMessage().contains("se gestionan desde Equipos Médicos"));
+        verifyNoInteractions(stockDepositoCentralRepository);
+        verify(movimientoDepositoCentralRepository, never()).save(any());
+        verifyNoInteractions(notificacionService);
+    }
+
+    @Test
+    void inventarioDelMovilIncluyeEquipoEstandarSinCrearSaldo() {
+        Usuario enfermero = usuarioEnfermero();
+        Guardia guardia = prepararGuardiaMovilConControl(enfermero);
+        Insumo respirador = insumo();
+        respirador.setNombre("Respirador");
+        respirador.setTipo(TipoInsumo.REUTILIZABLE);
+        StockEstandarMovil estandar = new StockEstandarMovil();
+        estandar.setInsumo(respirador);
+        estandar.setCantidadRecomendada(1);
+        when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(7L))
+                .thenReturn(List.of());
+        when(stockEstandarMovilRepository.findByTipoMovil(guardia.getMovil().getTipoMovil()))
+                .thenReturn(List.of(estandar));
+
+        var inventario = service.obtenerInventarioDeMiMovil(enfermero);
+
+        assertEquals(1, inventario.size());
+        assertEquals("Respirador", inventario.get(0).getNombre());
+        assertEquals(0, inventario.get(0).getCantidadActual());
+        assertEquals(1, inventario.get(0).getCantidadRecomendada());
+        verify(movilInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    void solicitarCambioDeRespiradorExigeMotivo() {
+        Usuario enfermero = usuarioEnfermero();
+        prepararGuardiaMovilConControl(enfermero);
+        when(controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(11L, 77L)).thenReturn(true);
+        Insumo respirador = insumo();
+        respirador.setNombre("Respirador");
+        respirador.setTipo(TipoInsumo.REUTILIZABLE);
+        when(insumoRepository.findById(9L)).thenReturn(Optional.of(respirador));
+
+        ReposicionItemDTO item = new ReposicionItemDTO();
+        item.setInsumoId(9L);
+        item.setCantidad(1);
+        ReposicionCreateDTO request = new ReposicionCreateDTO();
+        request.setItems(List.of(item));
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> service.crearSolicitudReposicion(enfermero, request));
+
+        assertTrue(exception.getMessage().contains("motivo de cambio"));
+        verify(solicitudReposicionRepository, never()).save(any(SolicitudReposicion.class));
+        verifyNoInteractions(stockDepositoCentralRepository);
+        verify(movimientoDepositoCentralRepository, never()).save(any());
+    }
+
+    @Test
+    void solicitudDeCambioDeEquipoNoModificaSaldos() {
+        Usuario enfermero = usuarioEnfermero();
+        Guardia guardia = prepararGuardiaMovilConControl(enfermero);
+        when(controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(11L, 77L)).thenReturn(true);
+        Insumo respirador = insumo();
+        respirador.setNombre("Respirador");
+        respirador.setTipo(TipoInsumo.REUTILIZABLE);
+        StockEstandarMovil estandar = new StockEstandarMovil();
+        estandar.setInsumo(respirador);
+        estandar.setCantidadRecomendada(1);
+        when(insumoRepository.findById(9L)).thenReturn(Optional.of(respirador));
+        when(stockEstandarMovilRepository.findByTipoMovil(guardia.getMovil().getTipoMovil()))
+                .thenReturn(List.of(estandar));
+        when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(
+                guardia.getMovil().getId())).thenReturn(List.of());
+        when(solicitudReposicionRepository.save(any(SolicitudReposicion.class)))
+                .thenAnswer(invocation -> {
+                    SolicitudReposicion saved = invocation.getArgument(0);
+                    saved.setId(42L);
+                    saved.setFecha(LocalDateTime.now());
+                    return saved;
+                });
+        SolicitudReposicionItem savedItem = new SolicitudReposicionItem();
+        savedItem.setId(55L);
+        savedItem.setInsumo(respirador);
+        savedItem.setCantidadSolicitada(1);
+        savedItem.setCantidadEntregada(0);
+        savedItem.setMotivoCambio("FALLA");
+        when(solicitudReposicionItemRepository.save(any(SolicitudReposicionItem.class)))
+                .thenAnswer(invocation -> {
+                    SolicitudReposicionItem saved = invocation.getArgument(0);
+                    saved.setId(55L);
+                    return saved;
+                });
+        when(solicitudReposicionItemRepository.findBySolicitudId(42L)).thenReturn(List.of(savedItem));
+
+        ReposicionItemDTO item = new ReposicionItemDTO();
+        item.setInsumoId(9L);
+        item.setCantidad(1);
+        item.setMotivoCambio("FALLA");
+        ReposicionCreateDTO request = new ReposicionCreateDTO();
+        request.setItems(List.of(item));
+
+        SolicitudReposicionDTO response = service.crearSolicitudReposicion(enfermero, request);
+
+        assertEquals(42L, response.getId());
+        assertEquals("FALLA", response.getItems().get(0).getMotivoCambio());
+        verify(movilInsumoRepository, never()).save(any());
+        verifyNoInteractions(stockDepositoCentralRepository);
+        verify(movimientoDepositoCentralRepository, never()).save(any());
+    }
+
+    @Test
+    void registrarConsumoConExcepcionPersisteMotivoUsuarioYFechaSinCambiarLaValidacionDeStock() {
+        Usuario enfermero = usuarioEnfermero();
+        Guardia guardia = prepararGuardiaMovilConControl(enfermero);
+        when(controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(11L, 77L)).thenReturn(false);
+        Insumo guantes = insumo();
+        MovilInsumo stockMovil = new MovilInsumo();
+        stockMovil.setMovil(guardia.getMovil());
+        stockMovil.setInsumo(guantes);
+        stockMovil.setCantidadActual(5);
+        when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(7L))
+                .thenReturn(List.of(stockMovil));
+        when(insumoRepository.findById(9L)).thenReturn(Optional.of(guantes));
+        when(consumoInsumoRepository.save(any(ConsumoInsumo.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ConsumoItemDTO item = new ConsumoItemDTO();
+        item.setInsumoId(9L);
+        item.setCantidad(2);
+        ConsumoBatchDTO request = new ConsumoBatchDTO();
+        request.setItems(List.of(item));
+        request.setMotivoExcepcionControl("Control no disponible por urgencia");
+        request.setObservaciones("Uso en atención urgente");
+
+        var consumos = service.registrarConsumo(enfermero, request);
+
+        ArgumentCaptor<ConsumoInsumo> consumoCaptor = ArgumentCaptor.forClass(ConsumoInsumo.class);
+        verify(consumoInsumoRepository).save(consumoCaptor.capture());
+        ConsumoInsumo consumo = consumoCaptor.getValue();
+        assertEquals("Control no disponible por urgencia", consumo.getMotivoExcepcionControl());
+        assertEquals(enfermero, consumo.getUsuarioExcepcionControl());
+        assertNotNull(consumo.getFechaExcepcionControl());
+        assertEquals("Uso en atención urgente", consumo.getObservaciones());
+        assertEquals(2, consumos.get(0).getCantidad());
+        assertEquals(3, stockMovil.getCantidadActual());
+    }
+
+    @Test
+    void registrarConsumoSinControlYSinMotivoDeExcepcionEsRechazadoAntesDeConsultarStock() {
+        Usuario enfermero = usuarioEnfermero();
+        prepararGuardiaMovilConControl(enfermero);
+        when(controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(11L, 77L)).thenReturn(false);
+        ConsumoItemDTO item = new ConsumoItemDTO();
+        item.setInsumoId(9L);
+        item.setCantidad(1);
+        ConsumoBatchDTO request = new ConsumoBatchDTO();
+        request.setItems(List.of(item));
+
+        RuntimeException exception = assertThrows(RuntimeException.class,
+                () -> service.registrarConsumo(enfermero, request));
+
+        assertTrue(exception.getMessage().contains("motivo de excepción"));
+        verifyNoInteractions(movilInsumoRepository, insumoRepository, consumoInsumoRepository);
+    }
+
+    @Test
+    void estadoControlSeEvaluaContraLaGuardiaActivaDelEnfermero() {
+        Usuario enfermero = usuarioEnfermero();
+        prepararGuardiaMovilConControl(enfermero);
+        when(controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(11L, 77L)).thenReturn(true);
+
+        var estado = service.obtenerEstadoControlGuardia(enfermero);
+
+        assertTrue(estado.isGuardiaActiva());
+        assertTrue(estado.isControlCompletado());
+    }
+
+    @Test
+    void solicitudConExcepcionGuardaAuditoriaEnLaSolicitud() {
+        Usuario enfermero = usuarioEnfermero();
+        Guardia guardia = prepararGuardiaMovilConControl(enfermero);
+        when(controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(11L, 77L)).thenReturn(false);
+        Insumo guantes = insumo();
+        when(insumoRepository.findById(9L)).thenReturn(Optional.of(guantes));
+        StockEstandarMovil estandar = new StockEstandarMovil();
+        estandar.setInsumo(guantes);
+        estandar.setCantidadRecomendada(5);
+        when(stockEstandarMovilRepository.findByTipoMovil(guardia.getMovil().getTipoMovil()))
+                .thenReturn(List.of(estandar));
+        when(movilInsumoRepository.findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(7L))
+                .thenReturn(List.of());
+        when(solicitudReposicionRepository.save(any(SolicitudReposicion.class)))
+                .thenAnswer(invocation -> {
+                    SolicitudReposicion saved = invocation.getArgument(0);
+                    saved.setId(42L);
+                    saved.setFecha(LocalDateTime.now());
+                    return saved;
+                });
+        when(solicitudReposicionItemRepository.save(any(SolicitudReposicionItem.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(solicitudReposicionItemRepository.findBySolicitudId(42L)).thenReturn(List.of());
+
+        ReposicionItemDTO item = new ReposicionItemDTO();
+        item.setInsumoId(9L);
+        item.setCantidad(2);
+        ReposicionCreateDTO request = new ReposicionCreateDTO();
+        request.setItems(List.of(item));
+        request.setMotivoExcepcionControl("No se pudo completar el control");
+
+        service.crearSolicitudReposicion(enfermero, request);
+
+        ArgumentCaptor<SolicitudReposicion> solicitudCaptor =
+                ArgumentCaptor.forClass(SolicitudReposicion.class);
+        verify(solicitudReposicionRepository).save(solicitudCaptor.capture());
+        SolicitudReposicion solicitud = solicitudCaptor.getValue();
+        assertEquals("No se pudo completar el control", solicitud.getMotivoExcepcionControl());
+        assertEquals(enfermero, solicitud.getUsuarioExcepcionControl());
+        assertNotNull(solicitud.getFechaExcepcionControl());
+        verify(movilInsumoRepository, never()).save(any());
+    }
+
+    @Test
+    void entregaCompletaNotificaQueElStockDelMovilFueActualizado() {
+        verificarEntregaNotificada(2, 2, EstadoReposicion.COMPLETADA, false);
+    }
+
+    @Test
+    void entregaParcialNotificaElEstadoParcialYActualizacionDeStock() {
+        verificarEntregaNotificada(3, 1, EstadoReposicion.PARCIAL, true);
+    }
+
+    private void verificarEntregaNotificada(int cantidadSolicitada,
+                                             int cantidadEntregada,
+                                             EstadoReposicion estadoEsperado,
+                                             boolean parcial) {
+        Usuario enfermero = usuarioEnfermero();
+        Usuario coordinador = usuarioCoordinador();
+        Movil movil = new Movil();
+        movil.setId(7L);
+        SolicitudReposicion solicitud = new SolicitudReposicion();
+        solicitud.setId(42L);
+        solicitud.setMovil(movil);
+        solicitud.setEnfermero(enfermero);
+        solicitud.setEsInterna(false);
+        solicitud.setEstado(EstadoReposicion.PENDIENTE);
+        solicitud.setFecha(LocalDateTime.now());
+
+        Insumo guantes = insumo();
+        SolicitudReposicionItem item = new SolicitudReposicionItem();
+        item.setId(55L);
+        item.setSolicitud(solicitud);
+        item.setInsumo(guantes);
+        item.setCantidadSolicitada(cantidadSolicitada);
+        item.setCantidadEntregada(0);
+
+        StockDepositoCentral stockCentral = new StockDepositoCentral();
+        stockCentral.setInsumo(guantes);
+        stockCentral.setCantidadActual(10);
+        stockCentral.setActivo(true);
+        MovilInsumo stockMovil = new MovilInsumo();
+        stockMovil.setMovil(movil);
+        stockMovil.setInsumo(guantes);
+        stockMovil.setCantidadActual(2);
+        when(solicitudReposicionRepository.findByIdForUpdate(42L)).thenReturn(Optional.of(solicitud));
+        when(solicitudReposicionItemRepository.findBySolicitudId(42L)).thenReturn(List.of(item));
+        when(stockDepositoCentralRepository.findActiveByInsumoIdForUpdate(9L))
+                .thenReturn(Optional.of(stockCentral));
+        when(movilInsumoRepository.findByMovilIdAndInsumoIdForUpdate(7L, 9L))
+                .thenReturn(Optional.of(stockMovil));
+        when(solicitudReposicionRepository.save(any(SolicitudReposicion.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(solicitudReposicionItemRepository.save(any(SolicitudReposicionItem.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        ReposicionEntregaItemDTO entrega = new ReposicionEntregaItemDTO();
+        entrega.setItemId(55L);
+        entrega.setCantidad(cantidadEntregada);
+        ReposicionEntregaDTO request = new ReposicionEntregaDTO();
+        request.setItems(List.of(entrega));
+
+        SolicitudReposicionDTO response = service.entregarSolicitudReposicion(42L, request, coordinador);
+
+        assertEquals(estadoEsperado, response.getEstado());
+        assertEquals(10 - cantidadEntregada, stockCentral.getCantidadActual());
+        assertEquals(2 + cantidadEntregada, stockMovil.getCantidadActual());
+        verify(notificacionService).crearNotificacionReposicion(solicitud, parcial);
+        verify(movimientoDepositoCentralRepository).save(any(MovimientoDepositoCentral.class));
+    }
+
+    private Guardia prepararGuardiaMovilConControl(Usuario enfermero) {
+        Guardia guardia = new Guardia();
+        guardia.setId(11L);
+        guardia.setEnfermero(enfermero);
+        Movil movil = new Movil();
+        movil.setId(7L);
+        movil.setTipoMovil(TipoMovil.AMBULANCIA_UTIM);
+        guardia.setMovil(movil);
+        guardia.setEstado(GuardiaEstado.ACTIVA);
+        when(guardiaRepository.findByEnfermeroUsernameAndEstado(enfermero.getUsername(), GuardiaEstado.ACTIVA))
+                .thenReturn(Optional.of(guardia));
+        return guardia;
     }
 
     @Test
@@ -215,6 +594,16 @@ class ReposicionInternaServiceTest {
 
         assertEquals("El tiempo límite de 10 minutos para modificar la solicitud ha expirado",
                 exception.getMessage());
+    }
+
+    private Usuario usuarioEnfermero() {
+        Usuario usuario = new Usuario();
+        usuario.setId(77L);
+        usuario.setUsername("enfermero");
+        usuario.setNombre("Luis");
+        usuario.setApellido("García");
+        usuario.setRol(Rol.ENF);
+        return usuario;
     }
 
     private Usuario usuarioCoordinador() {

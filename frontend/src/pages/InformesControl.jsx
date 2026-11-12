@@ -97,7 +97,13 @@ export default function InformesControl() {
         item.estadoEquipo || '—',
         item.numeroSerie || '—',
         item.testOk === null || item.testOk === undefined ? '—' : item.testOk ? 'Aprobó' : 'No aprobó',
-        item.observacion || '—',
+        [
+          item.observacion,
+          item.equipoNoCoincide
+            ? `Equipo no coincide · esperado ${item.tipoEquipoSnapshot || item.insumoNombre}, serie ${item.numeroSerieSnapshot || '—'}`
+              + (item.equipoObservado ? ` · observado ${item.equipoObservado}` : '')
+            : null,
+        ].filter(Boolean).join(' · ') || '—',
       ]),
       headStyles: {
         fillColor: [27, 107, 107],
@@ -288,7 +294,17 @@ export default function InformesControl() {
                                 <td style={S.td}>{item.estadoEquipo || '—'}</td>
                                 <td style={S.td}>{item.numeroSerie || '—'}</td>
                                 <td style={S.td}>{item.testOk === null || item.testOk === undefined ? '—' : item.testOk ? 'Aprobó' : 'No aprobó'}</td>
-                                <td style={S.td}>{item.observacion || '—'}</td>
+                                <td style={S.td}>
+                                  {item.observacion || '—'}
+                                  {item.equipoNoCoincide && (
+                                    <div>
+                                      <strong>Equipo no coincide.</strong>{' '}
+                                      Esperado: {item.tipoEquipoSnapshot || item.insumoNombre}
+                                      {' · Serie: '}{item.numeroSerieSnapshot || '—'}
+                                      {item.equipoObservado && ` · Observado: ${item.equipoObservado}`}
+                                    </div>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                           </tbody>

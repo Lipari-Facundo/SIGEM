@@ -2,6 +2,7 @@ package com.sigem.backend.service;
 
 import com.sigem.backend.dto.ConsumoBatchDTO;
 import com.sigem.backend.dto.ConsumoInsumoDTO;
+import com.sigem.backend.dto.EstadoControlGuardiaDTO;
 import com.sigem.backend.dto.ConsumoItemDTO;
 import com.sigem.backend.dto.InsumoStockDTO;
 import com.sigem.backend.dto.ItemReposicionDTO;
@@ -10,6 +11,7 @@ import com.sigem.backend.dto.ReposicionEntregaDTO;
 import com.sigem.backend.dto.ReposicionInternaUpdateDTO;
 import com.sigem.backend.dto.ReposicionItemDTO;
 import com.sigem.backend.dto.SolicitudReposicionDTO;
+import com.sigem.backend.dto.ReposicionEntregaHistorialDTO;
 import com.sigem.backend.dto.SugerenciaReposicionDTO;
 import com.sigem.backend.dto.EquipoOperativoMovilDTO;
 import com.sigem.backend.dto.StockDepositoDTO;
@@ -29,8 +31,10 @@ import com.sigem.backend.model.StockEstandarMovil;
 import com.sigem.backend.model.SolicitudReposicion;
 import com.sigem.backend.model.SolicitudReposicionItem;
 import com.sigem.backend.model.TipoInsumo;
+import com.sigem.backend.model.TipoMovil;
 import com.sigem.backend.model.TipoMovimientoDeposito;
 import com.sigem.backend.model.Usuario;
+import com.sigem.backend.repository.ControlMovilRepository;
 import com.sigem.backend.repository.GuardiaRepository;
 import com.sigem.backend.repository.IncidenteRepository;
 import com.sigem.backend.repository.InsumoRepository;
@@ -59,6 +63,9 @@ import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,6 +86,8 @@ public class InventarioMovilService {
     private final StockDepositoCentralRepository stockDepositoCentralRepository;
     private final MovimientoDepositoCentralRepository movimientoDepositoCentralRepository;
     private final EquiposOperativosMovilService equiposOperativosMovilService;
+    private final ControlMovilRepository controlMovilRepository;
+    private final NotificacionService notificacionService;
 
     public InventarioMovilService(StockEstandarMovilRepository stockEstandarMovilRepository,
                                   MovilInsumoRepository movilInsumoRepository,
@@ -90,7 +99,9 @@ public class InventarioMovilService {
                                   SolicitudReposicionItemRepository solicitudReposicionItemRepository,
                                   StockDepositoCentralRepository stockDepositoCentralRepository,
                                   MovimientoDepositoCentralRepository movimientoDepositoCentralRepository,
-                                  EquiposOperativosMovilService equiposOperativosMovilService) {
+                                  EquiposOperativosMovilService equiposOperativosMovilService,
+                                  ControlMovilRepository controlMovilRepository,
+                                  NotificacionService notificacionService) {
         this.stockEstandarMovilRepository = stockEstandarMovilRepository;
         this.movilInsumoRepository = movilInsumoRepository;
         this.guardiaRepository = guardiaRepository;
@@ -102,6 +113,8 @@ public class InventarioMovilService {
         this.stockDepositoCentralRepository = stockDepositoCentralRepository;
         this.movimientoDepositoCentralRepository = movimientoDepositoCentralRepository;
         this.equiposOperativosMovilService = equiposOperativosMovilService;
+        this.controlMovilRepository = controlMovilRepository;
+        this.notificacionService = notificacionService;
     }
 
     @Transactional(readOnly = true)
@@ -366,7 +379,28 @@ public class InventarioMovilService {
                         enfermero.getUsername(), GuardiaEstado.ACTIVA)
                 .orElseThrow(() -> new RuntimeException(
                         "No tenés una guardia activa, no hay móvil asignado"));
-        return obtenerInventarioDeMovil(guardia.getMovil().getId());
+        return obtenerInventarioDeMovil(
+                guardia.getMovil().getId(), guardia.getMovil().getTipoMovil());
+    }
+
+    private List<InsumoStockDTO> obtenerInventarioDeMovil(Long movilId, TipoMovil tipoMovil) {
+        List<InsumoStockDTO> inventario = new ArrayList<>(obtenerInventarioDeMovil(movilId));
+        Set<Long> idsPresentes = new HashSet<>();
+        inventario.forEach(item -> idsPresentes.add(item.getInsumoId()));
+
+        stockEstandarMovilRepository.findByTipoMovil(tipoMovil).stream()
+                .filter(stock -> stock.getInsumo() != null
+                        && stock.getInsumo().isActivo()
+                        && stock.getInsumo().getTipo() == TipoInsumo.REUTILIZABLE
+                        && idsPresentes.add(stock.getInsumo().getId()))
+                .map(stock -> mapearStock(
+                        stock.getInsumo(), 0, stock.getCantidadRecomendada()))
+                .forEach(inventario::add);
+
+        inventario.sort(Comparator
+                .comparing((InsumoStockDTO item) -> item.getCategoria().ordinal())
+                .thenComparing(InsumoStockDTO::getNombre, String.CASE_INSENSITIVE_ORDER));
+        return inventario;
     }
 
     @Transactional(readOnly = true)
@@ -382,6 +416,8 @@ public class InventarioMovilService {
         }
 
         Guardia guardia = buscarGuardiaActiva(enfermero);
+        String motivoExcepcion = validarControlOMotivo(
+                enfermero, guardia, dto.getMotivoExcepcionControl());
         Movil movil = guardia.getMovil();
 
         // Se agrupan duplicados para validar el total real solicitado por insumo.
@@ -438,6 +474,7 @@ public class InventarioMovilService {
 
         // FASE 2: como todo el lote es válido, se descuenta y se registra junto.
         String loteId = UUID.randomUUID().toString();
+        LocalDateTime fechaConsumo = LocalDateTime.now();
         List<ConsumoInsumoDTO> consumos = cantidadesPorInsumo.entrySet().stream().map(entry -> {
             Long insumoId = entry.getKey();
             Integer cantidad = entry.getValue();
@@ -449,10 +486,17 @@ public class InventarioMovilService {
             consumo.setMovil(movil);
             consumo.setInsumo(insumosValidados.get(insumoId));
             consumo.setCantidad(cantidad);
+            consumo.setObservaciones(dto.getObservaciones() == null
+                    ? null : dto.getObservaciones().trim());
             consumo.setEnfermero(enfermero);
             consumo.setIncidente(incidente);
             consumo.setLoteId(loteId);
-            consumo.setFecha(LocalDateTime.now());
+            consumo.setFecha(fechaConsumo);
+            if (motivoExcepcion != null) {
+                consumo.setMotivoExcepcionControl(motivoExcepcion);
+                consumo.setUsuarioExcepcionControl(enfermero);
+                consumo.setFechaExcepcionControl(fechaConsumo);
+            }
             return mapearConsumo(consumoInsumoRepository.save(consumo));
         }).toList();
 
@@ -496,7 +540,10 @@ public class InventarioMovilService {
             throw new RuntimeException("Debe seleccionar al menos un insumo para solicitar reposición");
         }
 
-        Movil movil = buscarGuardiaActiva(enfermero).getMovil();
+        Guardia guardia = buscarGuardiaActiva(enfermero);
+        String motivoExcepcion = validarControlOMotivo(
+                enfermero, guardia, dto.getMotivoExcepcionControl());
+        Movil movil = guardia.getMovil();
         Map<Long, Integer> cantidades = new LinkedHashMap<>();
         Map<Long, String> motivosCambio = new LinkedHashMap<>();
         Map<Long, String> detallesCambio = new LinkedHashMap<>();
@@ -518,7 +565,7 @@ public class InventarioMovilService {
             String detalleCambio = item.getDetalleCambio() == null ? null : item.getDetalleCambio().trim();
 
             if (insumo.getTipo() == TipoInsumo.REUTILIZABLE) {
-                if (!motivosCambioPermitidos.contains(motivoCambio)) {
+                if (motivoCambio == null || !motivosCambioPermitidos.contains(motivoCambio)) {
                     throw new RuntimeException("Seleccioná un motivo de cambio para " + insumo.getNombre());
                 }
                 if (item.getCantidad() != 1) {
@@ -574,6 +621,11 @@ public class InventarioMovilService {
         solicitud.setPrioridad(dto.getPrioridad() == null ? PrioridadReposicion.NORMAL : dto.getPrioridad());
         solicitud.setEsInterna(false);
         solicitud.setObservaciones(dto.getObservaciones());
+        if (motivoExcepcion != null) {
+            solicitud.setMotivoExcepcionControl(motivoExcepcion);
+            solicitud.setUsuarioExcepcionControl(enfermero);
+            solicitud.setFechaExcepcionControl(LocalDateTime.now());
+        }
         SolicitudReposicion solicitudGuardada = solicitudReposicionRepository.save(solicitud);
 
         for (Map.Entry<Long, Integer> entry : cantidades.entrySet()) {
@@ -603,6 +655,15 @@ public class InventarioMovilService {
                 .stream()
                 .map(this::mapearSolicitud)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public SolicitudReposicionDTO obtenerMiSolicitud(Long solicitudId, Usuario enfermero) {
+        SolicitudReposicion solicitud = solicitudReposicionRepository
+                .findByIdAndEnfermeroUsername(solicitudId, enfermero.getUsername())
+                .filter(solicitudPropia -> !solicitudPropia.isEsInterna())
+                .orElseThrow(() -> new RuntimeException("No se encontró una solicitud propia"));
+        return mapearSolicitud(solicitud);
     }
 
     @Transactional(readOnly = true)
@@ -645,6 +706,10 @@ public class InventarioMovilService {
             SolicitudReposicionItem item = itemsSolicitud.get(entrega.getItemId());
             if (item == null) {
                 throw new RuntimeException("El ítem " + entrega.getItemId() + " no pertenece a esta solicitud");
+            }
+            if (item.getInsumo().getTipo() == TipoInsumo.REUTILIZABLE) {
+                throw new IllegalArgumentException(
+                        "Los cambios de equipos reutilizables se gestionan desde Equipos Médicos y no generan movimientos de stock");
             }
             int pendiente = item.getCantidadSolicitada() - item.getCantidadEntregada();
             if (entrega.getCantidad() > pendiente) {
@@ -718,7 +783,9 @@ public class InventarioMovilService {
         solicitud.setEstado(completa ? EstadoReposicion.COMPLETADA : EstadoReposicion.PARCIAL);
         solicitud.setUsuarioUltimaGestion(coordinador);
         solicitud.setFechaUltimaGestion(LocalDateTime.now());
-        return mapearSolicitud(solicitudReposicionRepository.save(solicitud));
+        SolicitudReposicion guardada = solicitudReposicionRepository.save(solicitud);
+        notificacionService.crearNotificacionReposicion(guardada, !completa);
+        return mapearSolicitud(guardada);
     }
 
     @Transactional
@@ -757,24 +824,42 @@ public class InventarioMovilService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public EstadoControlGuardiaDTO obtenerEstadoControlGuardia(Usuario enfermero) {
+        EstadoControlGuardiaDTO dto = new EstadoControlGuardiaDTO();
+        guardiaRepository.findByEnfermeroUsernameAndEstado(
+                        enfermero.getUsername(), GuardiaEstado.ACTIVA)
+                .ifPresent(guardia -> {
+                    dto.setGuardiaActiva(true);
+                    dto.setMovilNumeroInterno(guardia.getMovil().getNumeroInterno());
+                    dto.setControlCompletado(controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(
+                            guardia.getId(), enfermero.getId()));
+                });
+        return dto;
+    }
+
+    private String validarControlOMotivo(Usuario enfermero, Guardia guardia, String motivo) {
+        boolean controlCompletado = controlMovilRepository.existsByGuardia_IdAndEnfermero_Id(
+                guardia.getId(), enfermero.getId());
+        if (controlCompletado) {
+            return null;
+        }
+        if (motivo == null || motivo.isBlank()) {
+            throw new RuntimeException(
+                    "Debés completar el control del móvil de la guardia activa o indicar un motivo de excepción");
+        }
+        String motivoNormalizado = motivo.trim();
+        if (motivoNormalizado.length() > 500) {
+            throw new RuntimeException("El motivo de excepción no puede superar 500 caracteres");
+        }
+        return motivoNormalizado;
+    }
+
     private void exigirPermisoReposicionInterna(Usuario usuario) {
         if (usuario == null || (usuario.getRol() != Rol.JEF && usuario.getRol() != Rol.ADM)) {
             throw new org.springframework.security.access.AccessDeniedException(
                     "No tenés permiso para gestionar solicitudes internas");
         }
-    }
-
-    @Transactional
-    public SolicitudReposicionDTO cancelarSolicitud(Long solicitudId, Usuario enfermero) {
-        SolicitudReposicion solicitud = solicitudReposicionRepository
-            .findByIdAndEnfermeroUsernameForUpdate(solicitudId, enfermero.getUsername())
-                .orElseThrow(() -> new RuntimeException(
-                        "No podés cancelar una solicitud que no te pertenece"));
-        if (solicitud.getEstado() != EstadoReposicion.PENDIENTE) {
-            throw new RuntimeException("Solo se pueden cancelar solicitudes pendientes");
-        }
-        solicitud.setEstado(EstadoReposicion.CANCELADA);
-        return mapearSolicitud(solicitudReposicionRepository.save(solicitud));
     }
 
     private SugerenciaReposicionDTO crearSugerencia(StockEstandarMovil estandar,
@@ -816,6 +901,16 @@ public class InventarioMovilService {
                 + solicitud.getUsuarioUltimaGestion().getApellido());
         }
         dto.setFechaUltimaGestion(solicitud.getFechaUltimaGestion());
+        dto.setMotivoExcepcionControl(solicitud.getMotivoExcepcionControl());
+        if (solicitud.getUsuarioExcepcionControl() != null) {
+            dto.setUsuarioExcepcionControl(nombreCompleto(solicitud.getUsuarioExcepcionControl()));
+        }
+        dto.setFechaExcepcionControl(solicitud.getFechaExcepcionControl());
+        dto.setEntregas(movimientoDepositoCentralRepository
+                .findBySolicitudIdOrderByFechaAsc(solicitud.getId()).stream()
+                .filter(movimiento -> movimiento.getTipo() == TipoMovimientoDeposito.ENTREGA_REPOSICION)
+                .map(this::mapearEntrega)
+                .toList());
         dto.setItems(solicitudReposicionItemRepository.findBySolicitudId(solicitud.getId()).stream()
                 .map(this::mapearItemReposicion)
                 .toList());
@@ -832,6 +927,7 @@ public class InventarioMovilService {
         dto.setInsumoId(item.getInsumo().getId());
         dto.setInsumoNombre(item.getInsumo().getNombre());
         dto.setCategoria(item.getInsumo().getCategoria());
+        dto.setTipo(item.getInsumo().getTipo());
         dto.setCantidadSolicitada(item.getCantidadSolicitada());
         dto.setCantidadEntregada(item.getCantidadEntregada());
         dto.setCantidadActualAlMomento(item.getCantidadActualAlMomento());
@@ -861,18 +957,42 @@ public class InventarioMovilService {
         }
         dto.setLoteId(consumo.getLoteId());
         dto.setFecha(consumo.getFecha());
+        dto.setObservaciones(consumo.getObservaciones());
+        dto.setMovilNumeroInterno(consumo.getMovil().getNumeroInterno());
+        if (consumo.getIncidente() != null) {
+            dto.setNumeroIncidente(consumo.getIncidente().getNumeroIncidente());
+        }
+        dto.setMotivoExcepcionControl(consumo.getMotivoExcepcionControl());
+        if (consumo.getUsuarioExcepcionControl() != null) {
+            dto.setUsuarioExcepcionControl(nombreCompleto(consumo.getUsuarioExcepcionControl()));
+        }
+        dto.setFechaExcepcionControl(consumo.getFechaExcepcionControl());
+        return dto;
+    }
+
+    private ReposicionEntregaHistorialDTO mapearEntrega(MovimientoDepositoCentral movimiento) {
+        ReposicionEntregaHistorialDTO dto = new ReposicionEntregaHistorialDTO();
+        dto.setFecha(movimiento.getFecha());
+        dto.setInsumoNombre(movimiento.getStock().getInsumo().getNombre());
+        dto.setCantidad(movimiento.getCantidad());
+        dto.setDetalle(movimiento.getMotivo());
+        dto.setUsuario(nombreCompleto(movimiento.getUsuario()));
         return dto;
     }
 
     private InsumoStockDTO mapearStock(MovilInsumo movilInsumo, Integer cantidadRecomendada) {
-        Insumo insumo = movilInsumo.getInsumo();
+        return mapearStock(movilInsumo.getInsumo(),
+                movilInsumo.getCantidadActual(), cantidadRecomendada);
+    }
+
+    private InsumoStockDTO mapearStock(Insumo insumo, Integer cantidadActual, Integer cantidadRecomendada) {
         InsumoStockDTO dto = new InsumoStockDTO();
         dto.setInsumoId(insumo.getId());
         dto.setNombre(insumo.getNombre());
         dto.setCategoria(insumo.getCategoria());
         dto.setTipo(insumo.getTipo());
         dto.setUnidadMedida(insumo.getUnidadMedida());
-        dto.setCantidadActual(movilInsumo.getCantidadActual());
+        dto.setCantidadActual(cantidadActual);
         dto.setCantidadRecomendada(cantidadRecomendada);
         return dto;
     }

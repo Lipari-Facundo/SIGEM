@@ -4,6 +4,7 @@ import NotificationBell from './NotificationBell';
 import { guardiaService } from '../services/api';
 import { useEffect, useState } from 'react';
 import './Sidebar.css';
+import { useControlMovilEstado } from '../context/ControlMovilEstadoContext';
 
 const items = [
   { path: '/dashboard',          label: 'Panel de control',   icon: '🏠', roles: ['ADM','ENF','JEF','DES','DIR'] },
@@ -35,6 +36,7 @@ export default function Sidebar() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { user, logout } = useAuth();
+  const { controlPendiente } = useControlMovilEstado();
   const [guardiaCentralActiva, setGuardiaCentralActiva] = useState(false);
 
   useEffect(() => {
@@ -118,7 +120,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <NotificationBell />
+      <NotificationBell controlPendiente={controlPendiente} />
 
       <nav style={S.nav}>
         {items
@@ -130,11 +132,16 @@ export default function Sidebar() {
               onClick={() => { navigate(item.path); closeMobileSidebar(); }}
               style={{
                 ...S.navItem,
-                ...(location.pathname === item.path ? S.navActive : {})
+                ...(location.pathname === item.path ? S.navActive : {}),
+                ...(item.path === '/control-movil' && controlPendiente ? S.controlPending : {}),
               }}
+              className={item.path === '/control-movil' && controlPendiente ? 'sigem-control-pending' : undefined}
             >
               <span style={S.navIcon}>{item.icon}</span>
               {item.label}
+              {item.path === '/control-movil' && controlPendiente && (
+                <span style={S.controlPendingBadge}>Pendiente</span>
+              )}
             </button>
           ))}
         {user?.rol === 'JEF' && !guardiaCentralActiva && (
@@ -241,6 +248,20 @@ const S = {
   navActive: {
     background: 'var(--color-primary-soft)',
     color: 'var(--color-primary-strong)',
+  },
+  controlPending: {
+    outline: '2px solid var(--color-warning)',
+    boxShadow: '0 0 0 4px rgba(245, 158, 11, 0.18)',
+  },
+  controlPendingBadge: {
+    marginLeft: 'auto',
+    padding: '0.12rem 0.35rem',
+    borderRadius: 'var(--radius-pill)',
+    background: '#fff2d6',
+    color: '#8a4b08',
+    fontSize: '0.62rem',
+    fontWeight: 800,
+    textTransform: 'uppercase',
   },
   navIcon: {
     fontSize: '0.95rem',

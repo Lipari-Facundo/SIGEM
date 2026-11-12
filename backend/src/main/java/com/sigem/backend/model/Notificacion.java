@@ -16,9 +16,13 @@ public class Notificacion {
     @JoinColumn(name = "usuario_id", nullable = false)
     private Usuario usuario;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "incidente_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "incidente_id")
     private Incidente incidente;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "solicitud_id")
+    private SolicitudReposicion solicitud;
 
     @Column(nullable = false, columnDefinition = "text")
     private String mensaje;
@@ -48,6 +52,9 @@ public class Notificacion {
 
     public Incidente getIncidente() { return incidente; }
     public void setIncidente(Incidente incidente) { this.incidente = incidente; }
+
+    public SolicitudReposicion getSolicitud() { return solicitud; }
+    public void setSolicitud(SolicitudReposicion solicitud) { this.solicitud = solicitud; }
 
     public String getMensaje() { return mensaje; }
     public void setMensaje(String mensaje) { this.mensaje = mensaje; }

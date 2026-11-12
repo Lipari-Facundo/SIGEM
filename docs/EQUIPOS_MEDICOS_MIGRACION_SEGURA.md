@@ -42,6 +42,22 @@ El inventario heredado puede contener equipos sin clasificar que no forman parte
 
 Las relaciones de tipos a insumos permanecen sin asociar hasta que una correspondencia sea verificada con evidencia independiente; no se asignan por nombre.
 
+## Integración del catálogo reutilizable y Control de Móvil
+
+La migración `V20261111230000__catalogo_equipos_y_discrepancias_control.sql` está pendiente de aplicación. Renombra el registro exacto `Desfibrilador` a `Cardiodesfibrilador` conservando su ID y las relaciones históricas; crea `Respirador` si no existe; establece las tres asociaciones tipo-equipo/insumo de forma explícita; y agrega `Respirador` al estándar con una unidad en cada tipo de móvil. No crea ni ajusta saldos de `movil_insumo` o del depósito central. Si encuentra nombres duplicados, dos registros de desfibrilador o asociaciones incompatibles, aborta para requerir conciliación manual en una copia aislada.
+
+La misma migración agrega `equipo_no_coincide` y `equipo_observado` a `control_movil_item`. El tipo, serie esperada, móvil, guardia, control, enfermero y fecha se conservan en las relaciones y snapshots existentes; las columnas nuevas registran solo la novedad y la descripción observada. Los registros históricos reciben `false` por defecto y no se completan por inferencia. El Control de Móvil obtiene series únicamente de asignaciones activas; las series históricas no se consideran asignaciones.
+
+Antes de habilitar estos cambios en un entorno persistente, aplicar esta migración únicamente mediante el procedimiento aislado y autorizado indicado arriba. Este trabajo no ejecuta SQL ni migraciones.
+
+## Inventario Móvil — control, excepciones y avisos
+
+La migración `V20261111232000__inventario_movil_control_excepcion_y_notificaciones.sql` está pendiente y depende de la migración del catálogo anterior. Agrega observaciones y auditoría de excepción (motivo, usuario y fecha) a consumos y solicitudes, y permite notificaciones vinculadas a una solicitud de reposición sin incidente asociado. Aplicarlas en orden únicamente luego de revisar el respaldo y el destino conforme al procedimiento de esta guía.
+
+El endpoint `GET /api/inventario/mi-movil/estado-control` informa si hay guardia activa y si existe un control para esa guardia. `POST /api/inventario/consumo` y `POST /api/inventario/reposicion` exigen el control o un motivo de excepción no vacío (máximo 500 caracteres); la excepción queda persistida en el registro correspondiente. `GET /api/inventario/reposicion/mias` incluye entregas y auditoría de excepción. Las entregas notifican dentro de la misma transacción que actualiza los saldos, por lo que una transacción fallida no genera aviso.
+
+El rol Enfermero ya no dispone de operación para cancelar o rechazar solicitudes ni registrar entregas; las gestiona desde consulta. Estos cambios no ejecutan SQL ni migraciones y no alteran aceptación de incidentes.
+
 ## Pruebas
 
 `src/test/resources/application.properties` y cada test Spring fijan una base H2 en memoria, `create-drop`, inicialización SQL deshabilitada y Flyway deshabilitado. `H2TestDataSourceGuard` aborta el contexto si la URL o el driver no son H2, si está habilitado `bootstrap`, SQL init o Flyway. No se depende exclusivamente de las propiedades de Maven Surefire y las pruebas no deben leer `SIGEM_DB_*`.
