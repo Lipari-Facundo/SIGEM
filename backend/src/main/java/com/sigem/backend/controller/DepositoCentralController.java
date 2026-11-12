@@ -1,6 +1,7 @@
 package com.sigem.backend.controller;
 
 import com.sigem.backend.dto.CantidadMinimaDepositoDTO;
+import com.sigem.backend.dto.IngresoStockDTO;
 import com.sigem.backend.dto.InsumoStockDTO;
 import com.sigem.backend.dto.MovimientoDepositoCreateDTO;
 import com.sigem.backend.dto.MovimientoDepositoDTO;
@@ -9,6 +10,7 @@ import com.sigem.backend.dto.StockDepositoDTO;
 import com.sigem.backend.model.Usuario;
 import com.sigem.backend.service.DepositoCentralService;
 import com.sigem.backend.service.GuardiaService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -61,6 +63,15 @@ public class DepositoCentralController {
             @AuthenticationPrincipal Usuario usuario) {
         guardiaService.exigirGuardiaCentralActiva(usuario);
         return ResponseEntity.ok(depositoCentralService.actualizarMinimo(stockId, dto, usuario));
+    }
+
+    @PostMapping("/stock/{insumoId}/ingreso")
+    public ResponseEntity<StockDepositoDTO> registrarIngresoStock(
+            @PathVariable Long insumoId,
+            @Valid @RequestBody IngresoStockDTO dto,
+            @AuthenticationPrincipal Usuario usuario) {
+        guardiaService.exigirGuardiaCentralActiva(usuario);
+        return ResponseEntity.ok(depositoCentralService.registrarIngresoStock(insumoId, dto, usuario));
     }
 
     @PostMapping("/movimientos")

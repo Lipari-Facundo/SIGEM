@@ -1,21 +1,36 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import { useAuth } from '../context/AuthContext';
 import { depositoCentralService } from '../services/api';
+import './DepositoCentral.css';
 
-const TIPOS_MOVIMIENTO = [
-  { value: 'INGRESO', label: 'Ingreso de mercadería' },
-  { value: 'AJUSTE_POSITIVO', label: 'Ajuste positivo' },
-  { value: 'AJUSTE_NEGATIVO', label: 'Ajuste negativo' },
-];
+const CATEGORIAS_DEPOSITO = {
+  MEDICACION: { label: 'Medicación', icon: '💊' },
+  DESCARTABLE: { label: 'Descartables', icon: '🧤' },
+  TRAUMA: { label: 'Trauma', icon: '🩹' },
+  VIA_AEREA: { label: 'Vía aérea', icon: '🫁' },
+  EQUIPO_MEDICO: { label: 'Equipos médicos', icon: '🩺' },
+  OXIGENO: { label: 'Oxígeno', icon: '🫧' },
+  ANTISEPTICO: { label: 'Antisépticos', icon: '🧴' },
+  KIT: { label: 'Kits', icon: '🧰' },
+  MONITOREO: { label: 'Monitoreo', icon: '📟' },
+  CURACION: { label: 'Curación', icon: '🩹' },
+  SOLUCION: { label: 'Soluciones', icon: '💉' },
+};
+
+const getCategoryInfo = (category) => CATEGORIAS_DEPOSITO[category] || {
+  label: category === 'SIN_CATEGORIA'
+    ? 'Sin categoría'
+    : String(category).toLocaleLowerCase('es').replace(/(^|_)\w/g, (letter) => letter.replace('_', ' ').toLocaleUpperCase('es')),
+  icon: '📦',
+};
 
 export default function DepositoCentral() {
   const { user } = useAuth();
   const [stock, setStock] = useState([]);
   const [archivados, setArchivados] = useState([]);
-  const [catalogo, setCatalogo] = useState([]);
   const [movimientos, setMovimientos] = useState([]);
   const [vista, setVista] = useState('stock');
   const [loading, setLoading] = useState(true);
@@ -23,14 +38,21 @@ export default function DepositoCentral() {
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [modalAlta, setModalAlta] = useState(false);
-  const [insumoId, setInsumoId] = useState('');
-  const [cantidadInicial, setCantidadInicial] = useState('0');
-  const [cantidadMinima, setCantidadMinima] = useState('0');
+  const [isReposicionModalOpen, setIsReposicionModalOpen] = useState(false);
+  const [reposicionForm, setReposicionForm] = useState({ insumoId: '', cantidad: '' });
+  const [formData, setFormData] = useState({
+    nombre: '',
+    categoria: '',
+    cantidadInicial: '0',
+    cantidadMinima: '0',
+  });
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editingName, setEditingName] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const [minimosEditados, setMinimosEditados] = useState({});
-  const [movimiento, setMovimiento] = useState(null);
-  const [tipoMovimiento, setTipoMovimiento] = useState('INGRESO');
-  const [cantidadMovimiento, setCantidadMovimiento] = useState('');
-  const [motivoMovimiento, setMotivoMovimiento] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState({});
   const puedeGestionarArchivo = ['ADM', 'JEF'].includes(user?.rol);
 
   useEffect(() => {
@@ -40,15 +62,13 @@ export default function DepositoCentral() {
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      const [stockResponse, archivadosResponse, catalogoResponse, movimientosResponse] = await Promise.all([
+      const [stockResponse, archivadosResponse, movimientosResponse] = await Promise.all([
         depositoCentralService.stock(true),
         depositoCentralService.stock(false),
-        depositoCentralService.catalogo(),
         depositoCentralService.movimientos(),
       ]);
       setStock(stockResponse.data || []);
       setArchivados(archivadosResponse.data || []);
-      setCatalogo(catalogoResponse.data || []);
       setMovimientos(movimientosResponse.data || []);
       setError('');
     } catch (exception) {
@@ -59,28 +79,115 @@ export default function DepositoCentral() {
   };
 
   const agregarInsumo = async () => {
-    if (!insumoId) {
-      setError('Seleccioná un insumo del catálogo.');
+    if (!formData.nombre.trim()) {
+      setError('Ingresá el nombre del insumo.');
       return;
     }
+    if (!formData.categoria) {
+      setError('Seleccioná la categoría del insumo.');
+      return;
+    }
+    const inicial = Number(formData.cantidadInicial);
+    const minimo = Number(formData.cantidadMinima);
+    if (!Number.isInteger(inicial) || inicial < 0 || !Number.isInteger(minimo) || minimo < 0) {
+      setError('La existencia inicial y el mínimo deben ser enteros iguales o mayores a cero.');
+      return;
+    }
+
     setGuardando(true);
     setError('');
     try {
       await depositoCentralService.agregarInsumo({
-        insumoId: Number(insumoId),
-        cantidadInicial: Number(cantidadInicial) || 0,
-        cantidadMinima: Number(cantidadMinima) || 0,
+        nombre: formData.nombre.trim(),
+        categoria: formData.categoria,
+        cantidadInicial: inicial,
+        cantidadMinima: minimo,
       });
-      setMensaje('Insumo agregado al depósito.');
+      setMensaje(`${formData.nombre.trim()} creado y agregado al depósito.`);
       setModalAlta(false);
-      setInsumoId('');
-      setCantidadInicial('0');
-      setCantidadMinima('0');
+      setFormData({ nombre: '', categoria: '', cantidadInicial: '0', cantidadMinima: '0' });
       await cargarDatos();
     } catch (exception) {
       setError(exception.response?.data?.message || 'No se pudo agregar el insumo.');
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const registrarIngresoStock = async (event) => {
+    event.preventDefault();
+    const insumoId = Number(reposicionForm.insumoId);
+    const cantidad = Number(reposicionForm.cantidad);
+    if (!Number.isInteger(insumoId) || insumoId <= 0) {
+      setError('Seleccioná un insumo del depósito.');
+      return;
+    }
+    if (!Number.isInteger(cantidad) || cantidad <= 0) {
+      setError('La cantidad a ingresar debe ser un entero mayor a cero.');
+      return;
+    }
+
+    const insumo = stock.find(item => item.insumoId === insumoId);
+    setGuardando(true);
+    setError('');
+    try {
+      await depositoCentralService.sumarStock(insumoId, cantidad);
+      setIsReposicionModalOpen(false);
+      setReposicionForm({ insumoId: '', cantidad: '' });
+      setMensaje(`Ingreso de ${cantidad} ${insumo?.unidadMedida || 'unidades'} de ${insumo?.nombre || 'insumo'} registrado.`);
+      await cargarDatos();
+    } catch (exception) {
+      setError(exception.response?.data?.message || 'No se pudo registrar el ingreso de stock.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const iniciarEdicionNombre = (item) => {
+    setEditingItemId(item.insumoId);
+    setEditingName(item.nombre);
+    setError('');
+  };
+
+  const cancelarEdicionNombre = () => {
+    setEditingItemId(null);
+    setEditingName('');
+  };
+
+  const guardarNombreInsumo = async (item) => {
+    const nombre = editingName.trim();
+    if (!nombre) {
+      setError('El nombre del insumo es obligatorio.');
+      return;
+    }
+    if (nombre.length > 255) {
+      setError('El nombre no puede superar 255 caracteres.');
+      return;
+    }
+    if (nombre === item.nombre) {
+      cancelarEdicionNombre();
+      return;
+    }
+
+    setSavingName(true);
+    setError('');
+    try {
+      await depositoCentralService.actualizarNombreInsumo(item.insumoId, nombre);
+      setStock(current => current.map(stockItem => (
+        stockItem.insumoId === item.insumoId ? { ...stockItem, nombre } : stockItem
+      )));
+      setArchivados(current => current.map(stockItem => (
+        stockItem.insumoId === item.insumoId ? { ...stockItem, nombre } : stockItem
+      )));
+      setMovimientos(current => current.map(movement => (
+        movement.insumoId === item.insumoId ? { ...movement, insumoNombre: nombre } : movement
+      )));
+      setMensaje(`Nombre actualizado a “${nombre}”.`);
+      cancelarEdicionNombre();
+    } catch (exception) {
+      setError(exception.response?.data?.message || 'No se pudo actualizar el nombre del insumo.');
+    } finally {
+      setSavingName(false);
     }
   };
 
@@ -137,40 +244,26 @@ export default function DepositoCentral() {
     }
   };
 
-  const abrirMovimiento = (item) => {
-    setMovimiento(item);
-    setTipoMovimiento('INGRESO');
-    setCantidadMovimiento('');
-    setMotivoMovimiento('');
-    setError('');
-  };
-
-  const registrarMovimiento = async () => {
-    if (!cantidadMovimiento || Number(cantidadMovimiento) <= 0 || !motivoMovimiento.trim()) {
-      setError('Indicá una cantidad mayor a cero y el motivo del movimiento.');
-      return;
-    }
-    setGuardando(true);
-    setError('');
-    try {
-      await depositoCentralService.registrarMovimiento({
-        insumoId: movimiento.insumoId,
-        tipo: tipoMovimiento,
-        cantidad: Number(cantidadMovimiento),
-        motivo: motivoMovimiento.trim(),
-      });
-      setMensaje(`Movimiento registrado para ${movimiento.nombre}.`);
-      setMovimiento(null);
-      await cargarDatos();
-    } catch (exception) {
-      setError(exception.response?.data?.message || 'No se pudo registrar el movimiento.');
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  const catalogoDisponible = catalogo.filter(item => !stock.some(row => row.insumoId === item.insumoId));
   const bajoMinimo = stock.filter(item => item.cantidadActual <= item.cantidadMinima).length;
+  const insumosEnVista = vista === 'archivados' ? archivados : stock;
+  const categoriasDisponibles = useMemo(() => [...new Set(
+    insumosEnVista.map(item => item.categoria || 'SIN_CATEGORIA')
+  )].sort((first, second) => getCategoryInfo(first).label.localeCompare(getCategoryInfo(second).label, 'es')), [insumosEnVista]);
+  const insumosFiltrados = useMemo(() => {
+    const texto = searchTerm.trim().toLocaleLowerCase('es');
+    return insumosEnVista.filter(item => {
+      const coincideNombre = !texto || String(item.nombre || '').toLocaleLowerCase('es').includes(texto);
+      const coincideCategoria = !selectedCategory || (item.categoria || 'SIN_CATEGORIA') === selectedCategory;
+      return coincideNombre && coincideCategoria;
+    });
+  }, [insumosEnVista, searchTerm, selectedCategory]);
+  const insumosPorCategoria = useMemo(() => insumosFiltrados.reduce((grupos, item) => {
+    const categoria = item.categoria || 'SIN_CATEGORIA';
+    if (!grupos[categoria]) grupos[categoria] = [];
+    grupos[categoria].push(item);
+    return grupos;
+  }, {}), [insumosFiltrados]);
+  const categoriasConInsumos = categoriasDisponibles.filter(categoria => insumosPorCategoria[categoria]?.length);
 
   return (
     <div style={S.page}>
@@ -182,11 +275,38 @@ export default function DepositoCentral() {
             <h1 style={S.h1}>Depósito central</h1>
             <p style={S.sub}>Existencias generales, mínimos y movimientos de farmacia.</p>
           </div>
-          {vista === 'stock' && <Button onClick={() => { setError(''); setModalAlta(true); }}>＋ Agregar insumo</Button>}
+          {vista === 'stock' && (
+            <div className="central-stock-header-actions">
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  setError('');
+                  setMensaje('');
+                  setReposicionForm({ insumoId: '', cantidad: '' });
+                  setIsReposicionModalOpen(true);
+                }}
+              >
+                + Registrar reposición
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  setError('');
+                  setMensaje('');
+                  setFormData({ nombre: '', categoria: '', cantidadInicial: '0', cantidadMinima: '0' });
+                  setModalAlta(true);
+                }}
+              >
+                + Alta Insumo
+              </Button>
+            </div>
+          )}
         </header>
 
-        {mensaje && <div style={S.success}>{mensaje}</div>}
-        {error && !modalAlta && !movimiento && <div style={S.error}>{error}</div>}
+        {mensaje && <div style={S.success} role="status">{mensaje}</div>}
+        {error && !modalAlta && !isReposicionModalOpen && <div style={S.error} role="alert">{error}</div>}
 
         <nav style={S.tabs} aria-label="Secciones del depósito">
           <button type="button" style={{ ...S.tab, ...(vista === 'stock' ? S.tabActive : {}) }} onClick={() => setVista('stock')}>Existencias</button>
@@ -194,78 +314,224 @@ export default function DepositoCentral() {
           <button type="button" style={{ ...S.tab, ...(vista === 'movimientos' ? S.tabActive : {}) }} onClick={() => setVista('movimientos')}>Movimientos</button>
         </nav>
 
-        {loading ? <div style={S.status}>Cargando depósito...</div> : vista === 'stock' ? (
+        {loading ? <div style={S.status}>Cargando depósito...</div> : vista === 'stock' || (vista === 'archivados' && puedeGestionarArchivo) ? (
           <>
-            <div style={S.summary}>
-              <div><strong>{stock.length}</strong><span> insumos administrados</span></div>
-              <div style={bajoMinimo ? S.lowStockSummary : undefined}><strong>{bajoMinimo}</strong><span> bajo mínimo</span></div>
-            </div>
-            {stock.length === 0 ? (
-              <EmptyState icon="🏥" title="Depósito aún sin insumos" description="Agregá insumos desde el catálogo para comenzar a administrar existencias." action={<Button onClick={() => setModalAlta(true)}>Agregar insumo</Button>} />
-            ) : (
-              <div style={S.stockList}>
-                {stock.map(item => {
-                  const alerta = item.cantidadActual <= item.cantidadMinima;
-                  return (
-                    <article key={item.id} style={{ ...S.stockItem, ...(alerta ? S.stockItemLow : {}) }}>
-                      <div style={S.stockIdentity}>
-                        <div style={S.stockNameLine}>
-                          <strong>{item.nombre}</strong>
-                          {alerta && <span style={S.lowBadge}>Reponer</span>}
-                        </div>
-                        <span style={S.muted}>{item.categoria} · {item.tipo}{item.unidadMedida ? ` · ${item.unidadMedida}` : ''}</span>
-                      </div>
-                      <div style={S.quantityBlock}>
-                        <strong style={S.quantityValue}>{item.cantidadActual}</strong>
-                        <span style={S.muted}>existencia</span>
-                      </div>
-                      <label style={S.minimumField}>
-                        <span>Mínimo</span>
-                        <input
-                          style={S.minimumInput}
-                          type="number"
-                          min="0"
-                          value={minimosEditados[item.id] ?? item.cantidadMinima}
-                          onChange={event => setMinimosEditados(previous => ({ ...previous, [item.id]: event.target.value }))}
-                          aria-label={`Mínimo de ${item.nombre}`}
-                        />
-                      </label>
-                      <div style={S.rowActions}>
-                        {minimosEditados[item.id] !== undefined && (
-                          <button type="button" style={S.smallAction} disabled={guardando} onClick={() => guardarMinimo(item)}>Guardar mínimo</button>
-                        )}
-                        <button type="button" style={S.smallAction} disabled={guardando} onClick={() => abrirMovimiento(item)}>Registrar movimiento</button>
-                        {puedeGestionarArchivo && <button type="button" style={S.archiveAction} disabled={guardando || item.cantidadActual !== 0} title={item.cantidadActual !== 0 ? 'Para archivar, la existencia debe ser cero.' : undefined} onClick={() => archivarInsumo(item)}>Archivar</button>}
-                      </div>
-                    </article>
-                  );
-                })}
+            {vista === 'stock' && (
+              <div style={S.summary}>
+                <div><strong>{stock.length}</strong><span> insumos administrados</span></div>
+                <div style={bajoMinimo ? S.lowStockSummary : undefined}><strong>{bajoMinimo}</strong><span> bajo mínimo</span></div>
               </div>
             )}
-          </>
-        ) : vista === 'archivados' && puedeGestionarArchivo ? (
-          archivados.length === 0 ? (
-            <EmptyState icon="📦" title="Sin insumos archivados" description="Los insumos archivados aparecerán aquí." />
-          ) : (
-            <div style={S.stockList}>
-              {archivados.map(item => (
-                <article key={item.id} style={S.stockItem}>
-                  <div style={S.stockIdentity}>
-                    <div style={S.stockNameLine}><strong>{item.nombre}</strong><span style={S.lowBadge}>Archivado</span></div>
-                    <span style={S.muted}>{item.categoria} · {item.tipo}{item.unidadMedida ? ` · ${item.unidadMedida}` : ''}</span>
-                  </div>
-                  <div style={S.quantityBlock}>
-                    <strong style={S.quantityValue}>{item.cantidadActual}</strong>
-                    <span style={S.muted}>existencia</span>
-                  </div>
-                  <div style={S.rowActions}>
-                    <button type="button" style={S.smallAction} disabled={guardando} onClick={() => desarchivarInsumo(item)}>Desarchivar</button>
-                  </div>
-                </article>
-              ))}
+            <div className="central-stock-filters">
+              <label className="central-stock-search">
+                <span>Buscar insumo</span>
+                <input
+                  type="search"
+                  value={searchTerm}
+                  onChange={event => setSearchTerm(event.target.value)}
+                  placeholder="Nombre del insumo"
+                />
+              </label>
+              <label className="central-stock-category-filter">
+                <span>Categoría</span>
+                <select value={selectedCategory} onChange={event => setSelectedCategory(event.target.value)}>
+                  <option value="">Todas las categorías</option>
+                  {categoriasDisponibles.map(category => (
+                    <option key={category} value={category}>{getCategoryInfo(category).label}</option>
+                  ))}
+                </select>
+              </label>
             </div>
-          )
-        ) : (
+            {insumosEnVista.length === 0 ? (
+              vista === 'stock'
+                ? <EmptyState icon="🏥" title="Depósito aún sin insumos" description="Agregá insumos desde el catálogo para comenzar a administrar existencias." action={<Button onClick={() => setModalAlta(true)}>Agregar insumo</Button>} />
+                : <EmptyState icon="📦" title="Sin insumos archivados" description="Los insumos archivados aparecerán aquí." />
+            ) : (
+              categoriasConInsumos.length === 0 ? (
+                <EmptyState icon="🔎" title="No se encontraron insumos" description="Probá con otro nombre o cambiá la categoría seleccionada." />
+              ) : (
+                <div className="central-stock-grid">
+                  {categoriasConInsumos.map(category => {
+                    const categoryInfo = getCategoryInfo(category);
+                    const items = insumosPorCategoria[category];
+                    const isExpanded = Boolean(expandedCategories[category]);
+                    const visibleItems = isExpanded ? items : items.slice(0, 5);
+                    return (
+                      <section className="central-stock-category-card" key={category}>
+                        <header className="central-stock-category-header">
+                          <div className="central-stock-category-title">
+                            <span className="central-stock-category-icon" aria-hidden="true">{categoryInfo.icon}</span>
+                            <h2>{categoryInfo.label}</h2>
+                          </div>
+                          <span className="central-stock-count" aria-label={`${items.length} insumos`}>{items.length}</span>
+                        </header>
+                        <div className="central-stock-items">
+                          {visibleItems.map(item => {
+                            const cantidad = Number(item.cantidadActual) || 0;
+                            const alerta = cantidad <= (Number(item.cantidadMinima) || 0);
+                            const presentacion = [item.tipo, item.unidadMedida].filter(Boolean).join(' · ');
+                            return (
+                              <article className={`central-stock-row${alerta ? ' is-low' : ''}`} key={item.id}>
+                                <div className="central-stock-item-info">
+                                  <div className="central-stock-name-line">
+                                    {editingItemId === item.insumoId ? (
+                                      <div className="central-stock-inline-editor">
+                                        <input
+                                          type="text"
+                                          maxLength={255}
+                                          value={editingName}
+                                          autoFocus
+                                          aria-label={`Nuevo nombre para ${item.nombre}`}
+                                          onChange={event => {
+                                            setEditingName(event.target.value);
+                                            setError('');
+                                          }}
+                                          onKeyDown={event => {
+                                            if (event.key === 'Enter') {
+                                              event.preventDefault();
+                                              guardarNombreInsumo(item);
+                                            } else if (event.key === 'Escape') {
+                                              cancelarEdicionNombre();
+                                            }
+                                          }}
+                                        />
+                                        <button
+                                          type="button"
+                                          className="central-stock-inline-save"
+                                          disabled={savingName}
+                                          aria-label={`Guardar nombre de ${item.nombre}`}
+                                          title="Guardar nombre"
+                                          onClick={() => guardarNombreInsumo(item)}
+                                        >
+                                          <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m4 10 4 4 8-8" />
+                                          </svg>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="central-stock-inline-cancel"
+                                          disabled={savingName}
+                                          aria-label="Cancelar edición del nombre"
+                                          title="Cancelar"
+                                          onClick={cancelarEdicionNombre}
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <strong>{item.nombre}</strong>
+                                    )}
+                                    {vista === 'archivados'
+                                      ? <span style={S.lowBadge}>Archivado</span>
+                                      : alerta && <span style={S.lowBadge}>Reponer</span>}
+                                  </div>
+                                  <span className="central-stock-presentation">{presentacion || 'Sin detalle de presentación'}</span>
+                                  {vista === 'stock' && (
+                                    <div className="central-stock-minimum">
+                                      <label htmlFor={`minimum-${item.id}`}>Mínimo</label>
+                                      <input
+                                        id={`minimum-${item.id}`}
+                                        type="number"
+                                        min="0"
+                                        value={minimosEditados[item.id] ?? item.cantidadMinima}
+                                        onChange={event => setMinimosEditados(previous => ({
+                                          ...previous,
+                                          [item.id]: event.target.value,
+                                        }))}
+                                        aria-label={`Mínimo de ${item.nombre}`}
+                                      />
+                                      {minimosEditados[item.id] !== undefined && (
+                                        <button
+                                          type="button"
+                                          className="central-stock-save-minimum"
+                                          disabled={guardando}
+                                          onClick={() => guardarMinimo(item)}
+                                        >
+                                          Guardar
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="central-stock-row-right">
+                                  <div className="central-stock-quantity">
+                                    <strong>{cantidad}</strong>
+                                    <span>{item.unidadMedida || 'existencia'}</span>
+                                  </div>
+                                  {vista === 'stock' && puedeGestionarArchivo && (
+                                    <div className="central-stock-row-actions">
+                                      <button
+                                        type="button"
+                                        className="central-stock-archive"
+                                        disabled={guardando || cantidad !== 0}
+                                        title={cantidad !== 0 ? 'Para archivar, la existencia debe ser cero.' : `Archivar ${item.nombre}`}
+                                        aria-label={`Archivar ${item.nombre}`}
+                                        onClick={() => archivarInsumo(item)}
+                                      >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18v13H3zM3 4h18v3H3zM9 11h6" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="central-stock-edit"
+                                        disabled={guardando || savingName}
+                                        title={`Modificar ${item.nombre}`}
+                                        aria-label={`Modificar ${item.nombre}`}
+                                        onClick={() => iniciarEdicionNombre(item)}
+                                      >
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="m16.5 3.5 4 4M4 20l4.3-.9L20 7.4a2.1 2.1 0 0 0-3-3L5.3 16.1 4 20Z" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  )}
+                                  {vista === 'archivados' && puedeGestionarArchivo && (
+                                    <button
+                                      type="button"
+                                      className="central-stock-restore"
+                                      disabled={guardando}
+                                      onClick={() => desarchivarInsumo(item)}
+                                    >
+                                      Desarchivar
+                                    </button>
+                                  )}
+                                </div>
+                              </article>
+                            );
+                          })}
+                        </div>
+                        {items.length > 5 && (
+                          <button
+                            type="button"
+                            className="central-stock-expand"
+                            aria-expanded={isExpanded}
+                            onClick={() => setExpandedCategories(current => ({
+                              ...current,
+                              [category]: !current[category],
+                            }))}
+                          >
+                            <span>{isExpanded ? 'Ver menos' : `+ ${items.length - 5} insumos`}</span>
+                            <svg
+                              className={isExpanded ? 'is-expanded' : ''}
+                              viewBox="0 0 20 20"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              aria-hidden="true"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m5 7.5 5 5 5-5" />
+                            </svg>
+                          </button>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              )
+            )}
+          </>
+        ) : vista === 'movimientos' ? (
           movimientos.length === 0 ? (
             <EmptyState icon="↕" title="Sin movimientos todavía" description="Los ingresos, ajustes y entregas de reposición aparecerán aquí con usuario y motivo." />
           ) : (
@@ -286,37 +552,172 @@ export default function DepositoCentral() {
               ))}
             </div>
           )
+        ) : (
+          <EmptyState icon="📦" title="Vista no disponible" description="No tenés permiso para consultar esta sección." />
         )}
       </main>
 
       {modalAlta && (
         <div style={S.overlay} onMouseDown={() => !guardando && setModalAlta(false)}>
           <section style={S.modal} onMouseDown={event => event.stopPropagation()}>
-            <div style={S.modalHeader}><div><p style={S.overline}>Alta al depósito</p><h2 style={S.modalTitle}>Agregar insumo</h2></div><button type="button" style={S.close} onClick={() => setModalAlta(false)} aria-label="Cerrar">×</button></div>
-            {error && <div style={S.error}>{error}</div>}
-            <label style={S.field}>Insumo del catálogo<select style={S.input} value={insumoId} onChange={event => setInsumoId(event.target.value)}><option value="">Seleccionar insumo</option>{catalogoDisponible.map(item => <option key={item.insumoId} value={item.insumoId}>{item.nombre} · {item.categoria}</option>)}</select></label>
+            <div style={S.modalHeader}><div><p style={S.overline}>Alta al depósito</p><h2 style={S.modalTitle}>Alta Insumo</h2></div><button type="button" style={S.close} onClick={() => setModalAlta(false)} aria-label="Cerrar">×</button></div>
+            {error && <div style={S.error} role="alert">{error}</div>}
+            <label style={S.field}>
+              Nombre de insumo
+              <input
+                style={S.input}
+                type="text"
+                maxLength={255}
+                value={formData.nombre}
+                onChange={event => setFormData(current => ({ ...current, nombre: event.target.value }))}
+                placeholder="Ej.: Guantes descartables"
+              />
+            </label>
+            <label style={S.field}>
+              Categoría
+              <select
+                style={S.input}
+                value={formData.categoria}
+                onChange={event => setFormData(current => ({ ...current, categoria: event.target.value }))}
+              >
+                <option value="">Seleccionar categoría</option>
+                {Object.entries(CATEGORIAS_DEPOSITO).map(([value, category]) => (
+                  <option key={value} value={value}>{category.label}</option>
+                ))}
+              </select>
+            </label>
             <div style={S.formGrid}>
-              <label style={S.field}>Existencia inicial<input style={S.input} type="number" min="0" value={cantidadInicial} onChange={event => setCantidadInicial(event.target.value)} /></label>
-              <label style={S.field}>Aviso de mínimo<input style={S.input} type="number" min="0" value={cantidadMinima} onChange={event => setCantidadMinima(event.target.value)} /></label>
+              <label style={S.field}>
+                Existencia inicial
+                <input
+                  style={S.input}
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.cantidadInicial}
+                  onChange={event => setFormData(current => ({ ...current, cantidadInicial: event.target.value }))}
+                />
+              </label>
+              <label style={S.field}>
+                Aviso de mínimo
+                <input
+                  style={S.input}
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.cantidadMinima}
+                  onChange={event => setFormData(current => ({ ...current, cantidadMinima: event.target.value }))}
+                />
+              </label>
             </div>
             <p style={S.hint}>Una existencia inicial mayor a cero crea también un movimiento de ingreso auditable.</p>
-            <div style={S.modalActions}><Button variant="secondary" onClick={() => setModalAlta(false)}>Cancelar</Button><Button disabled={guardando || !insumoId} onClick={agregarInsumo}>{guardando ? 'Guardando...' : 'Agregar al depósito'}</Button></div>
+            <div style={S.modalActions}>
+              <Button type="button" variant="secondary" disabled={guardando} onClick={() => setModalAlta(false)}>Cancelar</Button>
+              <Button type="button" disabled={guardando} onClick={agregarInsumo}>
+                {guardando ? 'Guardando...' : 'Crear y agregar'}
+              </Button>
+            </div>
           </section>
         </div>
       )}
 
-      {movimiento && (
-        <div style={S.overlay} onMouseDown={() => !guardando && setMovimiento(null)}>
-          <section style={S.modal} onMouseDown={event => event.stopPropagation()}>
-            <div style={S.modalHeader}><div><p style={S.overline}>Existencia actual: {movimiento.cantidadActual}</p><h2 style={S.modalTitle}>{movimiento.nombre}</h2></div><button type="button" style={S.close} onClick={() => setMovimiento(null)} aria-label="Cerrar">×</button></div>
-            {error && <div style={S.error}>{error}</div>}
-            <label style={S.field}>Tipo<select style={S.input} value={tipoMovimiento} onChange={event => setTipoMovimiento(event.target.value)}>{TIPOS_MOVIMIENTO.map(item => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
-            <label style={S.field}>Cantidad<input style={S.input} type="number" min="1" value={cantidadMovimiento} onChange={event => setCantidadMovimiento(event.target.value)} /></label>
-            <label style={S.field}>Motivo<textarea style={S.input} maxLength={500} rows={3} value={motivoMovimiento} onChange={event => setMotivoMovimiento(event.target.value)} placeholder="Factura, recuento, vencimiento, rotura..." /></label>
-            <div style={S.modalActions}><Button variant="secondary" onClick={() => setMovimiento(null)}>Cancelar</Button><Button disabled={guardando} onClick={registrarMovimiento}>{guardando ? 'Registrando...' : 'Guardar movimiento'}</Button></div>
+      {isReposicionModalOpen && (
+        <div
+          style={S.overlay}
+          onMouseDown={() => {
+            if (!guardando) {
+              setIsReposicionModalOpen(false);
+              setError('');
+            }
+          }}
+        >
+          <section
+            style={S.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="central-stock-ingreso-title"
+            onMouseDown={event => event.stopPropagation()}
+          >
+            <div style={S.modalHeader}>
+              <div>
+                <p style={S.overline}>Ingreso de mercadería</p>
+                <h2 id="central-stock-ingreso-title" style={S.modalTitle}>Registrar reposición</h2>
+              </div>
+              <button
+                type="button"
+                style={S.close}
+                disabled={guardando}
+                onClick={() => {
+                  setIsReposicionModalOpen(false);
+                  setError('');
+                }}
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+            {error && <div style={S.error} role="alert">{error}</div>}
+            {stock.length === 0 ? (
+              <>
+                <p style={S.hint}>No hay insumos activos en el depósito para reponer.</p>
+                <div style={S.modalActions}>
+                  <Button type="button" variant="secondary" onClick={() => setIsReposicionModalOpen(false)}>Cerrar</Button>
+                </div>
+              </>
+            ) : (
+              <form onSubmit={registrarIngresoStock} style={{ display: 'grid', gap: 'var(--spacing-4)' }}>
+                <div style={S.formGrid}>
+                  <label style={S.field}>
+                    Seleccionar Insumo
+                    <select
+                      style={S.input}
+                      value={reposicionForm.insumoId}
+                      onChange={event => setReposicionForm(current => ({ ...current, insumoId: event.target.value }))}
+                      required
+                    >
+                      <option value="">Seleccionar insumo</option>
+                      {stock.map(item => (
+                        <option key={item.insumoId} value={item.insumoId}>
+                          {item.nombre} · Stock actual: {item.cantidadActual}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label style={S.field}>
+                    Cantidad a ingresar
+                    <input
+                      style={S.input}
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={reposicionForm.cantidad}
+                      onChange={event => setReposicionForm(current => ({ ...current, cantidad: event.target.value }))}
+                      required
+                    />
+                  </label>
+                </div>
+                <div style={S.modalActions}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={guardando}
+                    onClick={() => {
+                      setIsReposicionModalOpen(false);
+                      setError('');
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={guardando}>
+                    {guardando ? 'Registrando...' : 'Registrar ingreso'}
+                  </Button>
+                </div>
+              </form>
+            )}
           </section>
         </div>
       )}
+
     </div>
   );
 }
