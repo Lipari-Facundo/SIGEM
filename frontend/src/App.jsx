@@ -17,12 +17,14 @@ import SolicitudesReposicion from './pages/SolicitudesReposicion';
 import DepositoCentral from './pages/DepositoCentral';
 import EquiposMedicos from './pages/EquiposMedicos';
 import RegistrarReposicionEnfermeria from './pages/RegistrarReposicionEnfermeria';
+import { ControlMovilEstadoProvider } from './context/ControlMovilEstadoContext';
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Routes>
+        <ControlMovilEstadoProvider>
+          <Routes>
           <Route path="/login"      element={<Login />} />
           <Route path="/dashboard"  element={<PrivateRoute roles={['ADM', 'ENF', 'JEF', 'DES', 'DIR']}><Dashboard /></PrivateRoute>} />
           <Route path="/usuarios"   element={<PrivateRoute roles={['ADM']}><Usuarios /></PrivateRoute>} />
@@ -41,7 +43,8 @@ export default function App() {
           <Route path="/director-dashboard" element={<PrivateRoute roles={['DIR', 'ADM']}><DirectorDashboard /></PrivateRoute>} />
           <Route path="/metricas-ugl" element={<PrivateRoute roles={['DIR', 'ADM']}><MetricasUGL /></PrivateRoute>} />
           <Route path="*"           element={<Navigate to="/login" replace />} />
-        </Routes>
+          </Routes>
+        </ControlMovilEstadoProvider>
       </BrowserRouter>
     </AuthProvider>
   );

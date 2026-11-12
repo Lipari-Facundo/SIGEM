@@ -25,6 +25,9 @@ public class ConsumoInsumo {
     @Column(nullable = false)
     private Integer cantidad;
 
+    @Column(columnDefinition = "text")
+    private String observaciones;
+
     @JsonIgnoreProperties({"password", "authorities"})
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "enfermero_id", nullable = false)
@@ -39,6 +42,16 @@ public class ConsumoInsumo {
 
     @Column(nullable = false)
     private LocalDateTime fecha;
+
+    @Column(name = "motivo_excepcion_control", length = 500)
+    private String motivoExcepcionControl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_excepcion_control_id")
+    private Usuario usuarioExcepcionControl;
+
+    @Column(name = "fecha_excepcion_control")
+    private LocalDateTime fechaExcepcionControl;
 
     @PrePersist
     protected void onCreate() {
@@ -62,6 +75,9 @@ public class ConsumoInsumo {
     public Integer getCantidad() { return cantidad; }
     public void setCantidad(Integer cantidad) { this.cantidad = cantidad; }
 
+    public String getObservaciones() { return observaciones; }
+    public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
+
     public Usuario getEnfermero() { return enfermero; }
     public void setEnfermero(Usuario enfermero) { this.enfermero = enfermero; }
 
@@ -73,4 +89,19 @@ public class ConsumoInsumo {
 
     public LocalDateTime getFecha() { return fecha; }
     public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
+
+    public String getMotivoExcepcionControl() { return motivoExcepcionControl; }
+    public void setMotivoExcepcionControl(String motivoExcepcionControl) {
+        this.motivoExcepcionControl = motivoExcepcionControl;
+    }
+
+    public Usuario getUsuarioExcepcionControl() { return usuarioExcepcionControl; }
+    public void setUsuarioExcepcionControl(Usuario usuarioExcepcionControl) {
+        this.usuarioExcepcionControl = usuarioExcepcionControl;
+    }
+
+    public LocalDateTime getFechaExcepcionControl() { return fechaExcepcionControl; }
+    public void setFechaExcepcionControl(LocalDateTime fechaExcepcionControl) {
+        this.fechaExcepcionControl = fechaExcepcionControl;
+    }
 }

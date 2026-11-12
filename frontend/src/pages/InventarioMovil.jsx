@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import EmptyState from '../components/ui/EmptyState';
 import Button from '../components/ui/Button';
 import { incidenteService, inventarioService } from '../services/api';
+import { useControlMovilEstado } from '../context/ControlMovilEstadoContext';
 import './InventarioMovil.css';
 
 const CATEGORIAS = [
@@ -30,6 +31,8 @@ const MOTIVOS_CAMBIO_EQUIPO = [
 export default function InventarioMovil() {
   const navigate = useNavigate();
   const location = useLocation();
+  const solicitudesDetallePendientes = useRef(new Map());
+  const { estado: estadoControl, cargando: cargandoControl, error: errorControl } = useControlMovilEstado();
   const [inventario, setInventario] = useState([]);
   const [equiposMedicosMovil, setEquiposMedicosMovil] = useState(null);
   const [errorEquiposMedicos, setErrorEquiposMedicos] = useState('');
@@ -43,6 +46,7 @@ export default function InventarioMovil() {
   const [cantidades, setCantidades] = useState({});
   const [seccionConsumoAbierta, setSeccionConsumoAbierta] = useState(null);
   const [incidenteId, setIncidenteId] = useState('');
+  const [observacionesConsumo, setObservacionesConsumo] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState('');
   const [error, setError] = useState('');
@@ -57,6 +61,22 @@ export default function InventarioMovil() {
   const [detallesCambioEquipo, setDetallesCambioEquipo] = useState({});
   const [seccionReposicionAbierta, setSeccionReposicionAbierta] = useState(null);
   const [guardandoReposicion, setGuardandoReposicion] = useState(false);
+  const [usarExcepcionControl, setUsarExcepcionControl] = useState(false);
+  const [motivoExcepcionControl, setMotivoExcepcionControl] = useState('');
+  const [fechaFiltroHistorial, setFechaFiltroHistorial] = useState('');
+  const [incidenteFiltroHistorial, setIncidenteFiltroHistorial] = useState('');
+  const [fechaFiltroSolicitud, setFechaFiltroSolicitud] = useState('');
+  const [estadoFiltroSolicitud, setEstadoFiltroSolicitud] = useState('');
+  const [usoDetalle, setUsoDetalle] = useState(null);
+  const [solicitudDetalle, setSolicitudDetalle] = useState(null);
+  const controlPendiente = Boolean(estadoControl?.guardiaActiva && !estadoControl?.controlCompletado);
+  const excepcionCompleta = usarExcepcionControl && motivoExcepcionControl.trim().length > 0;
+  const puedeRealizarOperacion = Boolean(
+    !cargandoControl
+      && !errorControl
+      && estadoControl?.guardiaActiva
+      && (estadoControl.controlCompletado || excepcionCompleta),
+  );
 
   useEffect(() => {
     cargarInventario();
@@ -65,10 +85,39 @@ export default function InventarioMovil() {
   }, []);
 
   useEffect(() => {
-    if (location.state?.abrirReposicion) {
+    if (location.state?.abrirReposicion && puedeRealizarOperacion) {
       abrirModalReposicion();
     }
-  }, [location.state]);
+  }, [location.state, puedeRealizarOperacion]);
+
+  useEffect(() => {
+    const solicitudId = location.state?.solicitudId;
+    if (!solicitudId) return undefined;
+    let vigente = true;
+    const claveSolicitud = String(solicitudId);
+    let solicitudDetalleRequest = solicitudesDetallePendientes.current.get(claveSolicitud);
+    if (!solicitudDetalleRequest) {
+      solicitudDetalleRequest = inventarioService.miSolicitud(solicitudId);
+      solicitudesDetallePendientes.current.set(claveSolicitud, solicitudDetalleRequest);
+    }
+    solicitudDetalleRequest
+      .then(response => {
+        if (!vigente) return;
+        setVista('solicitudes');
+        setSolicitudDetalle(response.data);
+      })
+      .catch(exception => {
+        if (vigente) setError(exception.response?.data?.message || 'No se pudo cargar el detalle de la solicitud.');
+      })
+      .finally(() => {
+        if (solicitudesDetallePendientes.current.get(claveSolicitud) === solicitudDetalleRequest) {
+          solicitudesDetallePendientes.current.delete(claveSolicitud);
+        }
+        if (!vigente) return;
+        navigate(location.pathname, { replace: true, state: null });
+      });
+    return () => { vigente = false; };
+  }, [location.pathname, location.state?.solicitudId, navigate]);
 
   const cargarInventario = async () => {
     try {
@@ -118,10 +167,12 @@ export default function InventarioMovil() {
   };
 
   const abrirModal = async () => {
+    if (!puedeRealizarOperacion) return;
     setError('');
     setMensaje('');
     setCantidades({});
     setIncidenteId('');
+    setObservacionesConsumo('');
     setSeccionConsumoAbierta(seccionesConsumo[0]?.key || null);
     setModalAbierto(true);
     try {
@@ -148,6 +199,10 @@ export default function InventarioMovil() {
 
   const registrarConsumo = async () => {
     setError('');
+    if (!puedeRealizarOperacion) {
+      setError('Completá el control de móvil o ingresá el motivo obligatorio de excepción.');
+      return;
+    }
     const items = inventario
       .filter(insumo => insumo.tipo === 'CONSUMIBLE')
       .map(insumo => ({ insumoId: insumo.insumoId, cantidad: Number(cantidades[insumo.insumoId]) || 0 }))
@@ -162,6 +217,8 @@ export default function InventarioMovil() {
     try {
       await inventarioService.registrarConsumo({
         incidenteId: incidenteId ? Number(incidenteId) : null,
+        motivoExcepcionControl: estadoControl?.controlCompletado ? null : motivoExcepcionControl.trim(),
+        observaciones: observacionesConsumo.trim() || null,
         items,
       });
       setMensaje('Uso registrado correctamente.');
@@ -175,6 +232,7 @@ export default function InventarioMovil() {
   };
 
   const abrirModalReposicion = async () => {
+    if (!puedeRealizarOperacion) return;
     setError('');
     setMensaje('');
     setObservacionesReposicion('');
@@ -236,6 +294,10 @@ export default function InventarioMovil() {
 
   const crearReposicion = async () => {
     setError('');
+    if (!puedeRealizarOperacion) {
+      setError('Completá el control de móvil o ingresá el motivo obligatorio de excepción.');
+      return;
+    }
     const equiposCambio = reposicionSeleccionados
       .map(insumoId => inventario.find(insumo => insumo.insumoId === insumoId))
       .filter(insumo => insumo?.tipo === 'REUTILIZABLE');
@@ -244,7 +306,7 @@ export default function InventarioMovil() {
       || (motivosCambioEquipo[insumo.insumoId] === 'OTRO' && !detallesCambioEquipo[insumo.insumoId]?.trim())
     ));
     if (equipoIncompleto) {
-      setError(`Completá el motivo de cambio para ${equipoIncompleto.nombre}.`);
+      setError(`Completá el motivo de cambio para ${nombreEquipoCanonico(equipoIncompleto.nombre)}.`);
       setSeccionReposicionAbierta('CAMBIO_EQUIPO');
       return;
     }
@@ -268,6 +330,7 @@ export default function InventarioMovil() {
     try {
       await inventarioService.crearReposicion({
         observaciones: observacionesReposicion.trim() || null,
+        motivoExcepcionControl: estadoControl?.controlCompletado ? null : motivoExcepcionControl.trim(),
         items,
       });
       setMensaje('Solicitud de reposición creada correctamente.');
@@ -277,17 +340,6 @@ export default function InventarioMovil() {
       setError(exception.response?.data?.message || 'No se pudo crear la solicitud de reposición.');
     } finally {
       setGuardandoReposicion(false);
-    }
-  };
-
-  const cancelarSolicitud = async (id) => {
-    if (!window.confirm('¿Querés cancelar esta solicitud de reposición?')) return;
-    try {
-      await inventarioService.cancelarSolicitud(id);
-      setMensaje('Solicitud cancelada correctamente.');
-      await cargarSolicitudes();
-    } catch (exception) {
-      setError(exception.response?.data?.message || 'No se pudo cancelar la solicitud.');
     }
   };
 
@@ -332,6 +384,16 @@ export default function InventarioMovil() {
     gruposPorLote[registro.loteId] = grupo;
     return gruposPorLote;
   }, {}));
+  const lotesFiltrados = lotes.filter(lote => {
+    const primerRegistro = lote.registros[0];
+    return (!fechaFiltroHistorial || primerRegistro.fecha?.slice(0, 10) === fechaFiltroHistorial)
+      && (!incidenteFiltroHistorial
+        || String(primerRegistro.numeroIncidente || '').includes(incidenteFiltroHistorial.trim()));
+  });
+  const solicitudesFiltradas = solicitudes.filter(solicitud => (
+    (!fechaFiltroSolicitud || solicitud.fecha?.slice(0, 10) === fechaFiltroSolicitud)
+    && (!estadoFiltroSolicitud || solicitud.estado === estadoFiltroSolicitud)
+  ));
 
   return (
     <div style={S.page}>
@@ -344,14 +406,60 @@ export default function InventarioMovil() {
             <p style={S.sub}>Consultá y registrá el uso de los insumos de tu guardia.</p>
           </div>
           <div style={S.headerActions}>
-            {guardiaActiva && <button style={S.btnHeader} onClick={abrirModal}>📦 Registrar uso</button>}
-            {guardiaActiva && <button style={S.btnHeader} onClick={abrirModalReposicion}>📋 Solicitar reposición</button>}
+            {guardiaActiva && (
+              <>
+                <button style={{ ...S.btnHeader, ...(!puedeRealizarOperacion ? S.btnDisabled : {}) }}
+                  onClick={abrirModal} disabled={!puedeRealizarOperacion}>📦 Registrar uso</button>
+                <button style={{ ...S.btnHeader, ...(!puedeRealizarOperacion ? S.btnDisabled : {}) }}
+                  onClick={abrirModalReposicion} disabled={!puedeRealizarOperacion}>📋 Solicitar reposición</button>
+              </>
+            )}
             <div style={S.headerIcon}>🎒</div>
           </div>
         </header>
 
         {mensaje && <div style={S.success}>{mensaje}</div>}
         {error && !modalAbierto && <div style={S.error}>{error}</div>}
+        {guardiaActiva && (cargandoControl || errorControl || controlPendiente
+          || (!cargandoControl && !errorControl && !estadoControl?.guardiaActiva)) && (
+          <section className="inventario-control-notice" style={S.controlNotice} role={errorControl ? 'alert' : 'status'}>
+            {cargandoControl && <span>Consultando el control de la guardia activa…</span>}
+            {errorControl && <span>{errorControl} Las operaciones permanecen bloqueadas hasta verificarlo.</span>}
+            {!cargandoControl && !errorControl && !estadoControl?.guardiaActiva && (
+              <span>No se detectó una guardia activa para este móvil. Las operaciones permanecen bloqueadas.</span>
+            )}
+            {!cargandoControl && !errorControl && controlPendiente && (
+              <>
+                <div>
+                  <strong>Control de móvil pendiente</strong>
+                  <p style={S.controlNoticeText}>
+                    Completá el control para registrar uso o pedir reposición. Si necesitás continuar antes,
+                    podés informar una excepción justificada.
+                  </p>
+                </div>
+                <label style={S.exceptionToggle}>
+                  <input
+                    type="checkbox"
+                    checked={usarExcepcionControl}
+                    onChange={event => setUsarExcepcionControl(event.target.checked)}
+                  />
+                  Registrar una excepción
+                </label>
+                {usarExcepcionControl && (
+                  <textarea
+                    style={S.exceptionInput}
+                    maxLength={500}
+                    rows={2}
+                    value={motivoExcepcionControl}
+                    onChange={event => setMotivoExcepcionControl(event.target.value)}
+                    placeholder="Motivo obligatorio (máximo 500 caracteres)"
+                    aria-label="Motivo obligatorio de excepción por control incompleto"
+                  />
+                )}
+              </>
+            )}
+          </section>
+        )}
 
         {!loading && !guardiaActiva && (
           <EmptyState
@@ -444,19 +552,89 @@ export default function InventarioMovil() {
             {vista === 'historial' && (
               loadingHistorial
                 ? <div style={S.status}>Cargando historial...</div>
-                : lotes.length === 0
-                  ? <EmptyState icon="🧾" title="Sin registros de uso" description="Todavía no hay consumos registrados para este móvil." />
-                  : <div style={S.historyList}>{lotes.map(lote => <LoteCard key={lote.loteId} lote={lote} />)}</div>
+                : (
+                  <>
+                    <div style={S.filterBar}>
+                      <label style={S.filterField}>Fecha
+                        <input type="date" style={S.filterInput} value={fechaFiltroHistorial}
+                          onChange={event => setFechaFiltroHistorial(event.target.value)} />
+                      </label>
+                      <label style={S.filterField}>Número de incidente
+                        <input type="search" style={S.filterInput} value={incidenteFiltroHistorial}
+                          onChange={event => setIncidenteFiltroHistorial(event.target.value)}
+                          placeholder="Buscar número" />
+                      </label>
+                    </div>
+                    {lotesFiltrados.length === 0
+                  ? <EmptyState icon="🧾" title={historial.length ? 'Sin resultados' : 'Sin registros de uso'}
+                    description={historial.length ? 'No hay registros que coincidan con los filtros.' : 'Todavía no hay consumos registrados para este móvil.'} />
+                      : <div style={S.tableWrap}>
+                        <table className="inventario-data-table" style={S.dataTable}>
+                          <thead><tr><th>Fecha</th><th>Atención asociada</th><th>Enfermero</th><th>Acción</th></tr></thead>
+                          <tbody>{lotesFiltrados.map(lote => {
+                            const registro = lote.registros[0];
+                            return (
+                              <tr key={lote.loteId}>
+                                <td>{formatearFecha(registro.fecha)}</td>
+                                <td>{registro.numeroIncidente
+                                  ? `Incidente N.º ${registro.numeroIncidente}${registro.incidenteUbicacion ? ` · ${registro.incidenteUbicacion}` : ''}`
+                                  : 'Sin atención asociada'}</td>
+                                <td>{registro.enfermeroNombre}</td>
+                                <td><button type="button" style={S.detailButton}
+                                  onClick={() => setUsoDetalle(lote)}>Ver detalle</button></td>
+                              </tr>
+                            );
+                          })}</tbody>
+                        </table>
+                      </div>}
+                  </>
+                )
             )}
 
             {vista === 'solicitudes' && (
               loadingSolicitudes
                 ? <div style={S.status}>Cargando solicitudes...</div>
-                : solicitudes.length === 0
-                  ? <EmptyState icon="📋" title="Sin solicitudes" description="Todavía no enviaste solicitudes de reposición." />
-                  : <div style={S.historyList}>{solicitudes.map(solicitud => (
-                    <SolicitudCard key={solicitud.id} solicitud={solicitud} onCancelar={cancelarSolicitud} />
-                  ))}</div>
+                : (
+                  <>
+                    <div style={S.filterBar}>
+                      <label style={S.filterField}>Fecha
+                        <input type="date" style={S.filterInput} value={fechaFiltroSolicitud}
+                          onChange={event => setFechaFiltroSolicitud(event.target.value)} />
+                      </label>
+                      <label style={S.filterField}>Estado
+                        <select style={S.filterInput} value={estadoFiltroSolicitud}
+                          onChange={event => setEstadoFiltroSolicitud(event.target.value)}>
+                          <option value="">Todos</option>
+                          <option value="PENDIENTE">Pendiente</option>
+                          <option value="PARCIAL">Parcial</option>
+                          <option value="COMPLETADA">Completada</option>
+                          <option value="RECHAZADA">Rechazada</option>
+                          <option value="CANCELADA">Cancelada</option>
+                        </select>
+                      </label>
+                    </div>
+                    {solicitudesFiltradas.length === 0
+                  ? <EmptyState icon="📋" title={solicitudes.length ? 'Sin resultados' : 'Sin solicitudes'}
+                    description={solicitudes.length ? 'No hay solicitudes que coincidan con los filtros.' : 'Todavía no enviaste solicitudes de reposición.'} />
+                      : <div style={S.tableWrap}>
+                        <table className="inventario-data-table" style={S.dataTable}>
+                          <thead><tr><th>Fecha</th><th>Hora</th><th>Enfermero</th><th>Estado de solicitud</th><th>Acción</th></tr></thead>
+                          <tbody>{solicitudesFiltradas.map(solicitud => (
+                            <tr key={solicitud.id}>
+                              <td>{formatearDia(solicitud.fecha)}</td>
+                              <td>{formatearHora(solicitud.fecha)}</td>
+                              <td>{solicitud.enfermeroNombre}</td>
+                              <td><span style={{ ...S.statusBadge, ...estiloEstado(solicitud.estado) }}>
+                                {etiquetaEstado(solicitud.estado)}
+                              </span></td>
+                              <td><button type="button" style={S.detailButton}
+                                onClick={() => setSolicitudDetalle(solicitud)}>Ver detalle</button></td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>}
+                  </>
+                )
             )}
           </>
         )}
@@ -478,10 +656,15 @@ export default function InventarioMovil() {
               <option value="">Sin atención asociada</option>
               {atenciones.map(atencion => (
                 <option key={atencion.id} value={atencion.id}>
-                  #{atencion.numeroIncidente || atencion.id} — {atencion.ubicacion}
+                  {atencion.numeroIncidente ? `Incidente N.º ${atencion.numeroIncidente}` : 'Incidente sin número'} — {atencion.ubicacion}
                 </option>
               ))}
             </select>
+            <label style={S.label} htmlFor="observaciones-consumo">Observaciones (opcional)</label>
+            <textarea id="observaciones-consumo" style={S.input} rows={2} maxLength={2000}
+              value={observacionesConsumo}
+              onChange={event => setObservacionesConsumo(event.target.value)}
+              placeholder="Notas asociadas al uso" />
             <div style={S.consumptionSummary}>
               <div><strong>{consumosElegidos.length}</strong><span> insumos</span></div>
               <div><strong>{totalUnidadesConsumo}</strong><span> unidades a registrar</span></div>
@@ -511,7 +694,7 @@ export default function InventarioMovil() {
                           return (
                             <div key={insumo.insumoId} style={{ ...S.consumptionItem, ...(cantidad > 0 ? S.consumptionItemActive : {}) }}>
                               <div style={S.consumptionItemInfo}>
-                                <strong>{insumo.nombre}</strong>
+                                <strong>{nombreEquipoCanonico(insumo.nombre)}</strong>
                                 <span style={S.available}>Disponible: {disponible} {insumo.unidadMedida || ''}</span>
                               </div>
                               {disponible <= 8 ? (
@@ -550,7 +733,7 @@ export default function InventarioMovil() {
               <span style={S.consumptionFooterMeta}>{consumosElegidos.length ? `${consumosElegidos.length} insumos · ${totalUnidadesConsumo} unidades` : 'Elegí cantidades para registrar'}</span>
               <div style={S.modalActions}>
                 <Button size="sm" variant="secondary" onClick={cerrarModal}>Cancelar</Button>
-                <Button size="sm" onClick={registrarConsumo} disabled={guardando || consumosElegidos.length === 0}>{guardando ? 'Guardando...' : 'Confirmar uso'}</Button>
+                <Button size="sm" onClick={registrarConsumo} disabled={!puedeRealizarOperacion || guardando || consumosElegidos.length === 0}>{guardando ? 'Guardando...' : 'Confirmar uso'}</Button>
               </div>
             </div>
           </div>
@@ -668,7 +851,7 @@ export default function InventarioMovil() {
                             style={S.reposicionCheckbox}
                           />
                           <span style={S.reposicionItemInfo}>
-                            <strong>{insumo.nombre}</strong>
+                            <strong>{nombreEquipoCanonico(insumo.nombre)}</strong>
                             <span style={S.available}>Actual: {insumo.cantidadActual} · Estándar: {insumo.cantidadRecomendada} {insumo.unidadMedida || ''} · Solicitud por 1 unidad</span>
                           </span>
                         </label>
@@ -709,77 +892,185 @@ export default function InventarioMovil() {
             <textarea id="observaciones-reposicion" style={S.textarea} value={observacionesReposicion} onChange={event => setObservacionesReposicion(event.target.value)} placeholder="Información general para logística (opcional)" />
             <div style={S.modalActions}>
               <Button variant="secondary" onClick={() => setModalReposicion(false)}>Cancelar</Button>
-              <Button onClick={crearReposicion} disabled={guardandoReposicion || (seleccionadosReposicion === 0 && cambiosEquipoSeleccionados === 0)}>{guardandoReposicion ? 'Enviando...' : `Enviar solicitud (${seleccionadosReposicion + cambiosEquipoSeleccionados})`}</Button>
+              <Button onClick={crearReposicion} disabled={!puedeRealizarOperacion || guardandoReposicion || (seleccionadosReposicion === 0 && cambiosEquipoSeleccionados === 0)}>{guardandoReposicion ? 'Enviando...' : `Enviar solicitud (${seleccionadosReposicion + cambiosEquipoSeleccionados})`}</Button>
             </div>
           </div>
+        </div>
+      )}
+
+      {usoDetalle && (
+        <div style={S.overlay} onMouseDown={() => setUsoDetalle(null)}>
+          <section style={S.detailModal} role="dialog" aria-modal="true" aria-labelledby="usage-detail-title"
+            onMouseDown={event => event.stopPropagation()}>
+            <header style={S.modalHeader}>
+              <div>
+                <p style={S.sectionLabel}>Historial de uso</p>
+                <h2 id="usage-detail-title" style={S.modalTitle}>Detalle del registro</h2>
+              </div>
+              <button type="button" style={S.closeButton} onClick={() => setUsoDetalle(null)} aria-label="Cerrar">×</button>
+            </header>
+            {(() => {
+              const primero = usoDetalle.registros[0];
+              return (
+                <>
+                  <dl className="inventario-detail-grid" style={S.detailGrid}>
+                    <DetailField label="Fecha y hora" value={formatearFecha(primero.fecha)} />
+                    <DetailField label="Atención / incidente" value={primero.numeroIncidente
+                      ? `N.º ${primero.numeroIncidente}${primero.incidenteUbicacion ? ` · ${primero.incidenteUbicacion}` : ''}`
+                      : 'Sin atención asociada'} />
+                    <DetailField label="Móvil" value={primero.movilNumeroInterno || '—'} />
+                    <DetailField label="Enfermero" value={primero.enfermeroNombre || '—'} />
+                  </dl>
+                  <CompactTable headers={['Insumo', 'Cantidad']} rows={usoDetalle.registros.map(item => [
+                    item.insumoNombre, item.cantidad,
+                  ])} />
+                  {primero.observaciones && <DetailNote title="Observaciones" text={primero.observaciones} />}
+                  {primero.motivoExcepcionControl && (
+                    <DetailNote title="Excepción por control incompleto"
+                      text={`${primero.motivoExcepcionControl}${primero.usuarioExcepcionControl ? ` · ${primero.usuarioExcepcionControl}` : ''}${primero.fechaExcepcionControl ? ` · ${formatearFecha(primero.fechaExcepcionControl)}` : ''}`} />
+                  )}
+                </>
+              );
+            })()}
+          </section>
+        </div>
+      )}
+
+      {solicitudDetalle && (
+        <div style={S.overlay} onMouseDown={() => setSolicitudDetalle(null)}>
+          <section style={S.detailModal} role="dialog" aria-modal="true" aria-labelledby="request-detail-title"
+            onMouseDown={event => event.stopPropagation()}>
+            <header style={S.modalHeader}>
+              <div>
+                <p style={S.sectionLabel}>Solicitud N.º {solicitudDetalle.id}</p>
+                <h2 id="request-detail-title" style={S.modalTitle}>Detalle de reposición</h2>
+              </div>
+              <button type="button" style={S.closeButton} onClick={() => setSolicitudDetalle(null)} aria-label="Cerrar">×</button>
+            </header>
+            <dl className="inventario-detail-grid" style={S.detailGrid}>
+              <DetailField label="Fecha y hora" value={formatearFecha(solicitudDetalle.fecha)} />
+              <DetailField label="Móvil" value={solicitudDetalle.movilNumeroInterno || '—'} />
+              <DetailField label="Enfermero" value={solicitudDetalle.enfermeroNombre || '—'} />
+              <DetailField label="Estado" value={etiquetaEstado(solicitudDetalle.estado)} />
+            </dl>
+            <h3 style={S.detailSectionTitle}>Insumos y cambios solicitados</h3>
+            <div style={S.tableWrap}>
+              <table className="inventario-data-table" style={S.dataTable}>
+                <thead><tr><th>Insumo</th><th>Solicitado</th><th>Entregado</th><th>Pendiente</th></tr></thead>
+                <tbody>{(solicitudDetalle.items || []).map(item => {
+                  const reutilizable = item.tipo === 'REUTILIZABLE' || item.motivoCambio;
+                  const solicitudAbierta = ['PENDIENTE', 'PARCIAL'].includes(solicitudDetalle.estado);
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        <strong>{nombreEquipoCanonico(item.insumoNombre)}</strong>
+                        {reutilizable && <small style={S.detailSubtext}>
+                          Cambio informativo{item.motivoCambio ? ` · ${etiquetaMotivoCambio(item.motivoCambio)}` : ''}
+                          {item.detalleCambio ? `: ${item.detalleCambio}` : ''}
+                        </small>}
+                      </td>
+                      <td>{reutilizable ? 'Cambio' : item.cantidadSolicitada}</td>
+                      <td>{reutilizable ? '—' : item.cantidadEntregada || 0}</td>
+                      <td>{reutilizable || !solicitudAbierta
+                        ? '—'
+                        : Math.max(0, item.cantidadSolicitada - (item.cantidadEntregada || 0))}</td>
+                    </tr>
+                  );
+                })}</tbody>
+              </table>
+            </div>
+            {solicitudDetalle.observaciones && <DetailNote title="Observaciones" text={solicitudDetalle.observaciones} />}
+            {solicitudDetalle.motivoExcepcionControl && (
+              <DetailNote title="Excepción por control incompleto"
+                text={`${solicitudDetalle.motivoExcepcionControl}${solicitudDetalle.usuarioExcepcionControl ? ` · ${solicitudDetalle.usuarioExcepcionControl}` : ''}${solicitudDetalle.fechaExcepcionControl ? ` · ${formatearFecha(solicitudDetalle.fechaExcepcionControl)}` : ''}`} />
+            )}
+            {(solicitudDetalle.entregas || []).length > 0 && (
+              <>
+                <h3 style={S.detailSectionTitle}>Entregas realizadas</h3>
+                <div style={S.tableWrap}>
+                  <table className="inventario-data-table" style={S.dataTable}>
+                    <thead><tr><th>Fecha y hora</th><th>Insumo</th><th>Cantidad</th><th>Detalle</th></tr></thead>
+                    <tbody>{solicitudDetalle.entregas.map((entrega, index) => (
+                      <tr key={`${entrega.fecha}-${index}`}>
+                        <td>{formatearFecha(entrega.fecha)}</td>
+                        <td>{entrega.insumoNombre}</td>
+                        <td>{entrega.cantidad}</td>
+                        <td>{entrega.detalle}{entrega.usuario ? ` · ${entrega.usuario}` : ''}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              </>
+            )}
+            {solicitudDetalle.motivoResolucion && <DetailNote title="Motivo de resolución" text={solicitudDetalle.motivoResolucion} />}
+          </section>
         </div>
       )}
     </div>
   );
 }
 
-function LoteCard({ lote }) {
-  const primero = lote.registros[0];
+function DetailField({ label, value }) {
   return (
-    <section style={S.historyCard}>
-      <div style={S.historyHeader}>
-        <div>
-          <p style={S.sectionLabel}>Lote de uso</p>
-          <h2 style={S.historyTitle}>{formatearFecha(primero.fecha)}</h2>
-        </div>
-        <span style={S.loteBadge}>{lote.registros.length} insumo{lote.registros.length !== 1 ? 's' : ''}</span>
-      </div>
-      <p style={S.historyMeta}>
-        {primero.enfermeroNombre} · {primero.incidenteId ? `Atención #${primero.incidenteId}${primero.incidenteUbicacion ? ` · ${primero.incidenteUbicacion}` : ''}` : 'Sin atención asociada'}
-      </p>
-      <div style={S.historyItems}>
-        {lote.registros.map(registro => (
-          <div key={registro.id} style={S.historyItem}><span>{registro.insumoNombre}</span><strong>{registro.cantidad}</strong></div>
-        ))}
-      </div>
-    </section>
+    <div style={S.detailField}>
+      <dt style={S.detailLabel}>{label}</dt>
+      <dd style={S.detailValue}>{value}</dd>
+    </div>
   );
 }
 
-function SolicitudCard({ solicitud, onCancelar }) {
-  const pendiente = solicitud.estado === 'PENDIENTE';
-  const estadoSolicitud = {
+function DetailNote({ title, text }) {
+  return <section className="detailNote" style={S.detailNote}><strong>{title}</strong><p>{text}</p></section>;
+}
+
+function CompactTable({ headers, rows }) {
+  return (
+    <div style={S.tableWrap}>
+      <table className="inventario-data-table" style={S.dataTable}>
+        <thead><tr>{headers.map(header => <th key={header}>{header}</th>)}</tr></thead>
+        <tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>)}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function etiquetaEstado(estado) {
+  return ({
     PENDIENTE: 'Pendiente',
-    PARCIAL: 'Entrega parcial',
+    PARCIAL: 'Parcial',
     COMPLETADA: 'Completada',
     RECHAZADA: 'Rechazada',
     CANCELADA: 'Cancelada',
-  }[solicitud.estado] || solicitud.estado;
-  return (
-    <section style={S.historyCard}>
-      <div style={S.historyHeader}>
-        <div>
-          <p style={S.sectionLabel}>Solicitud #{solicitud.id}</p>
-          <h2 style={S.historyTitle}>{formatearFecha(solicitud.fecha)}</h2>
-        </div>
-        <span style={{ ...S.statusBadge, ...(pendiente ? S.pendingBadge : solicitud.estado === 'PARCIAL' ? S.partialBadge : solicitud.estado === 'RECHAZADA' ? S.rejectedBadge : S.cancelledBadge) }}>{estadoSolicitud}</span>
-      </div>
-      {solicitud.observaciones && <p style={S.historyMeta}>{solicitud.observaciones}</p>}
-      {solicitud.motivoResolucion && <p style={S.historyMeta}>Motivo: {solicitud.motivoResolucion}</p>}
-      {solicitud.usuarioUltimaGestion && <p style={S.historyMeta}>Última gestión: {solicitud.usuarioUltimaGestion} · {formatearFecha(solicitud.fechaUltimaGestion)}</p>}
-      <div style={S.historyItems}>
-        {solicitud.items.map((item, index) => (
-          <div key={`${item.insumoNombre}-${index}`} style={S.historyItem}>
-            <span>
-              {item.insumoNombre}
-              {item.motivoCambio && <small style={S.requestReason}>{MOTIVOS_CAMBIO_EQUIPO.find(motivo => motivo.value === item.motivoCambio)?.label || item.motivoCambio}{item.detalleCambio ? ` · ${item.detalleCambio}` : ''}</small>}
-            </span>
-            <strong>{item.motivoCambio ? `Cambio · entregado ${item.cantidadEntregada || 0}/1` : `Entregado ${item.cantidadEntregada || 0}/${item.cantidadSolicitada}`}</strong>
-          </div>
-        ))}
-      </div>
-      {pendiente && <button style={S.cancelButton} onClick={() => onCancelar(solicitud.id)}>Cancelar solicitud</button>}
-    </section>
-  );
+  }[estado] || estado);
+}
+
+function estiloEstado(estado) {
+  if (estado === 'PENDIENTE') return S.pendingBadge;
+  if (estado === 'PARCIAL') return S.partialBadge;
+  if (estado === 'COMPLETADA') return S.completedBadge;
+  if (estado === 'RECHAZADA') return S.rejectedBadge;
+  return S.cancelledBadge;
+}
+
+function etiquetaMotivoCambio(motivo) {
+  return MOTIVOS_CAMBIO_EQUIPO.find(item => item.value === motivo)?.label || motivo;
+}
+
+function nombreEquipoCanonico(nombre) {
+  return nombre?.toLocaleLowerCase('es-AR') === 'desfibrilador'
+    ? 'Cardiodesfibrilador' : nombre;
 }
 
 function formatearFecha(fecha) {
   return new Date(fecha).toLocaleString('es-AR', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function formatearDia(fecha) {
+  return new Date(fecha).toLocaleDateString('es-AR', { dateStyle: 'medium' });
+}
+
+function formatearHora(fecha) {
+  return new Date(fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 }
 
 const S = {
@@ -791,11 +1082,16 @@ const S = {
   sub: { margin: 'var(--spacing-2) 0 0', color: 'rgba(255,255,255,0.86)', fontSize: 'var(--font-size-md)' },
   headerActions: { display: 'flex', alignItems: 'center', gap: 'var(--spacing-4)' },
   btnHeader: { padding: '0.75rem 1rem', color: 'var(--color-primary-strong)', background: 'var(--color-surface)', border: 'none', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700 },
+  btnDisabled: { opacity: 0.48, cursor: 'not-allowed' },
   headerIcon: { display: 'grid', placeItems: 'center', width: '4.5rem', height: '4.5rem', flexShrink: 0, borderRadius: 'var(--radius-lg)', background: 'rgba(255,255,255,0.16)', fontSize: '2.2rem' },
   success: { marginBottom: 'var(--spacing-5)', padding: 'var(--spacing-4) var(--spacing-5)', color: 'var(--color-success)', background: '#eaf7ef', border: '1px solid #b9e4c8', borderRadius: 'var(--radius-md)' },
   error: { marginBottom: 'var(--spacing-4)', padding: 'var(--spacing-4) var(--spacing-5)', color: 'var(--color-danger)', background: '#fff0f0', border: '1px solid #f1c6c6', borderRadius: 'var(--radius-md)' },
   status: { padding: 'var(--spacing-7)', textAlign: 'center', color: 'var(--color-text-secondary)' },
   tabs: { display: 'flex', gap: 'var(--spacing-2)', marginBottom: 'var(--spacing-5)', borderBottom: '1px solid var(--color-border)' },
+  controlNotice: { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(13rem, 0.42fr)', gap: 'var(--spacing-3)', alignItems: 'center', marginBottom: 'var(--spacing-4)', padding: 'var(--spacing-3) var(--spacing-4)', background: '#fff8e8', border: '1px solid var(--color-warning)', borderRadius: 'var(--radius-md)', color: 'var(--color-text-primary)' },
+  controlNoticeText: { margin: '0.2rem 0 0', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' },
+  exceptionToggle: { display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', fontSize: 'var(--font-size-sm)', fontWeight: 700 },
+  exceptionInput: { gridColumn: '1 / -1', width: '100%', boxSizing: 'border-box', resize: 'vertical', padding: '0.55rem 0.7rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius-sm)', font: 'inherit' },
   tab: { padding: '0.8rem 1rem', color: 'var(--color-text-secondary)', background: 'transparent', border: 'none', borderBottom: '3px solid transparent', cursor: 'pointer', fontWeight: 700 },
   tabActive: { color: 'var(--color-primary-strong)', borderBottomColor: 'var(--color-primary)' },
   categoryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(19rem, 1fr))', gap: 'var(--spacing-5)' },
@@ -811,6 +1107,20 @@ const S = {
   reusable: { padding: '0.2rem 0.45rem', color: 'var(--color-info)', background: '#e8f3fb', borderRadius: 'var(--radius-pill)', fontSize: 'var(--font-size-xxs)', fontWeight: 700 },
   quantity: { display: 'flex', alignItems: 'baseline', gap: '0.3rem', flexShrink: 0, color: 'var(--color-text-secondary)' },
   historyList: { display: 'grid', gap: 'var(--spacing-5)' },
+  filterBar: { display: 'flex', alignItems: 'end', flexWrap: 'wrap', gap: 'var(--spacing-3)', marginBottom: 'var(--spacing-3)', padding: 'var(--spacing-3)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' },
+  filterField: { display: 'grid', gap: '0.25rem', minWidth: '12rem', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)', fontWeight: 700 },
+  filterInput: { minHeight: '2.35rem', boxSizing: 'border-box', padding: '0.4rem 0.6rem', border: '1px solid var(--color-border-strong)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text-primary)', background: 'var(--color-surface)', font: 'inherit' },
+  tableWrap: { width: '100%', overflowX: 'auto', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' },
+  dataTable: { width: '100%', borderCollapse: 'collapse', fontSize: 'var(--font-size-sm)' },
+  detailButton: { padding: '0.38rem 0.65rem', border: '1px solid var(--color-primary)', borderRadius: 'var(--radius-sm)', color: 'var(--color-primary-strong)', background: 'var(--color-surface)', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
+  detailModal: { width: 'min(100%, 54rem)', maxHeight: '88vh', overflowY: 'auto', padding: 'var(--spacing-5)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-lg)' },
+  detailGrid: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 'var(--spacing-3)', margin: '0 0 var(--spacing-4)' },
+  detailField: { minWidth: 0, padding: '0.55rem 0.7rem', background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-sm)' },
+  detailLabel: { color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)', fontWeight: 700 },
+  detailValue: { margin: '0.2rem 0 0', overflowWrap: 'anywhere', fontSize: 'var(--font-size-sm)' },
+  detailSectionTitle: { margin: 'var(--spacing-4) 0 var(--spacing-2)', fontSize: 'var(--font-size-md)' },
+  detailSubtext: { display: 'block', marginTop: '0.2rem', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' },
+  detailNote: { marginTop: 'var(--spacing-3)', padding: 'var(--spacing-3)', background: 'var(--color-surface-alt)', borderLeft: '3px solid var(--color-primary)', borderRadius: 'var(--radius-sm)' },
   historyCard: { padding: 'var(--spacing-5)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' },
   historyHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--spacing-4)' },
   historyTitle: { margin: 'var(--spacing-1) 0 0', fontSize: 'var(--font-size-lg)' },
@@ -889,4 +1199,5 @@ const S = {
   rejectedBadge: { color: 'var(--color-danger-strong)', background: 'var(--color-danger-soft)' },
   cancelledBadge: { color: 'var(--color-text-muted)', background: 'var(--color-surface-muted)' },
   cancelButton: { marginTop: 'var(--spacing-4)', padding: '0.6rem 0.85rem', color: 'var(--color-danger)', background: 'transparent', border: '1px solid #e4bcbc', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 700 },
+  completedBadge: { color: 'var(--color-success-strong)', background: 'var(--color-success-soft)' },
 };

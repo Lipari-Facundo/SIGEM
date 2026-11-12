@@ -12,6 +12,8 @@ public class ControlItemInputDTO {
     private Long asignacionEquipoId;
     private Boolean asignacionEquipoEnviada;
     private Boolean testOk;
+    private Boolean equipoNoCoincide;
+    private String equipoObservado;
 
     public Long getInsumoId() {
         return insumoId;
@@ -75,5 +77,21 @@ public class ControlItemInputDTO {
 
     public void setTestOk(Boolean testOk) {
         this.testOk = testOk;
+    }
+
+    public Boolean getEquipoNoCoincide() {
+        return equipoNoCoincide;
+    }
+
+    public void setEquipoNoCoincide(Boolean equipoNoCoincide) {
+        this.equipoNoCoincide = equipoNoCoincide;
+    }
+
+    public String getEquipoObservado() {
+        return equipoObservado;
+    }
+
+    public void setEquipoObservado(String equipoObservado) {
+        this.equipoObservado = equipoObservado;
     }
 }

@@ -12,9 +12,15 @@ public class ConsumoInsumoDTO {
     private Integer cantidad;
     private String enfermeroNombre;
     private Long incidenteId;
+    private Long numeroIncidente;
     private String incidenteUbicacion;
+    private String movilNumeroInterno;
     private String loteId;
     private LocalDateTime fecha;
+    private String motivoExcepcionControl;
+    private String usuarioExcepcionControl;
+    private LocalDateTime fechaExcepcionControl;
+    private String observaciones;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -34,6 +40,9 @@ public class ConsumoInsumoDTO {
     public Long getIncidenteId() { return incidenteId; }
     public void setIncidenteId(Long incidenteId) { this.incidenteId = incidenteId; }
 
+    public Long getNumeroIncidente() { return numeroIncidente; }
+    public void setNumeroIncidente(Long numeroIncidente) { this.numeroIncidente = numeroIncidente; }
+
     public String getIncidenteUbicacion() { return incidenteUbicacion; }
     public void setIncidenteUbicacion(String incidenteUbicacion) { this.incidenteUbicacion = incidenteUbicacion; }
 
@@ -42,4 +51,27 @@ public class ConsumoInsumoDTO {
 
     public LocalDateTime getFecha() { return fecha; }
     public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
+
+    public String getMovilNumeroInterno() { return movilNumeroInterno; }
+    public void setMovilNumeroInterno(String movilNumeroInterno) {
+        this.movilNumeroInterno = movilNumeroInterno;
+    }
+
+    public String getMotivoExcepcionControl() { return motivoExcepcionControl; }
+    public void setMotivoExcepcionControl(String motivoExcepcionControl) {
+        this.motivoExcepcionControl = motivoExcepcionControl;
+    }
+
+    public String getUsuarioExcepcionControl() { return usuarioExcepcionControl; }
+    public void setUsuarioExcepcionControl(String usuarioExcepcionControl) {
+        this.usuarioExcepcionControl = usuarioExcepcionControl;
+    }
+
+    public LocalDateTime getFechaExcepcionControl() { return fechaExcepcionControl; }
+    public void setFechaExcepcionControl(LocalDateTime fechaExcepcionControl) {
+        this.fechaExcepcionControl = fechaExcepcionControl;
+    }
+
+    public String getObservaciones() { return observaciones; }
+    public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
 }

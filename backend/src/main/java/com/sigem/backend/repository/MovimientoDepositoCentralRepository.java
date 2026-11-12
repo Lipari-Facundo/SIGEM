@@ -1,6 +1,7 @@
 package com.sigem.backend.repository;
 
 import com.sigem.backend.model.MovimientoDepositoCentral;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -8,4 +9,9 @@ import java.util.List;
 public interface MovimientoDepositoCentralRepository extends JpaRepository<MovimientoDepositoCentral, Long> {
 
     List<MovimientoDepositoCentral> findTop200ByOrderByFechaDesc();
+
+    @EntityGraph(attributePaths = {"stock", "stock.insumo"})
+    List<MovimientoDepositoCentral> findBySolicitudIdOrderByFechaAsc(Long solicitudId);
+    @EntityGraph(attributePaths = {"stock", "stock.insumo"})
+    List<MovimientoDepositoCentral> findBySolicitudIdInOrderByFechaAsc(List<Long> solicitudIds);
 }

@@ -8,6 +8,7 @@ import java.util.List;
 
 public class ReposicionCreateDTO {
     private String observaciones;
+    private String motivoExcepcionControl;
     private PrioridadReposicion prioridad = PrioridadReposicion.NORMAL;
 
     @NotEmpty(message = "Debe seleccionar al menos un insumo")
@@ -16,6 +17,10 @@ public class ReposicionCreateDTO {
 
     public String getObservaciones() { return observaciones; }
     public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
+    public String getMotivoExcepcionControl() { return motivoExcepcionControl; }
+    public void setMotivoExcepcionControl(String motivoExcepcionControl) {
+        this.motivoExcepcionControl = motivoExcepcionControl;
+    }
     public PrioridadReposicion getPrioridad() { return prioridad; }
     public void setPrioridad(PrioridadReposicion prioridad) { this.prioridad = prioridad; }
     public List<ReposicionItemDTO> getItems() { return items; }

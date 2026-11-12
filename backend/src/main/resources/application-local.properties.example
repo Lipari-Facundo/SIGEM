@@ -1,0 +1,8 @@
+spring.datasource.url=${SIGEM_DB_URL}
+spring.datasource.username=${SIGEM_DB_USERNAME}
+spring.datasource.password=${SIGEM_DB_PASSWORD}
+spring.datasource.driver-class-name=org.postgresql.Driver
+spring.jpa.hibernate.ddl-auto=validate
+spring.sql.init.mode=never
+spring.flyway.enabled=true
+sigem.jwt.secret-base64=${SIGEM_JWT_SECRET_BASE64}

@@ -2,6 +2,7 @@ package com.sigem.backend.controller;
 
 import com.sigem.backend.dto.ConsumoBatchDTO;
 import com.sigem.backend.dto.ConsumoInsumoDTO;
+import com.sigem.backend.dto.EstadoControlGuardiaDTO;
 import com.sigem.backend.dto.EquipoOperativoMovilDTO;
 import com.sigem.backend.dto.InsumoStockDTO;
 import com.sigem.backend.dto.StockDepositoDTO;
@@ -43,6 +44,13 @@ public class InventarioMovilController {
     public ResponseEntity<List<InsumoStockDTO>> inventarioDeMiMovil(
             @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(inventarioMovilService.obtenerInventarioDeMiMovil(usuario));
+    }
+
+    @GetMapping("/mi-movil/estado-control")
+    @PreAuthorize("hasRole('ENF')")
+    public ResponseEntity<EstadoControlGuardiaDTO> estadoControlGuardia(
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.obtenerEstadoControlGuardia(usuario));
     }
 
     @GetMapping("/mi-movil/equipos-medicos")
@@ -168,12 +176,12 @@ public class InventarioMovilController {
         return ResponseEntity.ok(inventarioMovilService.listarMisSolicitudes(usuario));
     }
 
-    @PutMapping("/reposicion/{id}/cancelar")
+    @GetMapping("/reposicion/mias/{id}")
     @PreAuthorize("hasRole('ENF')")
-    public ResponseEntity<SolicitudReposicionDTO> cancelarReposicion(
+    public ResponseEntity<SolicitudReposicionDTO> miReposicion(
             @PathVariable Long id,
             @AuthenticationPrincipal Usuario usuario) {
-        return ResponseEntity.ok(inventarioMovilService.cancelarSolicitud(id, usuario));
+        return ResponseEntity.ok(inventarioMovilService.obtenerMiSolicitud(id, usuario));
     }
 
     @GetMapping("/reposicion/pendientes")
@@ -181,6 +189,30 @@ public class InventarioMovilController {
     public ResponseEntity<List<SolicitudReposicionDTO>> reposicionesPendientes(
             @AuthenticationPrincipal Usuario usuario) {
         return ResponseEntity.ok(inventarioMovilService.listarSolicitudesPendientes(usuario));
+    }
+
+    @GetMapping("/reposicion/historial")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM', 'DES')")
+    public ResponseEntity<List<SolicitudReposicionDTO>> historialReposiciones(
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.listarHistorialSolicitudesReposicion(usuario));
+    }
+
+    @GetMapping("/reposicion/{id}/catalogo-edicion")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<List<InsumoStockDTO>> catalogoEdicionReposicion(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.catalogoEdicionSolicitudReposicion(id, usuario));
+    }
+
+    @PutMapping("/reposicion/{id}")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<SolicitudReposicionDTO> modificarReposicion(
+            @PathVariable Long id,
+            @Valid @RequestBody ReposicionCreateDTO dto,
+            @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.ok(inventarioMovilService.modificarSolicitudReposicion(id, dto, usuario));
     }
 
     @PostMapping("/reposicion/{id}/entregas")

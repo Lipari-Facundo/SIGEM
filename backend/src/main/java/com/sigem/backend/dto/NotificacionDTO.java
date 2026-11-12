@@ -7,10 +7,12 @@ public class NotificacionDTO {
     private Long id;
     private String mensaje;
     private boolean leida;
+    private boolean compartida;
     private LocalDateTime fechaCreacion;
     private Long incidenteId;
     private String ubicacionIncidente;
     private String tipo;
+    private Long solicitudId;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -20,6 +22,8 @@ public class NotificacionDTO {
 
     public boolean isLeida() { return leida; }
     public void setLeida(boolean leida) { this.leida = leida; }
+    public boolean isCompartida() { return compartida; }
+    public void setCompartida(boolean compartida) { this.compartida = compartida; }
 
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
@@ -32,4 +36,7 @@ public class NotificacionDTO {
 
     public String getTipo() { return tipo; }
     public void setTipo(String tipo) { this.tipo = tipo; }
+
+    public Long getSolicitudId() { return solicitudId; }
+    public void setSolicitudId(Long solicitudId) { this.solicitudId = solicitudId; }
 }

@@ -75,6 +75,7 @@ export const movilService = {
 
 export const inventarioService = {
   miInventario:       ()       => api.get('/inventario/mi-movil'),
+  estadoControlGuardia: ()     => api.get('/inventario/mi-movil/estado-control'),
   misEquiposMedicos:  ()       => api.get('/inventario/mi-movil/equipos-medicos'),
   inventarioDeMovil:  (movilId) => api.get(`/inventario/movil/${movilId}`),
   inicializar:        (movilId) => api.post(`/inventario/movil/${movilId}/inicializar`),
@@ -84,8 +85,11 @@ export const inventarioService = {
   sugerenciaReposicion: () => api.get('/inventario/mi-movil/sugerencia-reposicion'),
   crearReposicion:    (dto)    => api.post('/inventario/reposicion', dto),
   misSolicitudes:    ()       => api.get('/inventario/reposicion/mias'),
-  cancelarSolicitud: (id)     => api.put(`/inventario/reposicion/${id}/cancelar`),
+  miSolicitud:       (id)     => api.get(`/inventario/reposicion/mias/${id}`),
   solicitudesPendientes: ()   => api.get('/inventario/reposicion/pendientes'),
+  historialReposiciones: ()   => api.get('/inventario/reposicion/historial'),
+  catalogoEdicionSolicitud: (id) => api.get(`/inventario/reposicion/${id}/catalogo-edicion`),
+  modificarReposicion: (id, data) => api.put(`/inventario/reposicion/${id}`, data),
   entregarReposicion: (id, data) => api.post(`/inventario/reposicion/${id}/entregas`, data),
   rechazarReposicion: (id, motivo) => api.put(`/inventario/reposicion/${id}/rechazar`, { motivo }),
 };

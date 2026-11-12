@@ -17,6 +17,10 @@ public class SolicitudReposicion {
     @JoinColumn(name = "movil_id")
     private Movil movil;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "guardia_id")
+    private Guardia guardia;
+
     @JsonIgnoreProperties({"password", "authorities"})
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "enfermero_id", nullable = false)
@@ -52,6 +56,16 @@ public class SolicitudReposicion {
     @Column(name = "fecha_ultima_gestion")
     private LocalDateTime fechaUltimaGestion;
 
+    @Column(name = "motivo_excepcion_control", length = 500)
+    private String motivoExcepcionControl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_excepcion_control_id")
+    private Usuario usuarioExcepcionControl;
+
+    @Column(name = "fecha_excepcion_control")
+    private LocalDateTime fechaExcepcionControl;
+
     @PrePersist
     protected void onCreate() {
         if (fecha == null) fecha = LocalDateTime.now();
@@ -63,6 +77,8 @@ public class SolicitudReposicion {
     public void setId(Long id) { this.id = id; }
     public Movil getMovil() { return movil; }
     public void setMovil(Movil movil) { this.movil = movil; }
+    public Guardia getGuardia() { return guardia; }
+    public void setGuardia(Guardia guardia) { this.guardia = guardia; }
     public Usuario getEnfermero() { return enfermero; }
     public void setEnfermero(Usuario enfermero) { this.enfermero = enfermero; }
     public LocalDateTime getFecha() { return fecha; }
@@ -83,4 +99,16 @@ public class SolicitudReposicion {
     public void setUsuarioUltimaGestion(Usuario usuarioUltimaGestion) { this.usuarioUltimaGestion = usuarioUltimaGestion; }
     public LocalDateTime getFechaUltimaGestion() { return fechaUltimaGestion; }
     public void setFechaUltimaGestion(LocalDateTime fechaUltimaGestion) { this.fechaUltimaGestion = fechaUltimaGestion; }
+    public String getMotivoExcepcionControl() { return motivoExcepcionControl; }
+    public void setMotivoExcepcionControl(String motivoExcepcionControl) {
+        this.motivoExcepcionControl = motivoExcepcionControl;
+    }
+    public Usuario getUsuarioExcepcionControl() { return usuarioExcepcionControl; }
+    public void setUsuarioExcepcionControl(Usuario usuarioExcepcionControl) {
+        this.usuarioExcepcionControl = usuarioExcepcionControl;
+    }
+    public LocalDateTime getFechaExcepcionControl() { return fechaExcepcionControl; }
+    public void setFechaExcepcionControl(LocalDateTime fechaExcepcionControl) {
+        this.fechaExcepcionControl = fechaExcepcionControl;
+    }
 }

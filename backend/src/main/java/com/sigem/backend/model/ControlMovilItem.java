@@ -50,6 +50,12 @@ public class ControlMovilItem {
     @Column(name = "test_ok")
     private Boolean testOk;
 
+    @Column(name = "equipo_no_coincide", nullable = false)
+    private boolean equipoNoCoincide;
+
+    @Column(name = "equipo_observado", length = 500)
+    private String equipoObservado;
+
     public Long getId() {
         return id;
     }
@@ -152,5 +158,21 @@ public class ControlMovilItem {
 
     public void setTestOk(Boolean testOk) {
         this.testOk = testOk;
+    }
+
+    public boolean isEquipoNoCoincide() {
+        return equipoNoCoincide;
+    }
+
+    public void setEquipoNoCoincide(boolean equipoNoCoincide) {
+        this.equipoNoCoincide = equipoNoCoincide;
+    }
+
+    public String getEquipoObservado() {
+        return equipoObservado;
+    }
+
+    public void setEquipoObservado(String equipoObservado) {
+        this.equipoObservado = equipoObservado;
     }
 }

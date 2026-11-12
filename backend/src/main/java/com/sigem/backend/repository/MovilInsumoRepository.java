@@ -2,6 +2,7 @@ package com.sigem.backend.repository;
 
 import com.sigem.backend.model.MovilInsumo;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -13,6 +14,9 @@ import java.util.Optional;
 public interface MovilInsumoRepository extends JpaRepository<MovilInsumo, Long> {
 
     List<MovilInsumo> findByMovilIdOrderByInsumoCategoriaAscInsumoNombreAsc(Long movilId);
+
+    @EntityGraph(attributePaths = {"insumo"})
+    List<MovilInsumo> findByMovilIdInOrderByInsumoCategoriaAscInsumoNombreAsc(List<Long> movilIds);
 
     Optional<MovilInsumo> findByMovilIdAndInsumoId(Long movilId, Long insumoId);
 

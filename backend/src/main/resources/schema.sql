@@ -67,18 +67,21 @@ ALTER TABLE incidentes ADD CONSTRAINT incidentes_estado_check
 CREATE TABLE IF NOT EXISTS notificaciones (
     id serial PRIMARY KEY,
     usuario_id bigint NOT NULL,
-    incidente_id bigint NOT NULL,
+    incidente_id bigint,
     mensaje text NOT NULL,
     leida boolean NOT NULL DEFAULT false,
+    compartida boolean NOT NULL DEFAULT false,
     fecha_creacion timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_notificacion_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
     CONSTRAINT fk_notificacion_incidente FOREIGN KEY (incidente_id) REFERENCES incidentes(id)
 );
 
+ALTER TABLE notificaciones ALTER COLUMN incidente_id DROP NOT NULL;
 ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS mensaje text;
 ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS leida boolean NOT NULL DEFAULT false;
 ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS fecha_creacion timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS tipo varchar(50) NOT NULL DEFAULT 'INCIDENTE_ASIGNADO';
+ALTER TABLE notificaciones ADD COLUMN IF NOT EXISTS compartida boolean NOT NULL DEFAULT false;
 
 CREATE TABLE IF NOT EXISTS incidente_historial_asignacion (
     id serial PRIMARY KEY,
@@ -135,15 +138,24 @@ CREATE TABLE IF NOT EXISTS consumo_insumo (
     movil_id bigint NOT NULL REFERENCES moviles(id),
     insumo_id bigint NOT NULL REFERENCES insumos(id),
     cantidad integer NOT NULL,
+    observaciones text,
     enfermero_id bigint NOT NULL REFERENCES usuarios(id),
     incidente_id bigint REFERENCES incidentes(id),
     lote_id varchar(64) NOT NULL,
-    fecha timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    fecha timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    motivo_excepcion_control varchar(500),
+    usuario_excepcion_control_id bigint REFERENCES usuarios(id),
+    fecha_excepcion_control timestamp
 );
+ALTER TABLE consumo_insumo ADD COLUMN IF NOT EXISTS motivo_excepcion_control varchar(500);
+ALTER TABLE consumo_insumo ADD COLUMN IF NOT EXISTS observaciones text;
+ALTER TABLE consumo_insumo ADD COLUMN IF NOT EXISTS usuario_excepcion_control_id bigint REFERENCES usuarios(id);
+ALTER TABLE consumo_insumo ADD COLUMN IF NOT EXISTS fecha_excepcion_control timestamp;
 
 CREATE TABLE IF NOT EXISTS solicitud_reposicion (
     id serial PRIMARY KEY,
     movil_id bigint REFERENCES moviles(id),
+    guardia_id bigint REFERENCES guardias(id),
     enfermero_id bigint NOT NULL REFERENCES usuarios(id),
     fecha timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     estado varchar(50) NOT NULL DEFAULT 'PENDIENTE',
@@ -152,8 +164,17 @@ CREATE TABLE IF NOT EXISTS solicitud_reposicion (
     observaciones text,
     motivo_resolucion varchar(500),
     usuario_ultima_gestion_id bigint REFERENCES usuarios(id),
-    fecha_ultima_gestion timestamp
+    fecha_ultima_gestion timestamp,
+    motivo_excepcion_control varchar(500),
+    usuario_excepcion_control_id bigint REFERENCES usuarios(id),
+    fecha_excepcion_control timestamp
 );
+ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS guardia_id bigint REFERENCES guardias(id);
+ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS motivo_excepcion_control varchar(500);
+ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS usuario_excepcion_control_id bigint REFERENCES usuarios(id);
+ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS fecha_excepcion_control timestamp;
+ALTER TABLE notificaciones
+    ADD COLUMN IF NOT EXISTS solicitud_id bigint REFERENCES solicitud_reposicion(id);
 
 ALTER TABLE solicitud_reposicion ALTER COLUMN movil_id DROP NOT NULL;
 ALTER TABLE solicitud_reposicion ADD COLUMN IF NOT EXISTS prioridad varchar(20) NOT NULL DEFAULT 'NORMAL';
@@ -191,6 +212,16 @@ CREATE TABLE IF NOT EXISTS movimiento_deposito_central (
     fecha timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS solicitud_reposicion_gestion (
+    id bigserial PRIMARY KEY,
+    solicitud_id bigint NOT NULL REFERENCES solicitud_reposicion(id),
+    coordinador_id bigint NOT NULL REFERENCES usuarios(id),
+    accion varchar(30) NOT NULL,
+    detalle text NOT NULL,
+    observaciones text,
+    fecha timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS control_movil (
     id bigserial PRIMARY KEY,
     movil_id bigint NOT NULL,
@@ -222,6 +253,8 @@ CREATE TABLE IF NOT EXISTS control_movil_item (
 
 ALTER TABLE control_movil_item ADD COLUMN IF NOT EXISTS numero_serie varchar(100);
 ALTER TABLE control_movil_item ADD COLUMN IF NOT EXISTS test_ok boolean;
+ALTER TABLE control_movil_item ADD COLUMN IF NOT EXISTS equipo_no_coincide boolean NOT NULL DEFAULT false;
+ALTER TABLE control_movil_item ADD COLUMN IF NOT EXISTS equipo_observado varchar(500);
 
 CREATE TABLE IF NOT EXISTS equipos_medicos (
     id bigserial PRIMARY KEY,
@@ -246,10 +279,3 @@ CREATE TABLE IF NOT EXISTS asignaciones_equipos (
 );
 ALTER TABLE asignaciones_equipos ADD COLUMN IF NOT EXISTS fecha_desasignacion timestamp;
 ALTER TABLE asignaciones_equipos ADD COLUMN IF NOT EXISTS activo boolean NOT NULL DEFAULT true;
-
-INSERT INTO equipos_medicos (nombre, numero_serie, marca, modelo, estado)
-VALUES
-    ('Desfibrilador', 'DF-0001', 'Philips', 'HeartStart', 'DISPONIBLE'),
-    ('Monitor multiparamétrico', 'MM-0001', 'Mindray', 'BeneView', 'DISPONIBLE'),
-    ('Oxímetro portátil', 'OX-0001', 'Masimo', 'Rad-5', 'DISPONIBLE')
-ON CONFLICT (numero_serie) DO NOTHING;

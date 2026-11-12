@@ -20,6 +20,8 @@ public class ControlMovilItemDTO {
     private Long equipoMedicoId;
     private String tipoEquipoSnapshot;
     private Boolean testOk;
+    private boolean equipoNoCoincide;
+    private String equipoObservado;
 
     public String getInsumoNombre() {
         return insumoNombre;
@@ -131,5 +133,21 @@ public class ControlMovilItemDTO {
 
     public void setTestOk(Boolean testOk) {
         this.testOk = testOk;
+    }
+
+    public boolean isEquipoNoCoincide() {
+        return equipoNoCoincide;
+    }
+
+    public void setEquipoNoCoincide(boolean equipoNoCoincide) {
+        this.equipoNoCoincide = equipoNoCoincide;
+    }
+
+    public String getEquipoObservado() {
+        return equipoObservado;
+    }
+
+    public void setEquipoObservado(String equipoObservado) {
+        this.equipoObservado = equipoObservado;
     }
 }

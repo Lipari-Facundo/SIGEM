@@ -84,8 +84,6 @@ public class SecurityConfig {
                     .hasRole("ENF")
                 .requestMatchers(HttpMethod.GET, "/api/inventario/reposicion/mias")
                     .hasRole("ENF")
-                .requestMatchers(HttpMethod.PUT, "/api/inventario/reposicion/*/cancelar")
-                    .hasRole("ENF")
                 .requestMatchers(HttpMethod.GET, "/api/inventario/reposicion/pendientes")
                     .hasAnyRole("DES", "ADM", "JEF")
                 .requestMatchers(HttpMethod.POST, "/api/inventario/reposicion/*/entregas")

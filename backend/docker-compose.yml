@@ -1,10 +1,9 @@
 services:
   db:
-    image: postgres:latest
-    container_name: sigem-db
+    image: postgres:17
     environment:
-      POSTGRES_USER: sigem
-      POSTGRES_PASSWORD: sigem123
-      POSTGRES_DB: sigem_dev
+      POSTGRES_USER: ${POSTGRES_USER:-sigem}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in your environment}
+      POSTGRES_DB: ${POSTGRES_DB:-sigem_local}
     ports:
-      - "5433:5432"
+      - "${POSTGRES_PORT:-5433}:5432"
