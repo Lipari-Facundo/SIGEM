@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import EmptyState from '../components/ui/EmptyState';
@@ -34,6 +34,9 @@ export default function InventarioMovil() {
   const solicitudesDetallePendientes = useRef(new Map());
   const { estado: estadoControl, cargando: cargandoControl, error: errorControl } = useControlMovilEstado();
   const [inventario, setInventario] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState({});
   const [equiposMedicosMovil, setEquiposMedicosMovil] = useState(null);
   const [errorEquiposMedicos, setErrorEquiposMedicos] = useState('');
   const [historial, setHistorial] = useState([]);
@@ -355,10 +358,40 @@ export default function InventarioMovil() {
     .map(insumo => ({ insumo, cantidad: Number(cantidades[insumo.insumoId]) || 0 }))
     .filter(item => item.cantidad > 0);
   const totalUnidadesConsumo = consumosElegidos.reduce((total, item) => total + item.cantidad, 0);
-  const grupos = CATEGORIAS.map(categoria => ({
-    ...categoria,
-    insumos: inventario.filter(insumo => insumo.categoria === categoria.key),
-  })).filter(categoria => categoria.insumos.length > 0);
+  const categoriasDisponibles = useMemo(() => [...new Set(
+    inventario.map(insumo => insumo.categoria || 'SIN_CATEGORIA')
+  )].sort((a, b) => a.localeCompare(b, 'es')), [inventario]);
+  const inventarioFiltrado = useMemo(() => {
+    const texto = searchTerm.trim().toLocaleLowerCase('es');
+    return inventario.filter(insumo => {
+      const coincideNombre = !texto || String(insumo.nombre || '').toLocaleLowerCase('es').includes(texto);
+      const coincideCategoria = !selectedCategory || (insumo.categoria || 'SIN_CATEGORIA') === selectedCategory;
+      return coincideNombre && coincideCategoria;
+    });
+  }, [inventario, searchTerm, selectedCategory]);
+  const grupos = useMemo(() => {
+    const agrupados = inventarioFiltrado.reduce((resultado, insumo) => {
+      const categoria = insumo.categoria || 'SIN_CATEGORIA';
+      if (!resultado[categoria]) resultado[categoria] = [];
+      resultado[categoria].push(insumo);
+      return resultado;
+    }, {});
+    const conocidos = CATEGORIAS
+      .filter(categoria => agrupados[categoria.key]?.length)
+      .map(categoria => ({ ...categoria, insumos: agrupados[categoria.key] }));
+    const otros = Object.entries(agrupados)
+      .filter(([categoria]) => !CATEGORIAS.some(conocida => conocida.key === categoria))
+      .map(([key, insumos]) => ({
+        key,
+        label: key === 'SIN_CATEGORIA'
+          ? 'Sin categoría'
+          : key.toLocaleLowerCase('es').replace(/(^|_)\w/g, letra => letra.replace('_', ' ').toLocaleUpperCase('es')),
+        icon: '📦',
+        insumos,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    return [...conocidos, ...otros];
+  }, [inventarioFiltrado]);
   const seccionesReposicion = CATEGORIAS.map(categoria => ({
     ...categoria,
     insumos: inventario.filter(insumo => insumo.tipo === 'CONSUMIBLE'
@@ -519,33 +552,92 @@ export default function InventarioMovil() {
                   )}
                 </section>
 
-                {inventario.length === 0
-                  ? <EmptyState icon="📦" title="Inventario sin cargar" description="El móvil todavía no tiene insumos inicializados." />
-                  : <div style={S.categoryGrid}>
-                    {grupos.map(categoria => (
-                      <section key={categoria.key} style={S.category}>
-                        <div style={S.categoryHeader}>
-                          <span style={S.categoryIcon}>{categoria.icon}</span>
-                          <h2 style={S.categoryTitle}>{categoria.label}</h2>
-                          <span style={S.count}>{categoria.insumos.length}</span>
-                        </div>
-                        <div style={S.itemList}>
-                          {categoria.insumos.map(insumo => (
-                            <div key={insumo.insumoId} style={S.item}>
-                              <div style={S.itemInfo}>
-                                <span style={S.itemName}>{insumo.nombre}</span>
-                                {insumo.tipo === 'REUTILIZABLE' && <span style={S.reusable}>Reutilizable</span>}
+                {inventario.length === 0 ? (
+                  <EmptyState icon="📦" title="Inventario sin cargar" description="El móvil todavía no tiene insumos inicializados." />
+                ) : (
+                  <>
+                    <div className="inventario-stock-filters">
+                      <label className="inventario-stock-filter">
+                        <span>Buscar insumo</span>
+                        <input
+                          type="search"
+                          value={searchTerm}
+                          onChange={event => setSearchTerm(event.target.value)}
+                          placeholder="Nombre del insumo"
+                        />
+                      </label>
+                      <label className="inventario-stock-filter">
+                        <span>Categoría</span>
+                        <select value={selectedCategory} onChange={event => setSelectedCategory(event.target.value)}>
+                          <option value="">Todas las categorías</option>
+                          {categoriasDisponibles.map(key => {
+                            const conocida = CATEGORIAS.find(categoria => categoria.key === key);
+                            const label = conocida?.label || (key === 'SIN_CATEGORIA'
+                              ? 'Sin categoría'
+                              : key.toLocaleLowerCase('es').replace(/(^|_)\w/g, letra => letra.replace('_', ' ').toLocaleUpperCase('es')));
+                            return <option key={key} value={key}>{label}</option>;
+                          })}
+                        </select>
+                      </label>
+                    </div>
+                    {grupos.length === 0 ? (
+                      <EmptyState icon="🔎" title="No se encontraron insumos" description="Probá con otro nombre o cambiá la categoría seleccionada." />
+                    ) : (
+                      <div style={S.categoryGrid}>
+                        {grupos.map(categoria => {
+                          const expandida = Boolean(expandedCategories[categoria.key]);
+                          const insumosVisibles = expandida ? categoria.insumos : categoria.insumos.slice(0, 5);
+                          return (
+                            <section key={categoria.key} style={S.category}>
+                              <div style={S.categoryHeader}>
+                                <span style={S.categoryIcon}>{categoria.icon}</span>
+                                <h2 style={S.categoryTitle}>{categoria.label}</h2>
+                                <span style={S.count}>{categoria.insumos.length}</span>
                               </div>
-                              <div style={S.quantity}>
-                                <strong>{insumo.cantidadActual}</strong>
-                                {insumo.unidadMedida && <span>{insumo.unidadMedida}</span>}
+                              <div style={S.itemList}>
+                                {insumosVisibles.map(insumo => (
+                                  <div key={insumo.insumoId} style={S.item}>
+                                    <div style={S.itemInfo}>
+                                      <span style={S.itemName}>{insumo.nombre}</span>
+                                      {insumo.tipo === 'REUTILIZABLE' && <span style={S.reusable}>Reutilizable</span>}
+                                    </div>
+                                    <div style={S.quantity}>
+                                      <strong>{insumo.cantidadActual}</strong>
+                                      {insumo.unidadMedida && <span>{insumo.unidadMedida}</span>}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      </section>
-                    ))}
-                  </div>}
+                              {categoria.insumos.length > 5 && (
+                                <button
+                                  type="button"
+                                  className="inventario-stock-expand"
+                                  aria-expanded={expandida}
+                                  onClick={() => setExpandedCategories(actual => ({
+                                    ...actual,
+                                    [categoria.key]: !actual[categoria.key],
+                                  }))}
+                                >
+                                  <span>{expandida ? 'Ver menos' : `+ ${categoria.insumos.length - 5} insumos`}</span>
+                                  <svg
+                                    className={expandida ? 'is-expanded' : ''}
+                                    viewBox="0 0 20 20"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                    aria-hidden="true"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="m5 7.5 5 5 5-5" />
+                                  </svg>
+                                </button>
+                              )}
+                            </section>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
               </>
             )}
 
