@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import EmptyState from '../components/ui/EmptyState';
 import { controlService, guardiaService } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useControlMovilEstado } from '../context/ControlMovilEstadoContext';
 import './ControlMovil.css';
 
 const CATEGORIAS = [
@@ -30,6 +31,12 @@ const COLLATOR_NATURAL = new Intl.Collator('es', { numeric: true, sensitivity: '
 export default function ControlMovil() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const {
+    estado: estadoControlGuardia,
+    cargando: cargandoEstadoControl,
+    error: errorEstadoControl,
+    refrescar: refrescarEstadoControl,
+  } = useControlMovilEstado();
   const [tab, setTab] = useState('nuevo');
   const [plantilla, setPlantilla] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +67,9 @@ export default function ControlMovil() {
   const claveBorrador = user?.username && movilId
     ? `sigem:control-movil:${user.username}:${movilId}`
     : null;
+  const controlCompletado = Boolean(
+    estadoControlGuardia?.guardiaActiva && estadoControlGuardia?.controlCompletado,
+  );
 
   useEffect(() => {
     cargarPlantilla();
@@ -278,6 +288,14 @@ export default function ControlMovil() {
   };
 
   const enviarControl = async () => {
+    if (controlCompletado) {
+      setError('El control de esta guardia ya fue registrado.');
+      return;
+    }
+    if (errorEstadoControl || !estadoControlGuardia?.guardiaActiva) {
+      setError('No se pudo verificar la guardia activa. Actualizá el estado antes de enviar el control.');
+      return;
+    }
     if (completados !== plantilla.length) {
       setError(`Quedan pendientes: ${pendientesPorSeccion.map((seccion) => `${seccion.label} (${seccion.items.join(', ')})`).join('; ')}`);
       irAlProximoPendiente();
@@ -735,7 +753,7 @@ export default function ControlMovil() {
     }
   };
 
-  if (loading) {
+  if (loading || cargandoEstadoControl) {
     return (
       <div className="controlPage" style={S.page}>
         <Sidebar />
@@ -846,13 +864,29 @@ export default function ControlMovil() {
 
         {mensaje && <div style={S.success}>{mensaje}</div>}
         {error && <div style={S.error}>{error}</div>}
+        {errorEstadoControl && (
+          <div style={S.error} role="alert">
+            {errorEstadoControl} El envío del control permanece bloqueado hasta verificar la guardia.
+            <Button size="sm" variant="secondary" onClick={refrescarEstadoControl}>Reintentar</Button>
+          </div>
+        )}
 
         <div style={S.tabs}>
           <button style={{ ...S.tab, ...(tab === 'nuevo' ? S.tabActive : {}) }} onClick={() => setTab('nuevo')}>Nuevo control</button>
           <button style={{ ...S.tab, ...(tab === 'mis' ? S.tabActive : {}) }} onClick={() => setTab('mis')}>Mis controles</button>
         </div>
 
-        {tab === 'nuevo' ? (
+        {tab === 'nuevo' && controlCompletado ? (
+          <section className="controlAlreadyCompleted" style={S.resultCard} role="status">
+            <div style={S.overline}>Control de móvil</div>
+            <h2 style={S.h1}>Control de esta guardia completado</h2>
+            <p style={S.muted}>
+              El control ya está registrado y seguirá vigente hasta que finalice la guardia.
+              No es necesario volver a realizarlo.
+            </p>
+            <Button variant="secondary" onClick={() => setTab('mis')}>Ver mis controles</Button>
+          </section>
+        ) : tab === 'nuevo' ? (
           <section className="controlWorkspace" style={S.controlFlow}>
             <aside className="controlCategoryPanel" aria-label="Categorías del control">
               <div className="controlCategoryHeading">
@@ -940,7 +974,8 @@ export default function ControlMovil() {
                 />
                 <Button
                   onClick={enviarControl}
-                  disabled={guardando || completados !== plantilla.length}
+                  disabled={guardando || completados !== plantilla.length || controlCompletado
+                    || Boolean(errorEstadoControl) || !estadoControlGuardia?.guardiaActiva}
                 >
                   {guardando ? 'Guardando...' : 'Enviar control'}
                 </Button>

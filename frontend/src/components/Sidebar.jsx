@@ -132,7 +132,9 @@ export default function Sidebar() {
               onClick={() => { navigate(item.path); closeMobileSidebar(); }}
               style={{
                 ...S.navItem,
-                ...(location.pathname === item.path ? S.navActive : {}),
+                ...(location.pathname === item.path
+                  || (item.path === '/solicitudes-reposicion'
+                    && location.pathname.startsWith(`${item.path}/`)) ? S.navActive : {}),
                 ...(item.path === '/control-movil' && controlPendiente ? S.controlPending : {}),
               }}
               className={item.path === '/control-movil' && controlPendiente ? 'sigem-control-pending' : undefined}

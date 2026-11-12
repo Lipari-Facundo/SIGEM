@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useNotificaciones from '../hooks/useNotificaciones';
 import { useAuth } from '../context/AuthContext';
@@ -50,8 +50,14 @@ export default function NotificationBell({ controlPendiente }) {
   const navigate = useNavigate();
   const { notificaciones, noLeidas, marcarLeida } = useNotificaciones();
   const [abierto, setAbierto] = useState(false);
+  const [controlAlertaCerrada, setControlAlertaCerrada] = useState(false);
   const primeraNoLeida = notificaciones.find(notificacion => !notificacion.leida);
   const totalAlertas = noLeidas + (controlPendiente ? 1 : 0);
+  const mostrarAlertaControl = controlPendiente && !controlAlertaCerrada;
+
+  useEffect(() => {
+    if (!controlPendiente) setControlAlertaCerrada(false);
+  }, [controlPendiente]);
 
   if (!['ENF', 'JEF', 'DES'].includes(user?.rol)) return null;
 
@@ -67,8 +73,8 @@ export default function NotificationBell({ controlPendiente }) {
       setAbierto(false);
       if (notificacion.tipo === 'REPOSICION_ENTREGADA' && notificacion.solicitudId) {
         navigate('/inventario', { state: { solicitudId: notificacion.solicitudId } });
-      } else if (notificacion.tipo === 'SOLICITUD_REPOSICION_NUEVA' && notificacion.solicitudId) {
-        navigate('/solicitudes-reposicion', { state: { solicitudId: notificacion.solicitudId } });
+      } else if (notificacion.tipo === 'SOLICITUD_REPOSICION_NUEVA') {
+        navigate('/solicitudes-reposicion');
       } else {
         navigate('/incidentes');
       }
@@ -77,31 +83,32 @@ export default function NotificationBell({ controlPendiente }) {
 
   return (
     <>
-      {controlPendiente && (
+      {mostrarAlertaControl && (
         <button
           type="button"
           style={{ ...S.alert, ...S.controlAlert, ...(primeraNoLeida ? S.alertBelow : {}) }}
-          onClick={() => abrirNotificacion({ tipo: 'CONTROL_MOVIL_PENDIENTE' })}
+          onClick={() => setControlAlertaCerrada(true)}
         >
           <span style={S.alertIcon} aria-hidden="true">✅</span>
           <span style={S.alertContent}>
             <strong>CONTROL DE MÓVIL PENDIENTE</strong>
             <span>Completá el control de la guardia activa.</span>
-            <small>Tocá para ir al control</small>
+            <small>Tocá para cerrar este aviso</small>
           </span>
         </button>
       )}
       {primeraNoLeida && (
         <button
           type="button"
-          style={{ ...S.alert, ...(controlPendiente ? S.alertBelow : {}) }}
+          style={{ ...S.alert, ...(mostrarAlertaControl ? S.alertBelow : {}) }}
           onClick={() => abrirNotificacion(primeraNoLeida)}
         >
           <span style={S.alertIcon} aria-hidden="true">{contenidoNotificacion(primeraNoLeida, user.rol).icono}</span>
           <span style={S.alertContent}>
             <strong>{tituloAlerta(primeraNoLeida, user.rol)}</strong>
             <span>{contenidoNotificacion(primeraNoLeida, user.rol).mensaje}</span>
-            <small>Ingresá para ver los detalles</small>
+            <small>{primeraNoLeida.tipo === 'SOLICITUD_REPOSICION_NUEVA'
+              ? 'Ingresá para ver los pedidos pendientes' : 'Ingresá para ver los detalles'}</small>
           </span>
         </button>
       )}

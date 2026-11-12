@@ -198,6 +198,15 @@ public class InventarioMovilController {
         return ResponseEntity.ok(inventarioMovilService.listarHistorialSolicitudesReposicion(usuario));
     }
 
+    @PatchMapping("/reposicion/{id}/archivar")
+    @PreAuthorize("hasAnyRole('JEF', 'ADM')")
+    public ResponseEntity<Void> archivarReposicion(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Usuario usuario) {
+        inventarioMovilService.archivarSolicitudReposicion(id, usuario);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/reposicion/{id}/catalogo-edicion")
     @PreAuthorize("hasAnyRole('JEF', 'ADM')")
     public ResponseEntity<List<InsumoStockDTO>> catalogoEdicionReposicion(

@@ -23,9 +23,10 @@ public interface SolicitudReposicionRepository extends JpaRepository<SolicitudRe
     List<SolicitudReposicion> findByEstadoOrderByFechaDesc(EstadoReposicion estado);
     List<SolicitudReposicion> findByEstadoInOrderByFechaDesc(List<EstadoReposicion> estados);
     @EntityGraph(attributePaths = {"movil", "guardia", "usuarioUltimaGestion", "usuarioExcepcionControl"})
-    List<SolicitudReposicion> findByEstadoInAndEsInternaFalseOrderByFechaDesc(List<EstadoReposicion> estados);
+    List<SolicitudReposicion> findByEstadoInAndEsInternaFalseAndArchivadoFalseOrderByFechaDesc(
+            List<EstadoReposicion> estados);
     @EntityGraph(attributePaths = {"movil", "guardia", "usuarioUltimaGestion", "usuarioExcepcionControl"})
-    List<SolicitudReposicion> findByEsInternaFalseOrderByFechaDesc();
+    List<SolicitudReposicion> findByEsInternaFalseAndArchivadoFalseOrderByFechaDesc();
     Optional<SolicitudReposicion> findByIdAndEnfermeroUsername(Long id, String username);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
